@@ -8,6 +8,7 @@ function sidebarZh() {
       text: '使用指南',
       collapsed: false,
       items: [
+        { text: '如何使用 Scriptorium', link: '/quick-start' },
         { text: '与 AI 工具集成', link: '/ai-tools' },
       ],
     },
@@ -62,6 +63,7 @@ function sidebarEn() {
       text: 'Guides',
       collapsed: false,
       items: [
+        { text: 'How to Use Scriptorium', link: '/en/quick-start' },
         { text: 'Using with AI Tools', link: '/en/ai-tools' },
       ],
     },

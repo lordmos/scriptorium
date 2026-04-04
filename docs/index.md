@@ -10,7 +10,10 @@ hero:
     alt: Scriptorium
   actions:
     - theme: brand
-      text: 系统架构 →
+      text: 如何使用 →
+      link: /quick-start
+    - theme: alt
+      text: 系统架构
       link: /agents/00-system-overview
     - theme: alt
       text: 5阶段流水线

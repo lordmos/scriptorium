@@ -10,7 +10,10 @@ hero:
     alt: Scriptorium
   actions:
     - theme: brand
-      text: System Architecture →
+      text: How to Use →
+      link: /en/quick-start
+    - theme: alt
+      text: System Architecture
       link: /en/agents/00-system-overview
     - theme: alt
       text: 5-Phase Pipeline
