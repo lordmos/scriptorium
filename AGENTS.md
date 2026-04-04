@@ -6,15 +6,20 @@
 
 ---
 
-## ⚡ Quick Reference
+## ⚡ 一句话启动
 
-If you're starting a session on a book project using this framework:
+**把这句话发给你的 AI 助手，它会自动完成所有工作：**
 
-1. Read `checkpoint.md` → understand current progress and next step
-2. Read `outline.md` → understand the book structure
-3. Pick the right agent from the roster below
-4. Read the agent spec (`agents/NN-name.md`) for exact instructions
-5. Assemble the file pointers listed in that spec, then execute
+```
+[项目名] 的源码在 [目录路径]。请读 QUICK_START.md，然后向我提问。没有问题就开始工作。
+```
+
+AI 会读取 `QUICK_START.md`，向你确认书名、读者等基本信息，然后自主运行全部五阶段流水线——你只需在大纲完成时确认一次。
+
+**跨 session 恢复：**
+```
+请读 checkpoint.md，继续上次未完成的工作。
+```
 
 ---
 
