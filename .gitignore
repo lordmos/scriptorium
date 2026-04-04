@@ -11,3 +11,4 @@ angular-main/
 
 # Book project output (generated content, project-specific)
 output/.DS_Store
+.DS_Store
