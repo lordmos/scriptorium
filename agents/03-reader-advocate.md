@@ -94,10 +94,10 @@
 {{目标读者描述}}
 
 ## 输入
-- 请阅读：output/memory/outline.md
+- 请阅读：{{工作目录}}/output/memory/outline.md
 
 ## 输出
-- 写入：{{工作目录}}/reader-feedback.md
+- 写入：{{工作目录}}/output/memory/reader-feedback.md
 
 ## 重点关注
 1. 知识断崖：相邻章节难度跳跃是否过大

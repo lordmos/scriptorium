@@ -93,8 +93,8 @@
 - 请先通过目录树了解整体结构，再深入核心模块
 
 ## 输出
-1. output/memory/outline.md — 章节大纲草案
-2. output/memory/source-map.md — 源码→章节映射
+1. {{工作目录}}/output/memory/outline.md — 章节大纲草案
+2. {{工作目录}}/output/memory/source-map.md — 源码→章节映射
 
 ## 要求
 - 目标读者：{{目标读者描述}}

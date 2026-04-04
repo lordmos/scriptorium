@@ -22,8 +22,8 @@
 
 | 文件 | 说明 |
 |------|------|
-| `output/chapters/final/*.md` | 所有定稿Markdown章节文件 |
-| `output/memory/outline.md` | 定稿大纲（用于生成目录结构） |
+| `{{工作目录}}/output/chapters/final/*.md` | 所有定稿Markdown章节文件 |
+| `{{工作目录}}/output/memory/outline.md` | 定稿大纲（用于生成目录结构） |
 
 ## 输出规格
 
@@ -143,7 +143,11 @@ output/publish/
 
 - **零npm依赖**：使用纯Node.js脚本构建，不依赖任何npm包
 - **单文件输出**：每章一个自包含的HTML文件（CSS/JS内联）
-- **构建命令**：`node scripts/build.js`（或类似的单命令构建）
+- **构建命令**：`node build.js`（或类似的单命令构建）
+
+> 💡 项目根目录提供了 `scripts/build.js` 构建脚本模板，
+> 复制到书籍项目根目录后修改 CONFIG 部分即可直接运行。
+> 运行命令：`node build.js`（Node.js ≥ 18）
 
 ## 质量标准
 
@@ -197,14 +201,20 @@ node scripts/build.js
 将所有Markdown章节转换为美观的HTML电子书。
 
 ## 输入
-- 定稿章节：output/chapters/final/*.md
-- 大纲（目录结构）：output/memory/outline.md
+- 定稿章节：{{工作目录}}/output/chapters/final/*.md
+- 大纲（目录结构）：{{工作目录}}/output/memory/outline.md
 
 ## 输出
-- HTML文件：output/publish/*.html
-- 构建脚本：scripts/build.js
+- HTML文件：{{工作目录}}/output/publish/*.html
+- 构建脚本：{{工作目录}}/build.js
 
 ## 要求
+0. 在开始生成前，**询问用户偏好的配色风格**，提供以下选项：
+   - 暖纸（Warm Paper）：默认，护眼暖白背景 `#FEFCF8`
+   - GitHub Light：清爽白底蓝链接风格
+   - 深色（Dark Mode）：深灰底浅字
+   - 极简（Minimal）：纯白底，黑白配色
+   根据用户选择，在构建脚本中配置对应 THEME 变量
 1. Markdown → HTML转换
 2. **Mermaid 图表渲染**：` ```mermaid ` 块通过引入 Mermaid.js（CDN）渲染为交互式图表
 3. ASCII图表 → SVG自动转换（兼容存量内容，支持{{SVG检测类型数}}种类型）

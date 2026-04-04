@@ -22,7 +22,7 @@
   │  output/memory/glossary.md            — 检查术语一致性    │
   │  output/memory/metaphor-registry.md  — 检查比喻一致性     │
   │  output/memory/style-guide.md         — 检查写作风格      │
-  │  source-map.md               — 定位源码文件      │
+  │  output/memory/source-map.md               — 定位源码文件      │
   └─────────────────────────────────────────────────┘
 
   总上下文量 = 初稿 + 源码 + 长记忆 + 风格指南
@@ -70,8 +70,7 @@
         └────┬─────┘ └────┬─────┘ └────┬─────┘
              │            │            │
              ▼            ▼            ▼
-        r1-code.md  r2-consistency  r3-content
-                       .md            .md
+        r1.md       r2.md           r3.md
               │            │            │
               └────────────┼────────────┘
                            ▼
@@ -95,7 +94,7 @@ Agent类型: explore（适合大量源码搜索和比对）
 
 File Pointers:
   📖 读取: output/chapters/draft/chXX-draft.md          — 待审初稿
-  📖 读取: source-map.md                 — 定位源码文件
+  📖 读取: output/memory/source-map.md                 — 定位源码文件
   📖 读取: {{源码根目录}}/{{文件列表}}    — 实际源码
   ✏️ 写入: output/reviews/chXX-r1.md       — 源码审查报告
 

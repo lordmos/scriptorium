@@ -59,7 +59,7 @@ AI Agent写作:
 │   - output/memory/glossary.md (已有术语，保持一致)            │
 │   - output/memory/metaphor-registry.md (已用比喻，避免重复)   │
 │   - output/memory/style-guide.md (写作风格要求)               │
-│   - output/research/ch05-research.md (本章研究报告)         │
+│   - output/research/ch05-report.md (本章研究报告)         │
 │                                                   │
 │   ✏️ 输出到:                                       │
 │   - output/chapters/draft/ch05-draft.md"                          │
@@ -360,7 +360,7 @@ Agent类型: general-purpose
   output/memory/chapter-summaries.md    ≈ 9K tokens (前9章×1K/章)
   output/memory/glossary.md             ≈ 3K tokens
   output/memory/metaphor-registry.md   ≈ 1K tokens
-  output/research/ch10-research.md   ≈ 5K tokens
+  output/research/ch10-report.md   ≈ 5K tokens
   output/memory/outline.md (本章部分)  ≈ 1K tokens
   ──────────────────────────────────────
   总读取量                     ≈ 21K tokens
@@ -505,7 +505,7 @@ Agent类型: general-purpose
 │              │             │                            │
 │ 写: output/research/ │             │                            │
 │    chXX-     │             │                            │
-│    research  │             │                            │
+│    report    │             │                            │
 └──────┬───────┘             │                            │
        │                     │                            │
        ▼                     ▼                            ▼
@@ -613,4 +613,4 @@ Chapter 1                  Chapter 2                  Chapter N
 | R2 一致性审查 | output/chapters/draft/chXX-draft.md, summaries, glossary, metaphors, cross-refs | output/reviews/chXX-r2.md |
 | R3 内容审查 | output/chapters/draft/chXX-draft.md, output/memory/style-guide.md | output/reviews/chXX-r3.md |
 | RS/RE/RH 读者 | output/chapters/draft/chXX-draft.md, output/reviews/chXX-review.md | output/reviews/chXX-panel.md |
-| 装帧工人 #11 | chapters/chXX, style-guide | output/publish/chXX.html |
+| 装帧工人 #11 | output/chapters/final/chXX-final, output/memory/style-guide.md | output/publish/chXX.html |

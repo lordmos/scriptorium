@@ -36,7 +36,7 @@
 ⑥ 特殊要求：有需要重点深入的模块，或可以略过的部分吗？
 ```
 
-收到回答后，将信息记录到 `checkpoint.md`（用 `templates/checkpoint.md` 模板），然后**立即进入 Phase 1**。
+收到回答后，将信息记录到 `output/memory/checkpoint.md`（用 `templates/checkpoint.md` 模板），然后**立即进入 Phase 1**。
 
 ---
 

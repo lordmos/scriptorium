@@ -44,7 +44,7 @@
 ┌─────────────────────────────────────────────────────┐
 │                 恢复信息源优先级                       │
 │                                                       │
-│  Level 1 (最可靠):  checkpoint.md                     │
+│  Level 1 (最可靠):  output/memory/checkpoint.md        │
 │  ├── 结构化的状态矩阵                                  │
 │  ├── 每章每步的完成状态                                 │
 │  └── 最后更新时间戳                                    │
@@ -61,9 +61,9 @@
 └─────────────────────────────────────────────────────┘
 ```
 
-### Level 1: checkpoint.md
+### Level 1: output/memory/checkpoint.md
 
-`checkpoint.md` 是专门维护的项目状态文件:
+`output/memory/checkpoint.md` 是专门维护的项目状态文件:
 
 ```markdown
 # {{项目名称}} — 项目进度检查点
@@ -124,14 +124,14 @@ AND NOT EXISTS (
 
 ### Level 3: 文件系统状态推断
 
-当checkpoint.md和SQL都不可用时，从文件系统推断:
+当output/memory/checkpoint.md和SQL都不可用时，从文件系统推断:
 
 ```bash
 # 推断脚本逻辑（伪代码）
 
 echo "=== Phase 1 检查 ==="
 if [ -f "output/memory/outline.md" ]; then echo "Phase 1: ✅"; fi
-if [ -f "source-map.md" ]; then echo "source-map: ✅"; fi
+if [ -f "output/memory/source-map.md" ]; then echo "source-map: ✅"; fi
 
 echo "=== Phase 2 检查 ==="
 for f in output/memory/glossary.md output/memory/style-guide.md output/memory/metaphor-registry.md \
@@ -144,7 +144,7 @@ for ch in $(seq -w 1 {{章节数}}); do
   echo "--- ch${ch} ---"
 
   # 研究
-  f="output/research/ch${ch}-research.md"
+  f="output/research/ch${ch}-report.md"
   if [ -f "$f" ] && grep -q "RESEARCH_COMPLETE" "$f"; then
     echo "  研究: ✅"
   elif [ -f "$f" ]; then
@@ -164,7 +164,7 @@ for ch in $(seq -w 1 {{章节数}}); do
   fi
 
   # 审查 (R1/R2/R3)
-  for r in r1-code r2-consistency r3-content; do
+  for r in r1 r2 r3; do
     f="output/reviews/ch${ch}-${r}.md"
     marker=$(echo "$r" | tr '[:lower:]' '[:upper:]' | sed 's/-/_/g')
     if [ -f "$f" ] && grep -q "${marker}_REVIEW_COMPLETE" "$f"; then
@@ -199,7 +199,7 @@ done
 
 echo "=== Phase 4 检查 ==="
 for ch in $(seq -w 1 {{章节数}}); do
-  f="chapters/ch${ch}.md"
+  f="output/chapters/final/ch${ch}-final.md"
   if [ -f "$f" ] && grep -q "CHAPTER_FINAL" "$f"; then
     echo "ch${ch} 定稿: ✅"
   elif [ -f "$f" ]; then
@@ -253,7 +253,7 @@ done
 ```bash
 # 检测所有研究报告的完成状态
 echo "=== 研究完成状态 ==="
-for f in output/research/ch*-research.md; do
+for f in output/research/ch*-report.md; do
   ch=$(basename "$f" | grep -o 'ch[0-9]*')
   if grep -q "RESEARCH_COMPLETE" "$f" 2>/dev/null; then
     echo "✅ $ch"
@@ -330,13 +330,13 @@ done
 
 ---
 
-## 5. checkpoint.md的更新时机
+## 5. output/memory/checkpoint.md的更新时机
 
 ### 更新规则
 
 ```
 ┌─────────────────────────────────────────────────┐
-│            checkpoint.md 更新时机                 │
+│            output/memory/checkpoint.md 更新时机        │
 │                                                   │
 │  触发事件                      更新类型            │
 │  ─────────────────────────────────────────────    │
@@ -363,18 +363,18 @@ done
 Step完成时:
   1. Agent输出文件并追加完成标记
   2. 主编排验证完成标记存在
-  3. 更新checkpoint.md中对应单元格
+  3. 更新output/memory/checkpoint.md中对应单元格
   4. 如果是批次最后一个Step → 触发长记忆更新
 
 批次完成时:
   1. 确认批次内所有章节的所有Step完成
   2. 执行长记忆文件更新（summaries, glossary等）
-  3. 全量更新checkpoint.md
+  3. 全量更新output/memory/checkpoint.md
   4. 判断是否可以开始下一批次
 
 Phase切换时:
   1. 确认当前Phase的交接清单全部通过
-  2. 全量更新checkpoint.md（标记旧Phase完成，新Phase开始）
+  2. 全量更新output/memory/checkpoint.md（标记旧Phase完成，新Phase开始）
   3. 开始新Phase的第一个任务
 ```
 
@@ -390,7 +390,7 @@ Phase切换时:
   - output/chapters/draft/chXX-draft.md 可能是半成品
 
 恢复步骤:
-  1. 读取 checkpoint.md 确定中断点
+  1. 读取 output/memory/checkpoint.md 确定中断点
   2. 检测半成品文件（有文件但无完成标记）
   3. 对半成品文件执行保守策略（备份+重做）
   4. 从中断点继续执行
@@ -410,14 +410,14 @@ Phase切换时:
   - 例如R1和R3完成，但R2的报告不存在
 
 恢复步骤:
-  1. 检测 output/reviews/chXX-r{1,2,3}-*.md 的完成标记
+  1. 检测 output/reviews/chXX-r{1,2,3}.md 的完成标记
   2. 只重做缺失/不完整的reviewer
   3. 已完成的reviewer报告保留不动
 
 示例:
-  output/reviews/ch05-r1-code.md     → 有R1_CODE_REVIEW_COMPLETE ✅
-  output/reviews/ch05-r2-consistency.md → 不存在 ❌
-  output/reviews/ch05-r3-content.md  → 有R3_CONTENT_REVIEW_COMPLETE ✅
+  output/reviews/ch05-r1.md     → 有R1_CODE_REVIEW_COMPLETE ✅
+  output/reviews/ch05-r2.md     → 不存在 ❌
+  output/reviews/ch05-r3.md     → 有R3_CONTENT_REVIEW_COMPLETE ✅
   → 只需重新调度R2审查ch05
   → R2完成后合并三份报告
 ```
@@ -430,7 +430,7 @@ Phase切换时:
   - glossary.md 缺少某些已完成章节的术语
 
 恢复步骤:
-  1. 从已完成的 chapters/ 或 output/chapters/draft/ 重建长记忆
+  1. 从已完成的 output/chapters/final/ 或 output/chapters/draft/ 重建长记忆
   2. 逐章扫描，重新提取摘要、术语、比喻
   3. 重建 chapter-summaries.md, glossary.md, metaphor-registry.md
 
@@ -447,13 +447,13 @@ Phase切换时:
 
 ```
 症状:
-  - checkpoint.md 不存在
+  - output/memory/checkpoint.md 不存在
   - SQL状态不可用
   - 但文件系统中有各种产出文件
 
 恢复步骤:
   1. 执行Level 3文件系统推断（完整扫描）
-  2. 基于扫描结果重建 checkpoint.md
+  2. 基于扫描结果重建 output/memory/checkpoint.md
   3. 重建长记忆文件（如果缺失）
   4. 从推断出的中断点继续
 
@@ -522,19 +522,19 @@ Phase切换时:
 - {{决策2}}: {{原因和结果}}
 
 ## 下一步操作
-1. 读取 checkpoint.md 确认进度
+1. 读取 output/memory/checkpoint.md 确认进度
 2. 检测半成品文件
 3. {{具体的下一步操作}}
 
 ## 重要文件位置
-- 检查点: output/memory/checkpoint.md
-- 大纲: output/memory/outline.md
-- 源码映射: output/memory/source-map.md
+- 检查点: {{工作目录}}/output/memory/checkpoint.md
+- 大纲: {{工作目录}}/output/memory/outline.md
+- 源码映射: {{工作目录}}/output/memory/source-map.md
 - 共享资源: {{工作目录}}/output/memory/
-- 草稿: output/chapters/draft/
-- 审查: output/reviews/
-- 定稿: output/chapters/final/
-- 发布: output/publish/
+- 草稿: {{工作目录}}/output/chapters/draft/
+- 审查: {{工作目录}}/output/reviews/
+- 定稿: {{工作目录}}/output/chapters/final/
+- 发布: {{工作目录}}/output/publish/
 ```
 
 ### RESUME.md 的使用流程
@@ -542,12 +542,12 @@ Phase切换时:
 ```
 会话结束时:
   1. 主编排生成/更新 RESUME.md
-  2. 同时更新 checkpoint.md
+  2. 同时更新 output/memory/checkpoint.md
   3. 会话结束
 
 新会话开始时:
   1. 读取 RESUME.md → 快速获取项目概况和进度
-  2. 读取 checkpoint.md → 获取精确的状态矩阵
+  2. 读取 output/memory/checkpoint.md → 获取精确的状态矩阵
   3. 如有必要，执行文件系统扫描验证
   4. 确定下一步操作，继续执行
 ```
@@ -562,7 +562,7 @@ Phase切换时:
 │                                                            │
 │  Step 1: 识别恢复信息源                                     │
 │  ├── RESUME.md 存在?   ──── 是 → 读取项目概况               │
-│  ├── checkpoint.md 存在? ── 是 → 读取状态矩阵               │
+│  ├── output/memory/checkpoint.md 存在? ── 是 → 读取状态矩阵               │
 │  └── 都不存在?          ──── → 文件系统扫描                  │
 │                                                            │
 │  Step 2: 确定中断点                                         │
@@ -576,14 +576,14 @@ Phase切换时:
 │  └── 对半成品执行处理策略                                    │
 │                                                            │
 │  Step 4: 重建缺失状态                                       │
-│  ├── checkpoint.md 缺失 → 重建                              │
-│  ├── 长记忆文件缺失 → 从drafts/chapters重建                  │
-│  └── SQL状态缺失 → 从checkpoint.md重建                      │
+│  ├── output/memory/checkpoint.md 缺失 → 重建                              │
+│  ├── 长记忆文件缺失 → 从output/chapters/draft和output/chapters/final重建   │
+│  └── SQL状态缺失 → 从output/memory/checkpoint.md重建                      │
 │                                                            │
 │  Step 5: 继续执行                                          │
 │  ├── 从中断点继续                                           │
 │  ├── 重做半成品对应的Step                                    │
-│  └── 更新checkpoint.md                                     │
+│  └── 更新output/memory/checkpoint.md                                     │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -594,7 +594,7 @@ Phase切换时:
 ### 预防优于恢复
 
 ```
-1. 频繁更新checkpoint.md
+1. 频繁更新output/memory/checkpoint.md
    - 每个Step完成后立即更新，不要攒到批次结束
 
 2. 保持RESUME.md最新

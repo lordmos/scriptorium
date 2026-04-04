@@ -22,7 +22,7 @@
 ```
 
 如果第5章和第3章同时写作:
-- 第5章的作家读取 `chapter-summaries.md` 时，第3章的摘要**还不存在**
+- 第5章的作家读取 `output/memory/chapter-summaries.md` 时，第3章的摘要**还不存在**
 - 作家只能凭空想象第3章的内容 → 不一致、错误引用
 - 术语表(glossary)中还没有第3章引入的新术语 → 命名不一致
 
@@ -189,9 +189,9 @@ Batch 4:                   ┌─ch08─┐
 批次执行流程:
   1. 并行执行批次内所有章节的完整流水线
   2. 所有章节完成后，统一更新长记忆文件:
-     - chapter-summaries.md ← 追加所有章节的摘要
-     - glossary.md          ← 追加所有新术语
-     - metaphor-registry.md ← 追加所有新比喻
+     - output/memory/chapter-summaries.md ← 追加所有章节的摘要
+     - output/memory/glossary.md          ← 追加所有新术语
+     - output/memory/metaphor-registry.md ← 追加所有新比喻
   3. 开始下一批次
 
 为什么不在每章完成后立即更新?
@@ -360,7 +360,7 @@ AI Agent框架:
   4. 各章审查完成后，各自启动Step 4（读者评审）
   5. 批次内所有章节全部完成
   6. 统一更新长记忆文件
-  7. 更新checkpoint.md
+  7. 更新output/memory/checkpoint.md
   8. 开始下一批次
 ```
 
@@ -423,4 +423,4 @@ Batch 2: (等待Batch 1)
 图例: ✅完成  ⏳进行中  ❌失败  空=未开始
 ```
 
-此矩阵记录在 `checkpoint.md` 中，详见 `recovery.md`。
+此矩阵记录在 `output/memory/checkpoint.md` 中，详见 `recovery.md`。

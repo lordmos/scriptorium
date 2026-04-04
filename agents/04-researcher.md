@@ -21,8 +21,8 @@
 
 | 文件 | 说明 |
 |------|------|
-| `output/memory/source-map.md` | 本章对应的源码文件/目录路径列表 |
-| `output/memory/outline.md` | 定稿大纲中本章的具体内容要求 |
+| `{{工作目录}}/output/memory/source-map.md` | 本章对应的源码文件/目录路径列表 |
+| `{{工作目录}}/output/memory/outline.md` | 定稿大纲中本章的具体内容要求 |
 | `{{源码根目录}}/{{对应源码路径}}` | 实际源码文件（根据source-map定位） |
 
 ## 输出规格
@@ -106,7 +106,7 @@
 {{源码根目录}}
 
 ## 输出
-- 写入：output/research/ch{{章节号}}-report.md
+- 写入：{{工作目录}}/output/research/ch{{章节号}}-report.md
 
 ## 要求
 - 精确到文件路径和行号

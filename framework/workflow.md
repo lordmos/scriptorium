@@ -129,9 +129,10 @@ Step 2.1  主编排(#0) 基于 output/memory/outline.md 创建所有共享文件
 │ └──────┘      └──────┘      └──────────┘        └──────────┘    │
 │    │             │           ┌──┤├──┐            ┌──┤├──┐        │
 │    ▼             ▼           ▼  ▼  ▼            ▼  ▼  ▼         │
-│ output/research/     output/chapters/draft/      R1  R2  R3          RS  RE  RH       │
-│ chXX-         chXX-        ↓   ↓   ↓           ↓   ↓   ↓       │
-│ research.md   draft.md     output/reviews/           output/reviews/   │
+│ output/       output/      R1  R2  R3          RS  RE  RH       │
+│ research/     chapters/    ↓   ↓   ↓           ↓   ↓   ↓       │
+│ chXX-         draft/       output/            output/            │
+│ report.md     chXX-draft   reviews/           reviews/           │
 │                            chXX-review.md     chXX-panel.md      │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -266,23 +267,23 @@ Step 4.3  术语一致性最终检查
 Step 4.4  敏感性全面排查
           ├── R3对全书做最终敏感性扫描
           ├── 关注: {{敏感性检查项}}
-          └── 输出: final-audit-report.md
+          └── 输出: output/memory/final-audit-report.md
 ```
 
 ### 产出清单
 
 | 文件 | 说明 |
 |------|------|
-| `chapters/ch01.md` ~ `chapters/ch{{章节数}}.md` | 最终定稿 |
-| `final-audit-report.md` | 最终审计报告 |
+| `output/chapters/final/ch01-final.md` ~ `output/chapters/final/ch{{章节数}}-final.md` | 最终定稿 |
+| `output/memory/final-audit-report.md` | 最终审计报告 |
 
 ### Phase 4 交接清单
 
-- [ ] chapters/ 下所有章节文件已生成
+- [ ] output/chapters/final/ 下所有章节文件已生成
 - [ ] 交叉引用全部验证通过
 - [ ] 术语一致性检查通过
 - [ ] 敏感性排查通过
-- [ ] final-audit-report.md 无❌项
+- [ ] output/memory/final-audit-report.md 无❌项
 
 ---
 
@@ -451,7 +452,7 @@ done
 | 1→2 | output/memory/outline.md存在且经用户确认 | 文件存在 + 用户口头确认 |
 | 2→3 | output/memory/下5个文件全部创建 | 文件存在检查 |
 | 3→4 | 所有章节4步流水线完成 | checkpoint.md全✅ |
-| 4→5 | chapters/下所有章节定稿 + 审计报告无❌ | 文件存在 + 标记检测 |
+| 4→5 | output/chapters/final/下所有章节定稿 + 审计报告无❌ | 文件存在 + 标记检测 |
 | 5→发布 | output/publish/下所有HTML + 导航可用 | 文件存在 + 浏览器验证 |
 
 ---
