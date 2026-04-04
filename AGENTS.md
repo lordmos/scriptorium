@@ -1,0 +1,159 @@
+# Scriptorium — AI Coding Assistant Context
+
+> Scriptorium is a multi-agent framework for writing technical books about open-source
+> source code. This file provides context for AI coding tools working on a
+> Scriptorium-based book project.
+
+---
+
+## ⚡ Quick Reference
+
+If you're starting a session on a book project using this framework:
+
+1. Read `checkpoint.md` → understand current progress and next step
+2. Read `outline.md` → understand the book structure
+3. Pick the right agent from the roster below
+4. Read the agent spec (`agents/NN-name.md`) for exact instructions
+5. Assemble the file pointers listed in that spec, then execute
+
+---
+
+## 📖 About This Book Project
+
+<!-- TODO: Fill in when creating your book project from this template -->
+
+- **Book Title**:
+- **Source Project** (the open-source repo being analyzed):
+- **Target Reader**:
+- **One-line Description**:
+
+---
+
+## 🏗️ Framework Architecture
+
+See `agents/00-system-overview.md` for the full architecture diagram.
+
+**Core Principle**: *Agents are stateless workers; the file system is stateful.*
+
+Each agent is invoked once per task. It reads a specific set of files (File Pointers),
+executes its role, writes output, and exits. The Orchestrator (you) coordinates the
+whole pipeline by injecting the right files into each agent.
+
+---
+
+## 📁 Key Files
+
+### Shared State — fill in before starting
+
+| File | Description |
+|------|-------------|
+| `source-map.md` | Maps source code paths → book chapters |
+| `outline.md` | Full book outline with chapter list |
+| `style-guide.md` | Writing conventions, tone, formatting rules |
+| `glossary.md` | Technical term definitions |
+| `metaphor-registry.md` | Registered metaphors (avoid duplicates across chapters) |
+| `checkpoint.md` | Current progress — **read this first every session** |
+| `audit-log.md` | History of all agent invocations |
+
+### Agent Specs — read to understand each role
+
+| File | Agent | Phase |
+|------|-------|-------|
+| `agents/01-orchestrator.md` | Orchestrator #0 (you) | All |
+| `agents/02-architect.md` | Architect #1 | Phase 1 |
+| `agents/03-reader-advocate.md` | Reader Advocate #2 | Phase 1 |
+| `agents/04-researcher.md` | Researcher #3 | Phase 2 |
+| `agents/05-writer.md` | Writer #4 | Phase 3 |
+| `agents/06-code-reviewer.md` | Code Reviewer R1 | Phase 4 |
+| `agents/07-consistency-reviewer.md` | Consistency Reviewer R2 | Phase 4 |
+| `agents/08-content-reviewer.md` | Content Reviewer R3 | Phase 4 |
+| `agents/09-reader-panel.md` | Reader Panel | Phase 4 |
+| `agents/10-bookbinder.md` | Bookbinder #11 | Phase 5 |
+
+### Framework Docs — reference
+
+| File | Description |
+|------|-------------|
+| `framework/workflow.md` | Full 5-phase pipeline with completion markers |
+| `framework/file-pointers.md` | File Pointers mechanism and rules |
+| `framework/parallel-strategy.md` | DAG batch execution strategy |
+| `framework/review-architecture.md` | Triple-parallel review (R1/R2/R3) |
+| `framework/recovery.md` | Checkpoint recovery and disaster recovery |
+
+---
+
+## 🔄 The 5-Phase Pipeline
+
+```
+Phase 1 · Prep      → Architect builds outline + source-map; Reader Advocate validates
+Phase 2 · Research  → Researcher dives into source code, one chapter at a time
+Phase 3 · Writing   → Writer produces each chapter draft
+Phase 4 · Review    → R1 + R2 + R3 review in parallel → consolidate → revise
+Phase 5 · Publish   → Bookbinder produces final formatted output
+```
+
+Full pipeline with completion markers: `framework/workflow.md`
+Parallel execution strategy: `framework/parallel-strategy.md`
+Recovery from interruption: `framework/recovery.md`
+
+---
+
+## 🤖 How to Invoke an Agent
+
+**Standard pattern (act as Orchestrator):**
+
+```
+Step 1  Read the agent spec:  agents/04-researcher.md
+Step 2  Load file pointers:   source-map.md, outline.md, [relevant source files]
+Step 3  Execute the task:     as described in the spec
+Step 4  Write output to:      research/ch03-report.md  (path from spec)
+Step 5  Update:               checkpoint.md (mark ch03 research done)
+                              audit-log.md  (record this invocation)
+```
+
+**Example prompt to invoke the Researcher for Chapter 3:**
+
+```
+Please act as the Researcher Agent defined in agents/04-researcher.md.
+
+File Pointers:
+- source-map.md (chapter-to-source mapping)
+- outline.md (Chapter 3 section)
+- [paste or reference relevant source code paths]
+
+Task: Research Chapter 3 "{{chapter title}}" and produce a full research report.
+Output path: research/ch03-research-report.md
+```
+
+---
+
+## 🔑 File Pointer Rules
+
+1. **Unidirectional**: all instructions flow Orchestrator → Agent
+2. **Minimal**: provide exactly the files the agent needs — not the whole repo
+3. **Explicit**: always give exact file paths; never ask agents to search the file system
+4. **Bridge**: shared state files are the only communication channel between agents
+5. **Marker**: file existence signals task completion (e.g., `research/ch03-report.md` exists → ch03 researched)
+
+Full details: `framework/file-pointers.md`
+
+---
+
+## 📋 Templates
+
+All templates are in `templates/`. They contain `{{变量名}}` placeholders — fill them
+in before the relevant phase begins. Do not modify the `agents/` or `framework/`
+directories; they are the framework core.
+
+---
+
+## 🔧 Useful Commands
+
+```bash
+cat checkpoint.md               # current project state
+cat outline.md                  # book structure
+cat framework/workflow.md       # full pipeline reference
+cat agents/04-researcher.md     # researcher spec
+ls research/                    # completed research reports
+ls chapters/                    # completed chapter drafts
+```

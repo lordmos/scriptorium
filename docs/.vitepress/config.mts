@@ -5,6 +5,13 @@ import { defineConfig } from 'vitepress'
 function sidebarZh() {
   return [
     {
+      text: '使用指南',
+      collapsed: false,
+      items: [
+        { text: '与 AI 工具集成', link: '/ai-tools' },
+      ],
+    },
+    {
       text: 'Agent 规格',
       collapsed: false,
       items: [
@@ -51,6 +58,13 @@ function sidebarZh() {
 
 function sidebarEn() {
   return [
+    {
+      text: 'Guides',
+      collapsed: false,
+      items: [
+        { text: 'Using with AI Tools', link: '/en/ai-tools' },
+      ],
+    },
     {
       text: 'Agent Specs',
       collapsed: false,
