@@ -1,7 +1,7 @@
 ---
-name: tech-editorial-agents
+name: scriptorium-agents
 description: >-
-  Full specification for all 12 agents in the tech-editorial framework. Use when: asking what
+  Full specification for all 12 agents in the scriptorium framework. Use when: asking what
   a specific agent does, writing a prompt to invoke an agent, configuring file pointers for an
   agent, understanding agent personas, asking about the Orchestrator/Architect/Researcher/Writer/
   Reviewer roles, or troubleshooting unexpected agent output. Includes persona, model type, inputs,

@@ -11,7 +11,7 @@
 點擊 GitHub 上的 **"Use this template"** 建立你的書籍儲存庫：
 
 ```
-https://github.com/lordmos/tech-editorial
+https://github.com/lordmos/scriptorium
 ```
 
 ### 第二步：準備原始碼
@@ -62,7 +62,7 @@ https://github.com/lordmos/tech-editorial
 
 | 文件 | 內容 |
 |------|------|
-| [`QUICK_START.md`](https://github.com/lordmos/tech-editorial/blob/main/QUICK_START.md) | AI 編排入口檔案（機器可讀） |
+| [`QUICK_START.md`](https://github.com/lordmos/scriptorium/blob/main/QUICK_START.md) | AI 編排入口檔案（機器可讀） |
 | [`agents/00-system-overview.md`](/zh-TW/agents/00-system-overview) | 12 個 Agent 的完整規格 |
 | [`framework/workflow.md`](/zh-TW/framework/workflow) | 五階段流水線詳解 |
 | [`framework/parallel-strategy.md`](/zh-TW/framework/parallel-strategy) | 多視窗並行加速 |

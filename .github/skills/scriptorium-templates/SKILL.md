@@ -1,7 +1,7 @@
 ---
-name: tech-editorial-templates
+name: scriptorium-templates
 description: >-
-  Reference guide for filling in all 8 tech-editorial project templates: source-map, outline,
+  Reference guide for filling in all 8 scriptorium project templates: source-map, outline,
   style-guide, glossary, metaphor-registry, chapter-summary, checkpoint, and audit-log.
   Use when: setting up a new book project, filling out any template file, asking what goes in
   a specific template field, creating project configuration for a new technical book topic,

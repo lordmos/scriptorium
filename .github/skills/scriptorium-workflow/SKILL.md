@@ -1,7 +1,7 @@
 ---
-name: tech-editorial-workflow
+name: scriptorium-workflow
 description: >-
-  Step-by-step execution guide for the tech-editorial 5-phase book production pipeline.
+  Step-by-step execution guide for the scriptorium 5-phase book production pipeline.
   Use when: running any phase (1 through 5), orchestrating chapter production, managing parallel
   review steps (R1+R2+R3 simultaneous), handling recovery after interruption, understanding 
   completion markers, debugging a stalled pipeline, or knowing the exact file inputs and outputs

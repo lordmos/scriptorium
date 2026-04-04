@@ -1,9 +1,9 @@
 ---
-name: tech-editorial-overview
+name: scriptorium-overview
 description: >-
-  Guide for the tech-editorial multi-agent framework for writing technical books about open-source 
+  Guide for the scriptorium multi-agent framework for writing technical books about open-source 
   source code. Use when: starting a new book writing project, understanding the system architecture,
-  asking what tech-editorial is or does, deciding which agent or phase to use, getting a quick-start
+  asking what scriptorium is or does, deciding which agent or phase to use, getting a quick-start
   setup guide, or understanding the hub-spoke design and file pointer mechanism.
 license: MIT
 ---
@@ -92,6 +92,6 @@ Each agent appends an HTML comment as the last line of its output:
 The Orchestrator uses these markers (not SQL alone) to detect true completion.
 
 ## For detailed specs, use the other skills:
-- `/tech-editorial-workflow` — full phase-by-phase execution guide
-- `/tech-editorial-agents` — all 12 agent specifications with example prompts
-- `/tech-editorial-templates` — how to fill each of the 8 project templates
+- `/scriptorium-workflow` — full phase-by-phase execution guide
+- `/scriptorium-agents` — all 12 agent specifications with example prompts
+- `/scriptorium-templates` — how to fill each of the 8 project templates

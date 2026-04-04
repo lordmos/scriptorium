@@ -20,7 +20,7 @@ hero:
       link: /ja/framework/workflow
     - theme: alt
       text: GitHub
-      link: https://github.com/lordmos/tech-editorial
+      link: https://github.com/lordmos/scriptorium
 
 features:
   - icon: 🤖

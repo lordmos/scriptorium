@@ -9,12 +9,12 @@
 > **Language / 语言**: [简体中文](README.md) · **English** · [日本語](README.ja.md) · [繁體中文](README.zh-TW.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/lordmos/tech-editorial?style=flat-square&color=gold)](https://github.com/lordmos/tech-editorial/stargazers)
-[![Forks](https://img.shields.io/github/forks/lordmos/tech-editorial?style=flat-square)](https://github.com/lordmos/tech-editorial/network/members)
-[![Last Commit](https://img.shields.io/github/last-commit/lordmos/tech-editorial?style=flat-square)](https://github.com/lordmos/tech-editorial/commits)
+[![Stars](https://img.shields.io/github/stars/lordmos/scriptorium?style=flat-square&color=gold)](https://github.com/lordmos/scriptorium/stargazers)
+[![Forks](https://img.shields.io/github/forks/lordmos/scriptorium?style=flat-square)](https://github.com/lordmos/scriptorium/network/members)
+[![Last Commit](https://img.shields.io/github/last-commit/lordmos/scriptorium?style=flat-square)](https://github.com/lordmos/scriptorium/commits)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 [![Multi-Agent](https://img.shields.io/badge/Multi--Agent-12%20Agents-blueviolet?style=flat-square)]()
-[![Docs](https://img.shields.io/badge/Docs-lordmos.github.io-4a9eff?style=flat-square&logo=vitepress&logoColor=white)](https://lordmos.github.io/tech-editorial/)
+[![Docs](https://img.shields.io/badge/Docs-lordmos.github.io-4a9eff?style=flat-square&logo=vitepress&logoColor=white)](https://lordmos.github.io/scriptorium/)
 [![Powered by Meridian](https://img.shields.io/badge/Powered%20by-Meridian-f97316?style=flat-square)](https://github.com/lordmos/meridian)
 
 <p align="center">
@@ -39,12 +39,12 @@ Each Agent is a one-time worker — it has no memory of what it did before. All 
 
 ## 2. Quick Start
 
-📖 **Full usage guide → [Online Docs](https://lordmos.github.io/tech-editorial/en/quick-start)**
+📖 **Full usage guide → [Online Docs](https://lordmos.github.io/scriptorium/en/quick-start)**
 
 **Step 1**: Clone this framework and prepare your source code project
 
 ```bash
-git clone https://github.com/lordmos/tech-editorial.git my-book
+git clone https://github.com/lordmos/scriptorium.git my-book
 cd my-book
 ```
 
@@ -175,7 +175,7 @@ Executes Markdown → HTML conversion, **Mermaid diagram rendering** (via Mermai
 ## 7. Directory Structure
 
 ```
-tech-editorial/
+scriptorium/
 ├── README.md                  ← This file: framework overview and quick start
 ├── agents/                    ← Detailed spec for each Agent
 │   ├── 00-system-overview.md  ← System architecture and Agent registry
@@ -274,7 +274,7 @@ Using this framework requires the following knowledge and capabilities:
 
 ## 🎯 Projects Using This Framework
 
-> Did you write something with this framework? [Tell us!](https://github.com/lordmos/tech-editorial/issues/new?template=show_your_book.yml)
+> Did you write something with this framework? [Tell us!](https://github.com/lordmos/scriptorium/issues/new?template=show_your_book.yml)
 
 | Book Title | Target Source Code | Author |
 |------------------|---------|------|
@@ -284,7 +284,7 @@ Using this framework requires the following knowledge and capabilities:
 
 ## ⭐ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=lordmos/tech-editorial&type=Date)](https://star-history.com/#lordmos/tech-editorial&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=lordmos/scriptorium&type=Date)](https://star-history.com/#lordmos/scriptorium&Date)
 
 ---
 

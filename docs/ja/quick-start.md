@@ -11,7 +11,7 @@
 GitHub の **"Use this template"** をクリックして書籍リポジトリを作成：
 
 ```
-https://github.com/lordmos/tech-editorial
+https://github.com/lordmos/scriptorium
 ```
 
 ### ステップ 2：ソースコードを準備する
@@ -63,7 +63,7 @@ checkpoint.md を読んで、前回の続きから作業を再開してくださ
 
 | ドキュメント | 内容 |
 |------------|------|
-| [`QUICK_START.md`](https://github.com/lordmos/tech-editorial/blob/main/QUICK_START.md) | AI オーケストレーターの入口ファイル（機械可読） |
+| [`QUICK_START.md`](https://github.com/lordmos/scriptorium/blob/main/QUICK_START.md) | AI オーケストレーターの入口ファイル（機械可読） |
 | [`agents/00-system-overview.md`](/ja/agents/00-system-overview) | 12 の Agent の完全仕様 |
 | [`framework/workflow.md`](/ja/framework/workflow) | 5 フェーズパイプライン詳細 |
 | [`framework/parallel-strategy.md`](/ja/framework/parallel-strategy) | 並列加速戦略 |

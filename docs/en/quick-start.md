@@ -11,7 +11,7 @@
 Click **"Use this template"** on GitHub to create your book repository:
 
 ```
-https://github.com/lordmos/tech-editorial
+https://github.com/lordmos/scriptorium
 ```
 
 ### Step 2: Prepare the Source Code
@@ -63,7 +63,7 @@ Please read checkpoint.md and continue where we left off.
 
 | Document | Contents |
 |----------|----------|
-| [`QUICK_START.md`](https://github.com/lordmos/tech-editorial/blob/main/QUICK_START.md) | AI Orchestrator entry file (machine-readable) |
+| [`QUICK_START.md`](https://github.com/lordmos/scriptorium/blob/main/QUICK_START.md) | AI Orchestrator entry file (machine-readable) |
 | [`agents/00-system-overview.md`](/en/agents/00-system-overview) | Full specs for all 12 Agents |
 | [`framework/workflow.md`](/en/framework/workflow) | 5-phase pipeline in detail |
 | [`framework/parallel-strategy.md`](/en/framework/parallel-strategy) | Parallel acceleration strategy |

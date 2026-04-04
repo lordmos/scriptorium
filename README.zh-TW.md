@@ -11,12 +11,12 @@
 ---
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/lordmos/tech-editorial?style=flat-square&color=gold)](https://github.com/lordmos/tech-editorial/stargazers)
-[![Forks](https://img.shields.io/github/forks/lordmos/tech-editorial?style=flat-square)](https://github.com/lordmos/tech-editorial/network/members)
-[![Last Commit](https://img.shields.io/github/last-commit/lordmos/tech-editorial?style=flat-square)](https://github.com/lordmos/tech-editorial/commits)
+[![Stars](https://img.shields.io/github/stars/lordmos/scriptorium?style=flat-square&color=gold)](https://github.com/lordmos/scriptorium/stargazers)
+[![Forks](https://img.shields.io/github/forks/lordmos/scriptorium?style=flat-square)](https://github.com/lordmos/scriptorium/network/members)
+[![Last Commit](https://img.shields.io/github/last-commit/lordmos/scriptorium?style=flat-square)](https://github.com/lordmos/scriptorium/commits)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 [![Multi-Agent](https://img.shields.io/badge/Multi--Agent-12%20Agents-blueviolet?style=flat-square)]()
-[![Docs](https://img.shields.io/badge/文件站-在線閱讀-4a9eff?style=flat-square&logo=vitepress&logoColor=white)](https://lordmos.github.io/tech-editorial/zh-TW/)
+[![Docs](https://img.shields.io/badge/文件站-在線閱讀-4a9eff?style=flat-square&logo=vitepress&logoColor=white)](https://lordmos.github.io/scriptorium/zh-TW/)
 [![Powered by Meridian](https://img.shields.io/badge/Powered%20by-Meridian-f97316?style=flat-square)](https://github.com/lordmos/meridian)
 
 <p align="center">
@@ -41,12 +41,12 @@
 
 ## 2. 快速開始
 
-📖 **完整使用指南 → [線上文件](https://lordmos.github.io/tech-editorial/zh-TW/quick-start)**
+📖 **完整使用指南 → [線上文件](https://lordmos.github.io/scriptorium/zh-TW/quick-start)**
 
 **第一步**：克隆本框架並準備好你的源碼項目
 
 ```bash
-git clone https://github.com/lordmos/tech-editorial.git my-book
+git clone https://github.com/lordmos/scriptorium.git my-book
 cd my-book
 ```
 
@@ -175,7 +175,7 @@ Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4 ──→ Phase 5
 ## 7. 目錄結構
 
 ```
-tech-editorial/
+scriptorium/
 ├── README.md                  ← 本文件：框架总览与快速开始
 ├── agents/                    ← 每个 Agent 的详细规格说明
 │   ├── 00-system-overview.md  ← 系统架构与Agent注册表
@@ -274,7 +274,7 @@ Agent A 的產出寫入文件 → 主編排將該文件作爲 File Pointer 注�
 
 ## 🎯 使用本框架的項目
 
-> 你用本框架寫了什麼？[告訴我們！](https://github.com/lordmos/tech-editorial/issues/new?template=show_your_book.yml)
+> 你用本框架寫了什麼？[告訴我們！](https://github.com/lordmos/scriptorium/issues/new?template=show_your_book.yml)
 
 | 書名 / Book Title | 目標源碼 | 作者 |
 |------------------|---------|------|
@@ -284,7 +284,7 @@ Agent A 的產出寫入文件 → 主編排將該文件作爲 File Pointer 注�
 
 ## ⭐ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=lordmos/tech-editorial&type=Date)](https://star-history.com/#lordmos/tech-editorial&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=lordmos/scriptorium&type=Date)](https://star-history.com/#lordmos/scriptorium&Date)
 
 ---
 

@@ -11,7 +11,7 @@
 点击 GitHub 上的 **"Use this template"** 创建你的书籍仓库：
 
 ```
-https://github.com/lordmos/tech-editorial
+https://github.com/lordmos/scriptorium
 ```
 
 ### 第二步：准备源码
@@ -62,7 +62,7 @@ https://github.com/lordmos/tech-editorial
 
 | 文档 | 内容 |
 |------|------|
-| [`QUICK_START.md`](https://github.com/lordmos/tech-editorial/blob/main/QUICK_START.md) | AI 编排入口文件（机器可读） |
+| [`QUICK_START.md`](https://github.com/lordmos/scriptorium/blob/main/QUICK_START.md) | AI 编排入口文件（机器可读） |
 | [`agents/00-system-overview.md`](/agents/00-system-overview) | 12 个 Agent 的完整规格 |
 | [`framework/workflow.md`](/framework/workflow) | 五阶段流水线详解 |
 | [`framework/parallel-strategy.md`](/framework/parallel-strategy) | 多窗口并行加速 |

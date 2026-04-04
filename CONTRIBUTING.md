@@ -1,22 +1,22 @@
 # 贡献指南 / Contributing Guide
 
-感谢你对 **tech-editorial** 的兴趣！以下是参与贡献的方式。
+感谢你对 **scriptorium** 的兴趣！以下是参与贡献的方式。
 
-*Thank you for your interest in **tech-editorial**! Here's how to contribute.*
+*Thank you for your interest in **scriptorium**! Here's how to contribute.*
 
 ---
 
 ## 贡献方式 / Ways to Contribute
 
 ### 1. 🐛 报告问题 / Report Issues
-发现框架设计中的问题、歧义或错误？[提交 Issue](https://github.com/lordmos/tech-editorial/issues/new?template=bug_report.yml)
+发现框架设计中的问题、歧义或错误？[提交 Issue](https://github.com/lordmos/scriptorium/issues/new?template=bug_report.yml)
 
-*Found a problem, ambiguity, or error in the framework? [Open an Issue](https://github.com/lordmos/tech-editorial/issues/new?template=bug_report.yml)*
+*Found a problem, ambiguity, or error in the framework? [Open an Issue](https://github.com/lordmos/scriptorium/issues/new?template=bug_report.yml)*
 
 ### 2. 💡 提议新功能 / Suggest Features
-有更好的 Agent 设计、新的工作流阶段或改进想法？[提交功能建议](https://github.com/lordmos/tech-editorial/issues/new?template=feature_request.yml)
+有更好的 Agent 设计、新的工作流阶段或改进想法？[提交功能建议](https://github.com/lordmos/scriptorium/issues/new?template=feature_request.yml)
 
-*Have ideas for better agent designs, new workflow phases, or improvements? [Open a Feature Request](https://github.com/lordmos/tech-editorial/issues/new?template=feature_request.yml)*
+*Have ideas for better agent designs, new workflow phases, or improvements? [Open a Feature Request](https://github.com/lordmos/scriptorium/issues/new?template=feature_request.yml)*
 
 ### 3. 🌍 翻译文档 / Translate Docs
 帮助将框架文档翻译为其他语言（英文、日文、繁体中文等）。详见 `i18n/` 目录（待创建）。
@@ -24,9 +24,9 @@
 *Help translate framework documentation into other languages (English, Japanese, Traditional Chinese, etc.).*
 
 ### 4. 📚 分享你的项目 / Share Your Project
-用本框架写了书？[告诉社区！](https://github.com/lordmos/tech-editorial/issues/new?template=show_your_book.yml)
+用本框架写了书？[告诉社区！](https://github.com/lordmos/scriptorium/issues/new?template=show_your_book.yml)
 
-*Used this framework to write a book? [Tell the community!](https://github.com/lordmos/tech-editorial/issues/new?template=show_your_book.yml)*
+*Used this framework to write a book? [Tell the community!](https://github.com/lordmos/scriptorium/issues/new?template=show_your_book.yml)*
 
 ### 5. 🔧 改进模板 / Improve Templates
 对 `templates/` 目录中的模板有改进建议？直接提 PR！

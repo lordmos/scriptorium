@@ -249,10 +249,10 @@ export default defineConfig({
   title: 'Scriptorium',
   titleTemplate: ':title',
   description: 'Multi-Agent Technical Book Writing Framework',
-  base: '/tech-editorial/',
+  base: '/scriptorium/',
 
   head: [
-    ['link', { rel: 'icon', href: '/tech-editorial/hero.svg', type: 'image/svg+xml' }],
+    ['link', { rel: 'icon', href: '/scriptorium/hero.svg', type: 'image/svg+xml' }],
   ],
 
   // Source files contain repo-relative cross-language links that don't map to VitePress URLs
@@ -330,7 +330,7 @@ export default defineConfig({
 
   themeConfig: {
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/lordmos/tech-editorial' },
+      { icon: 'github', link: 'https://github.com/lordmos/scriptorium' },
     ],
     search: {
       provider: 'local',
