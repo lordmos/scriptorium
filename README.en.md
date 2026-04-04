@@ -34,27 +34,36 @@ Each Agent is a one-time worker — it has no memory of what it did before. All 
 
 ## 2. Quick Start
 
-📖 **Full step-by-step guide with copy-paste prompts → [Online Docs](https://lordmos.github.io/tech-editorial/en/quick-start)**
+📖 **Full usage guide → [Online Docs](https://lordmos.github.io/tech-editorial/en/quick-start)**
 
-Five phases — launch your AI assistant directly from the Agent spec files:
+**Step 1**: Clone this framework and prepare your source code project
 
-| Phase | Task | Agent Spec |
-|-------|------|-----------|
-| Phase 1 | Finalize Outline | [`agents/02-architect.md`](agents/02-architect.md), [`agents/03-reader-advocate.md`](agents/03-reader-advocate.md) |
-| Phase 2 | Build Shared Resources | [`agents/01-orchestrator.md`](agents/01-orchestrator.md) |
-| Phase 3 | Write Chapters | [`agents/04-researcher.md`](agents/04-researcher.md), [`agents/05-writer.md`](agents/05-writer.md) |
-| Phase 4 | Triple Review (parallel) | [`agents/06-code-reviewer.md`](agents/06-code-reviewer.md), [`agents/07-consistency-reviewer.md`](agents/07-consistency-reviewer.md), [`agents/08-content-reviewer.md`](agents/08-content-reviewer.md) |
-| Phase 5 | Publish | [`agents/10-bookbinder.md`](agents/10-bookbinder.md) |
+```bash
+git clone https://github.com/lordmos/tech-editorial.git my-book
+cd my-book
+```
 
-Progress tracking: [`templates/checkpoint.md`](templates/checkpoint.md)　　Recovery: [`framework/recovery.md`](framework/recovery.md)
+**Step 2**: Open the directory with your AI coding assistant (Claude Code / OpenCode / Cursor, etc.) and say this one sentence:
 
-**After an interruption, tell your AI**: `Please read checkpoint.md and continue where we left off.`
+```
+The source code for [project name] is in [directory path].
+Please read QUICK_START.md, then ask me any questions you have.
+If you have no questions, start your work.
+```
 
+The AI reads [`QUICK_START.md`](QUICK_START.md), confirms the book title, audience, and other basics, then **runs all five phases autonomously** and delivers `output/book-final.md`.
 
+You only need to do three things: ① Answer the AI's initial questions → ② Approve the Phase 1 outline → ③ Read the final manuscript.
+
+**After an interruption**: Tell your AI → `Please read checkpoint.md and continue where we left off.`
+
+---
+
+## 3. Use Cases
 
 This framework is suited for the following types of technical book projects:
 
-- ✅ **Open-source project source code reading** books (e.g., *Deep Dive into {{项目名称}} Source Code*)
+- ✅ **Open-source project source code reading** books (e.g., *Deep Dive into [Framework] Source Code*)
 - ✅ Architecture analysis books that dissect a large code repository chapter by chapter
 - ✅ Technical explainers for multi-level audiences (students, engineers, enthusiasts)
 - ✅ Long-form technical writing projects that require multi-person collaboration with a controlled workflow
@@ -131,7 +140,7 @@ Based on the finalized outline, this phase builds all shared resource files need
 - `style-guide.md` — writing style guide
 - `cross-references.md` — cross-chapter reference register
 
-### Phase 3: Chapter-by-Chapter Writing (×{{章节数}} chapters)
+### Phase 3: Chapter-by-Chapter Writing (one loop per chapter in the outline)
 
 Each chapter goes through 4 steps in sequence:
 
@@ -142,7 +151,7 @@ Each chapter goes through 4 steps in sequence:
 | Step 3 — Three-Way Review | R1 + R2 + R3 (parallel) | Individual review reports |
 | Step 4 — Reader Review | RS + RE + RH (parallel) | Individual reader feedback |
 
-> 💡 **Parallelization**: The three reviewers in Step 3 can work simultaneously (different data dependencies); the three reader reviewers in Step 4 can also run in parallel. Multiple chapters can also be processed in batches in parallel (e.g., {{并行批次数}} chapters per batch).
+> 💡 **Parallelization**: The three reviewers in Step 3 can work simultaneously (different data dependencies); the three reader reviewers in Step 4 can also run in parallel. Multiple chapters can also be processed in batches in parallel (e.g., 3 chapters per batch).
 
 ### Phase 4: Comprehensive Audit
 
@@ -251,12 +260,10 @@ Using this framework requires the following knowledge and capabilities:
 | Skill Area | Specific Requirements | Importance |
 |---------|---------|---------|
 | AI Agent Prompt Engineering | Understand how to write system prompts and tune Agent behavior (e.g., Claude, GPT) | ⭐⭐⭐ Required |
-| Target Source Code Language | Familiar with the programming language of the target open-source project (e.g., {{编程语言}}) | ⭐⭐⭐ Required |
+| Target Source Code Language | Familiar with the programming language of the target open-source project (e.g., TypeScript, Java, Go) | ⭐⭐⭐ Required |
 | Project Management | Dependency analysis, progress tracking, task decomposition; understand DAG-style workflows | ⭐⭐ Important |
 | Markdown Writing | Proficient in Markdown syntax; understand structured document writing | ⭐⭐ Important |
 | Node.js Basics | Used for Phase 5 binding build scripts (Markdown → HTML conversion, static site generation) | ⭐ Optional |
-
----
 
 ---
 
