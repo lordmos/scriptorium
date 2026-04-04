@@ -10,7 +10,10 @@ hero:
     alt: Scriptorium
   actions:
     - theme: brand
-      text: 系統架構 →
+      text: 如何使用 →
+      link: /zh-TW/quick-start
+    - theme: alt
+      text: 系統架構
       link: /zh-TW/agents/00-system-overview
     - theme: alt
       text: 5階段流水線

@@ -24,7 +24,23 @@
 
 ---
 
-## 2. 适用场景
+## 2. 快速开始
+
+📖 **完整操作指南（含逐步 Agent 调用提示词）→ [在线文档](https://lordmos.github.io/tech-editorial/quick-start)**
+
+五个阶段，直接使用对应 Agent 规格文件启动 AI 助手：
+
+| 阶段 | 任务 | Agent 规格 |
+|------|------|-----------|
+| Phase 1 | 大纲定稿 | [`agents/02-architect.md`](agents/02-architect.md)、[`agents/03-reader-advocate.md`](agents/03-reader-advocate.md) |
+| Phase 2 | 共享资源构建 | [`agents/01-orchestrator.md`](agents/01-orchestrator.md) |
+| Phase 3 | 逐章写作 | [`agents/04-researcher.md`](agents/04-researcher.md)、[`agents/05-writer.md`](agents/05-writer.md) |
+| Phase 4 | 三审并行 | [`agents/06-code-reviewer.md`](agents/06-code-reviewer.md)、[`agents/07-consistency-reviewer.md`](agents/07-consistency-reviewer.md)、[`agents/08-content-reviewer.md`](agents/08-content-reviewer.md) |
+| Phase 5 | 装帧发布 | [`agents/10-bookbinder.md`](agents/10-bookbinder.md) |
+
+进度追踪：[`templates/checkpoint.md`](templates/checkpoint.md)　　断点恢复：[`framework/recovery.md`](framework/recovery.md)
+
+## 3. 适用场景
 
 本框架适用于以下类型的技术书籍项目：
 
@@ -37,7 +53,7 @@
 
 ---
 
-## 3. 系统架构概览
+## 4. 系统架构概览
 
 本框架采用 **Hub-Spoke（轴辐式）架构**：
 
@@ -59,7 +75,7 @@
 
 ---
 
-## 4. Agent 团队一览表
+## 5. Agent 团队一览表
 
 | 编号 | 名称 | 角色隐喻 | Agent 类型 | 职责 |
 |------|------|----------|-----------|------|
@@ -78,7 +94,7 @@
 
 ---
 
-## 5. 五阶段工作流概览
+## 6. 五阶段工作流概览
 
 ```
 Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4 ──→ Phase 5
@@ -131,7 +147,7 @@ Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4 ──→ Phase 5
 
 ---
 
-## 6. 目录结构
+## 7. 目录结构
 
 ```
 tech-editorial/
@@ -172,52 +188,6 @@ tech-editorial/
 | `agents/` | 每个 Agent 的完整规格说明：系统提示词模板、输入/输出规范、File Pointers 清单、质量检查点 |
 | `framework/` | 与具体 Agent 无关的通用工作流文档：阶段划分、审查协议、文件格式规范、协作机制 |
 | `templates/` | 新项目启动时需要填写的模板文件，包含 `{{变量}}` 占位符，填写后即成为项目共享资源 |
-
----
-
-## 7. 快速开始
-
-### Step 1：复制框架
-
-```bash
-cp -r tech-editorial/ {{你的项目路径}}/editorial/
-```
-
-### Step 2：填写模板
-
-进入 `templates/` 目录，填写以下核心模板：
-
-| 模板文件 | 需要填写的内容 |
-|---------|--------------|
-| `source-map.md` | 目标源码的目录结构、核心模块说明、关键文件路径 |
-| `outline.md` | 初始章节大纲（可由架构师 Agent 辅助生成） |
-| `style-guide.md` | 写作风格偏好、代码展示规范、读者定位 |
-| `glossary.md` | 已知术语的初始翻译/定义（后续由 Agent 补充） |
-| `metaphor-registry.md` | 留空即可，由写作过程中逐步填充 |
-
-### Step 3：配置主编排 Agent
-
-在主编排 Agent 的启动提示词中，设定以下项目参数：
-
-```yaml
-项目名称: {{项目名称}}
-源码仓库: {{源码仓库地址}}
-源码版本: {{源码版本/commit}}
-章节总数: {{章节数}}
-并行批次: {{并行批次数}}  # 每批同时写作的章节数
-目标读者: {{目标读者描述}}
-输出目录: {{输出目录路径}}
-```
-
-### Step 4：按阶段推进
-
-依次执行 Phase 1→5，每个 Phase 完成后确认产出物再进入下一阶段：
-
-1. **Phase 1**：启动架构师 → 读者代言人审核 → 用户审批大纲
-2. **Phase 2**：主编排生成共享资源文件
-3. **Phase 3**：逐章（或分批并行）执行 研究→撰写→审查→评审
-4. **Phase 4**：全书统稿审计
-5. **Phase 5**：装帧工人生成 HTML 发布物
 
 ---
 

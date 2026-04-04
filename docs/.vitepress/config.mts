@@ -115,6 +115,13 @@ function sidebarEn() {
 function sidebarJa() {
   return [
     {
+      text: '使い方ガイド',
+      collapsed: false,
+      items: [
+        { text: 'Scriptorium の使い方', link: '/ja/quick-start' },
+      ],
+    },
+    {
       text: 'Agentスペック',
       collapsed: false,
       items: [
@@ -161,6 +168,13 @@ function sidebarJa() {
 
 function sidebarZhTW() {
   return [
+    {
+      text: '使用指南',
+      collapsed: false,
+      items: [
+        { text: '如何使用 Scriptorium', link: '/zh-TW/quick-start' },
+      ],
+    },
     {
       text: 'Agent 規格',
       collapsed: false,

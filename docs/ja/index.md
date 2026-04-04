@@ -10,7 +10,10 @@ hero:
     alt: Scriptorium
   actions:
     - theme: brand
-      text: システムアーキテクチャ →
+      text: 使い方ガイド →
+      link: /ja/quick-start
+    - theme: alt
+      text: システムアーキテクチャ
       link: /ja/agents/00-system-overview
     - theme: alt
       text: 5フェーズパイプライン

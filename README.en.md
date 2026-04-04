@@ -32,7 +32,23 @@ Each Agent is a one-time worker — it has no memory of what it did before. All 
 
 ---
 
-## 2. Use Cases
+## 2. Quick Start
+
+📖 **Full step-by-step guide with copy-paste prompts → [Online Docs](https://lordmos.github.io/tech-editorial/en/quick-start)**
+
+Five phases — launch your AI assistant directly from the Agent spec files:
+
+| Phase | Task | Agent Spec |
+|-------|------|-----------|
+| Phase 1 | Finalize Outline | [`agents/02-architect.md`](agents/02-architect.md), [`agents/03-reader-advocate.md`](agents/03-reader-advocate.md) |
+| Phase 2 | Build Shared Resources | [`agents/01-orchestrator.md`](agents/01-orchestrator.md) |
+| Phase 3 | Write Chapters | [`agents/04-researcher.md`](agents/04-researcher.md), [`agents/05-writer.md`](agents/05-writer.md) |
+| Phase 4 | Triple Review (parallel) | [`agents/06-code-reviewer.md`](agents/06-code-reviewer.md), [`agents/07-consistency-reviewer.md`](agents/07-consistency-reviewer.md), [`agents/08-content-reviewer.md`](agents/08-content-reviewer.md) |
+| Phase 5 | Publish | [`agents/10-bookbinder.md`](agents/10-bookbinder.md) |
+
+Progress tracking: [`templates/checkpoint.md`](templates/checkpoint.md)　　Checkpoint recovery: [`framework/recovery.md`](framework/recovery.md)
+
+## 3. Use Cases
 
 This framework is suited for the following types of technical book projects:
 
@@ -45,7 +61,7 @@ This framework is suited for the following types of technical book projects:
 
 ---
 
-## 3. System Architecture Overview
+## 4. System Architecture Overview
 
 This framework uses a **Hub-Spoke architecture**:
 
@@ -67,7 +83,7 @@ This framework uses a **Hub-Spoke architecture**:
 
 ---
 
-## 4. Agent Team Directory
+## 5. Agent Team Directory
 
 | ID | Name | Role Metaphor | Agent Type | Responsibilities |
 |------|------|----------|-----------|------|
@@ -86,7 +102,7 @@ This framework uses a **Hub-Spoke architecture**:
 
 ---
 
-## 5. Five-Phase Workflow Overview
+## 6. Five-Phase Workflow Overview
 
 ```
 Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4 ──→ Phase 5
@@ -140,7 +156,7 @@ Executes Markdown → HTML conversion, **Mermaid diagram rendering** (via Mermai
 
 ---
 
-## 6. Directory Structure
+## 7. Directory Structure
 
 ```
 tech-editorial/
@@ -181,52 +197,6 @@ tech-editorial/
 | `agents/` | Full spec for each Agent: system prompt templates, input/output specs, File Pointers checklist, quality checkpoints |
 | `framework/` | General workflow docs independent of specific Agents: phase breakdown, review protocols, file format specs, collaboration mechanisms |
 | `templates/` | Template files to fill in when starting a new project, containing `{{变量}}` placeholders; once filled in they become project shared resources |
-
----
-
-## 7. Quick Start
-
-### Step 1: Copy the Framework
-
-```bash
-cp -r tech-editorial/ {{你的项目路径}}/editorial/
-```
-
-### Step 2: Fill in the Templates
-
-Go to the `templates/` directory and fill in the core templates:
-
-| Template File | Content to Fill In |
-|---------|--------------|
-| `source-map.md` | Target source code directory structure, core module descriptions, key file paths |
-| `outline.md` | Initial chapter outline (can be generated with assistance from the Architect Agent) |
-| `style-guide.md` | Writing style preferences, code presentation rules, reader positioning |
-| `glossary.md` | Initial translations/definitions of known terms (Agents will add more later) |
-| `metaphor-registry.md` | Leave blank; fill in progressively during the writing process |
-
-### Step 3: Configure the Orchestrator Agent
-
-In the startup prompt for the Orchestrator Agent, set the following project parameters:
-
-```yaml
-项目名称: {{项目名称}}
-源码仓库: {{源码仓库地址}}
-源码版本: {{源码版本/commit}}
-章节总数: {{章节数}}
-并行批次: {{并行批次数}}  # 每批同时写作的章节数
-目标读者: {{目标读者描述}}
-输出目录: {{输出目录路径}}
-```
-
-### Step 4: Advance Phase by Phase
-
-Execute Phases 1 → 5 in sequence. Confirm deliverables after each Phase before proceeding to the next:
-
-1. **Phase 1**: Launch Architect → Reader Advocate reviews → User approves outline
-2. **Phase 2**: Orchestrator generates shared resource files
-3. **Phase 3**: Chapter by chapter (or in parallel batches): Research → Write → Review → Reader Review
-4. **Phase 4**: Full-book comprehensive audit
-5. **Phase 5**: Bookbinder generates HTML publication
 
 ---
 
