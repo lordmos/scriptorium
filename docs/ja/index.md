@@ -5,6 +5,9 @@ hero:
   name: "Scriptorium"
   text: "マルチエージェント技術書籍執筆フレームワーク"
   tagline: 12 の専門 AI Agent が協調し、アウトライン設計から最終出版まで全工程をカバー。Agentはステートレス、ファイルシステムがステートを持つ。
+  image:
+    src: /hero.svg
+    alt: Scriptorium
   actions:
     - theme: brand
       text: システムアーキテクチャ →

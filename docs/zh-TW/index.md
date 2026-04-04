@@ -5,6 +5,9 @@ hero:
   name: "Scriptorium"
   text: "多Agent技術書籍編寫框架"
   tagline: 透過 12 個 AI Agent 的協同配合，覆蓋從大綱設計到最終出版的全流程。Agent 是無狀態的，檔案系統是有狀態的。
+  image:
+    src: /hero.svg
+    alt: Scriptorium
   actions:
     - theme: brand
       text: 系統架構 →

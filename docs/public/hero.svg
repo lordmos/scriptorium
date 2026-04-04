@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="hub" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="node" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#60a5fa"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Spokes: hub edge → satellite edge -->
+  <line x1="100" y1="66"  x2="100" y2="38"  stroke="#6d28d9" stroke-width="2.5" stroke-linecap="round" opacity="0.55"/>
+  <line x1="129" y1="83"  x2="154" y2="69"  stroke="#6d28d9" stroke-width="2.5" stroke-linecap="round" opacity="0.55"/>
+  <line x1="129" y1="117" x2="154" y2="131" stroke="#6d28d9" stroke-width="2.5" stroke-linecap="round" opacity="0.55"/>
+  <line x1="100" y1="134" x2="100" y2="162" stroke="#6d28d9" stroke-width="2.5" stroke-linecap="round" opacity="0.55"/>
+  <line x1="71"  y1="117" x2="46"  y2="131" stroke="#6d28d9" stroke-width="2.5" stroke-linecap="round" opacity="0.55"/>
+  <line x1="71"  y1="83"  x2="46"  y2="69"  stroke="#6d28d9" stroke-width="2.5" stroke-linecap="round" opacity="0.55"/>
+
+  <!-- 6 satellite nodes at R=75 from center (60° spacing, starting top) -->
+  <circle cx="100" cy="25"  r="13" fill="url(#node)"/>
+  <circle cx="165" cy="62"  r="13" fill="url(#node)"/>
+  <circle cx="165" cy="138" r="13" fill="url(#node)"/>
+  <circle cx="100" cy="175" r="13" fill="url(#node)"/>
+  <circle cx="35"  cy="138" r="13" fill="url(#node)"/>
+  <circle cx="35"  cy="62"  r="13" fill="url(#node)"/>
+
+  <!-- Central hub (Orchestrator) -->
+  <circle cx="100" cy="100" r="34" fill="url(#hub)"/>
+
+  <!-- Project initial -->
+  <text x="100" y="100"
+        text-anchor="middle"
+        dominant-baseline="central"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="36"
+        font-weight="bold"
+        fill="white">S</text>
+</svg>

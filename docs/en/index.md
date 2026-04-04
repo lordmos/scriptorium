@@ -5,6 +5,9 @@ hero:
   name: "Scriptorium"
   text: "Multi-Agent Technical Book Writing Framework"
   tagline: 12 specialized AI Agents collaborate to cover the full pipeline from outline design to final publication. Agents are stateless; the file system is stateful.
+  image:
+    src: /hero.svg
+    alt: Scriptorium
   actions:
     - theme: brand
       text: System Architecture →
