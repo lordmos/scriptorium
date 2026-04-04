@@ -15,6 +15,7 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 [![Multi-Agent](https://img.shields.io/badge/Multi--Agent-12%20Agents-blueviolet?style=flat-square)]()
 [![Docs](https://img.shields.io/badge/Docs-lordmos.github.io-4a9eff?style=flat-square&logo=vitepress&logoColor=white)](https://lordmos.github.io/tech-editorial/)
+[![Powered by Meridian](https://img.shields.io/badge/Powered%20by-Meridian-f97316?style=flat-square)](https://github.com/lordmos/meridian)
 
 # 📚 Scriptorium — Multi-Agent Editorial Framework for Technical Books
 
@@ -300,3 +301,5 @@ If this framework saved you time, consider buying the author a coffee ☕
 This framework was extracted from a real multi-agent collaborative book-writing project. It has been abstracted and stripped of all project-specific content, retaining only the reusable workflow and architectural design.
 
 Feel free to modify and extend it according to your project's needs.
+
+<sub>Built with [Meridian](https://github.com/lordmos/meridian) · open-source ops toolkit for Agent projects</sub>

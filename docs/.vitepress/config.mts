@@ -247,8 +247,13 @@ function escapeMustache(md: any) {
 
 export default defineConfig({
   title: 'Scriptorium',
+  titleTemplate: ':title',
   description: 'Multi-Agent Technical Book Writing Framework',
   base: '/tech-editorial/',
+
+  head: [
+    ['link', { rel: 'icon', href: '/tech-editorial/hero.svg', type: 'image/svg+xml' }],
+  ],
 
   // Source files contain repo-relative cross-language links that don't map to VitePress URLs
   ignoreDeadLinks: true,
@@ -329,6 +334,10 @@ export default defineConfig({
     ],
     search: {
       provider: 'local',
+    },
+    footer: {
+      message: 'Built with <a href="https://github.com/lordmos/meridian" target="_blank">Meridian</a>',
+      copyright: 'Released under the MIT License',
     },
   },
 })
