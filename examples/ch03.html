@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第3章：依赖注入——框架的神经系统 | Angular 源码深度解析</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: #FEFCF8;
+  color: #2C2C2C;
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.85;
+}
+/* Progress bar */
+#progress-bar {
+  position: fixed; top: 0; left: 0; width: 0%; height: 3px;
+  background: #C7553A; z-index: 2000; transition: width 0.08s linear;
+}
+/* Layout */
+#layout { display: flex; min-height: 100vh; }
+/* Left sidebar */
+#sidebar {
+  position: fixed; top: 3px; left: 0;
+  width: 260px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-right: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100;
+}
+.sidebar-header { padding: 22px 18px 14px; border-bottom: 1px solid #E8E2D8; }
+.sidebar-title {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  font-size: 1em; font-weight: 700; color: #1A1A1A; line-height: 1.4; margin-bottom: 5px;
+}
+.sidebar-subtitle { font-size: 0.7em; color: #999; line-height: 1.4; }
+.sidebar-nav { padding: 10px 8px 24px; }
+.sidebar-nav a {
+  display: block; padding: 6px 12px; border-radius: 5px;
+  color: #444; font-size: 0.82em; text-decoration: none;
+  line-height: 1.45; margin-bottom: 2px; word-break: break-all;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar-nav a:hover { background: #EDE7DD; color: #1A1A1A; }
+.sidebar-nav a.active { background: #E8DDD0; color: #C7553A; font-weight: 600; }
+/* Main content */
+#main { margin-left: 260px; margin-right: 224px; padding: 48px 52px 80px; min-height: 100vh; }
+/* Right TOC */
+#toc-right {
+  position: fixed; top: 3px; right: 0;
+  width: 224px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-left: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100; padding: 22px 14px;
+}
+.toc-title {
+  font-size: 0.68em; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #aaa; margin-bottom: 10px;
+}
+.toc-list { list-style: none; }
+.toc-list li { margin-bottom: 3px; }
+.toc-list li a {
+  display: block; padding: 3px 8px; font-size: 0.77em; color: #666;
+  text-decoration: none; border-left: 2px solid transparent;
+  line-height: 1.4; word-break: break-all;
+  transition: color 0.15s, border-color 0.15s;
+}
+.toc-list li a:hover { color: #C7553A; }
+.toc-list li a.active { color: #C7553A; border-left-color: #C7553A; font-weight: 600; }
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  color: #1A1A1A; line-height: 1.4;
+  margin-top: 1.8em; margin-bottom: 0.55em;
+}
+h1 { font-size: 2.1em; margin-top: 0; padding-bottom: 0.35em; border-bottom: 2px solid #C7553A; }
+h2 { font-size: 1.55em; padding-bottom: 0.28em; border-bottom: 1px solid #E8E2D8; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1.08em; }
+h5 { font-size: 1em; }
+h6 { font-size: 0.95em; color: #666; }
+p { margin-bottom: 1em; }
+strong { color: #1A1A1A; font-weight: 700; }
+em { font-style: italic; }
+del { text-decoration: line-through; color: #999; }
+/* Links */
+a { color: #4A7C9B; text-decoration: none; }
+a:hover { text-decoration: underline; color: #3a6c8b; }
+/* Code */
+code {
+  font-family: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Courier New", monospace;
+  font-size: 0.875em; background: #F5F2ED; padding: 0.15em 0.38em;
+  border-radius: 3px; border: 1px solid #E0D9CF; word-break: break-all;
+}
+pre {
+  background: #F5F2ED; padding: 18px 22px; border-radius: 8px;
+  overflow-x: auto; margin: 1.4em 0; border: 1px solid #E0D9CF; line-height: 1.6;
+}
+pre code { background: none; padding: 0; border: none; border-radius: 0; font-size: 0.84em; word-break: normal; }
+.hljs { background: #F5F2ED !important; }
+/* Blockquote */
+blockquote {
+  margin: 1.4em 0; padding: 14px 20px;
+  border-left: 4px solid #C7553A;
+  background: linear-gradient(to right, #FFF9F5, #FEFCF8);
+  border-radius: 0 6px 6px 0;
+}
+blockquote p { margin: 0; color: #555; font-style: italic; }
+/* Lists */
+ul, ol { padding-left: 1.8em; margin-bottom: 1em; }
+li { margin-bottom: 0.38em; }
+li p { margin: 0; }
+/* Tables */
+.table-wrap { overflow-x: auto; margin: 1.4em 0; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+th, td { padding: 9px 13px; border: 1px solid #E8E2D8; text-align: left; vertical-align: top; }
+th { background: #F5F2ED; font-weight: 600; color: #1A1A1A; white-space: nowrap; }
+tr:nth-child(even) td { background: #FDFAF5; }
+/* HR */
+hr { border: none; border-top: 1px solid #E8E2D8; margin: 2.2em 0; }
+/* Images */
+img { max-width: 100%; height: auto; border-radius: 4px; display: block; margin: 1em auto; }
+/* Mermaid */
+.mermaid {
+  margin: 1.6em 0; padding: 20px;
+  background: #FDFAF5; border: 1px solid #E8E2D8; border-radius: 8px;
+  text-align: center; overflow-x: auto;
+}
+/* Chapter nav */
+.chapter-nav {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 4em; padding-top: 1.8em; border-top: 2px solid #E8E2D8; gap: 12px;
+}
+.chapter-nav a {
+  display: inline-flex; align-items: center; padding: 10px 16px;
+  background: #F5F2ED; border: 1px solid #E8E2D8; border-radius: 6px;
+  color: #4A7C9B; font-size: 0.85em; text-decoration: none; max-width: 46%;
+  word-break: break-all; line-height: 1.4;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.chapter-nav a:hover { background: #EDE7DD; border-color: #C7553A; color: #C7553A; text-decoration: none; }
+.chapter-nav span { flex: 1; }
+/* Back to top */
+#back-to-top {
+  position: fixed; bottom: 28px; right: 240px;
+  width: 42px; height: 42px; background: #C7553A; color: #fff;
+  border: none; border-radius: 50%; cursor: pointer;
+  font-size: 18px; font-weight: bold; display: none;
+  align-items: center; justify-content: center; z-index: 500;
+  box-shadow: 0 2px 12px rgba(199,85,58,0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+#back-to-top.visible { display: flex; }
+#back-to-top:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(199,85,58,0.5); }
+/* Index page */
+.index-hero {
+  text-align: center; padding: 44px 0 52px;
+  border-bottom: 1px solid #E8E2D8; margin-bottom: 52px;
+}
+.index-hero h1 { font-size: 2.6em; border: none; margin-bottom: 14px; padding: 0; }
+.index-hero .subtitle { font-size: 1.08em; color: #666; font-style: italic; margin: 0; }
+.index-intro { margin-bottom: 48px; }
+.index-intro p { font-size: 1.05em; margin-bottom: 1.2em; }
+.index-toc { margin-bottom: 48px; }
+.chapter-list { padding-left: 0; list-style: none; }
+.chapter-list li {
+  margin-bottom: 10px; padding: 13px 20px;
+  background: #F8F4EE; border-radius: 8px; border: 1px solid #E8E2D8;
+  transition: background 0.15s, border-color 0.15s;
+}
+.chapter-list li:hover { background: #EDE7DD; border-color: #C7553A; }
+.chapter-list li a { color: #1A1A1A; font-size: 1em; font-weight: 500; text-decoration: none; }
+.chapter-list li a:hover { color: #C7553A; text-decoration: none; }
+.index-audience { margin-bottom: 48px; }
+.index-audience ul { padding-left: 0; list-style: none; }
+.index-audience li { padding: 10px 0; border-bottom: 1px solid #EEE9E0; font-size: 0.95em; }
+/* Responsive */
+@media (max-width: 1200px) {
+  #toc-right { display: none; }
+  #main { margin-right: 0; }
+  #back-to-top { right: 24px; }
+}
+@media (max-width: 900px) { #main { padding: 32px 28px 60px; } }
+@media (max-width: 768px) {
+  #sidebar { display: none; }
+  #main { margin-left: 0; padding: 24px 18px 60px; }
+  h1 { font-size: 1.75em; }
+  h2 { font-size: 1.35em; }
+}
+@media print {
+  #sidebar, #toc-right, #progress-bar, #back-to-top, .chapter-nav { display: none !important; }
+  #main { margin: 0; padding: 0; max-width: 100%; }
+}
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div id="layout">
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">📖 Angular 源码深度解析</div>
+      <div class="sidebar-subtitle">深入 Angular 17+ 运行时、编译器与响应式系统的源码之旅</div>
+    </div>
+    <div class="sidebar-nav">
+      <a href="index.html">📚 目录首页</a>
+<a href="ch01.html">第1章：宏观架构——Angular 的世界观</a>
+<a href="ch02.html">第2章：从零启动——bootstrapApplication 的旅程</a>
+<a href="ch03.html" class="active">第3章：依赖注入——框架的神经系统</a>
+<a href="ch04.html">第4章：模板编译器——从 HTML 到指令序列</a>
+<a href="ch05.html">第5章：Ivy 渲染引擎——LView 的生命</a>
+<a href="ch06.html">第6章：变更检测——Angular 如何知道界面需要更新</a>
+<a href="ch07.html">第7章：Signals——细粒度响应式的实现</a>
+<a href="ch08.html">第8章：组件模型——从装饰器到运行时对象</a>
+<a href="ch09.html">第9章：路由系统——URL 与组件树的映射</a>
+<a href="ch10.html">第10章：服务端渲染与水合——让 Angular 应用「秒开」</a>
+
+    </div>
+  </nav>
+  <main id="main">
+    <h1 id="h-第3章-依赖注入-框架的神经系统">第3章：依赖注入——框架的神经系统</h1>
+<p>你在一个组件的构造函数里写下 <code>inject(UserService)</code>，按下保存，应用正常运行。但有时候，你在一个非常普通的位置写了同样的调用，却收到一条令人困惑的错误：</p>
+<pre><code>NG0203: inject() must be called from an injection context...</code></pre>
+<p>或者更常见的：</p>
+<pre><code>NullInjectorError: No provider for UserService!</code></pre>
+<p>这两条错误背后，是同一套机制在工作——Angular 的依赖注入（Dependency Injection，DI）系统。当你理解了这套系统的内部结构，这些错误就不再神秘：每一条报错，都是 DI 系统在告诉你&quot;我现在到哪一步了，然后卡在了哪里&quot;。</p>
+<p>本章的目标，是让你能追踪任意一次 <code>inject()</code> 调用的完整旅程——从调用发生的那一刻，到实例被返回（或错误被抛出）的每一步。</p>
+<hr>
+<blockquote><p>⚠️ <strong>版本说明</strong>：本章源码引用基于 Angular main 分支（撰写时约为 v19.x）。由于 Angular 持续演进，实际行号可能与发布版本有出入——建议以本书提供的函数名在当前版本中搜索定位。</p></blockquote>
+<h2 id="h-两棵注入器树">两棵注入器树</h2>
+<p>在进入代码之前，我们先建立一个全局认知：Angular 的 DI 系统不是一个单一的容器，而是两棵并行的树。</p>
+<p><strong>第一棵：EnvironmentInjector 树。</strong> 这棵树存在于组件树之外，是应用级别的 provider 仓库。树的根节点是 root 注入器（对应 <code>providedIn: 'root'</code> 的服务），往下可以有路由层级的子注入器（懒加载路由模块各自有一棵）。</p>
+<p><strong>第二棵：NodeInjector 树。</strong> 这棵树与组件树完全同构——每一个组件节点、每一个指令（directive）节点，都对应一个 NodeInjector。它存储着该节点 <code>providers</code> 和 <code>viewProviders</code> 中声明的 provider。</p>
+<p>两棵树的关系如下：</p>
+<div class="mermaid">flowchart TD
+  subgraph ENV[&quot;EnvironmentInjector 树&quot;]
+    direction TB
+    ROOT[&quot;Root Injector&lt;br/&gt;(R3Injector)&lt;br/&gt;providedIn:'root' 的服务&quot;]
+    LAZY[&quot;LazyRoute Injector&lt;br/&gt;(R3Injector)&lt;br/&gt;路由懒加载模块的服务&quot;]
+    NULL[&quot;NullInjector&lt;br/&gt;(最终兜底，抛错)&quot;]
+    ROOT --&gt; LAZY
+    NULL --&gt; ROOT
+  end
+  subgraph NODE[&quot;NodeInjector 树（组件树）&quot;]
+    direction TB
+    APP[&quot;AppComponent&lt;br/&gt;NodeInjector&quot;]
+    PARENT[&quot;ParentComponent&lt;br/&gt;NodeInjector&quot;]
+    CHILD[&quot;ChildComponent&lt;br/&gt;NodeInjector&quot;]
+    APP --&gt; PARENT
+    PARENT --&gt; CHILD
+  end
+  CHILD -- &quot;找不到时&lt;br/&gt;委托给&quot; --&gt; ROOT</div>
+<p>这里引入本章的主比喻：<strong>DI 系统就像一套连锁餐厅的点单系统</strong>。你（组件）只需要报出菜名（token），不需要知道厨房（工厂函数）怎么做；餐厅先在本店找（NodeInjector），找不到再向总部仓库申请（EnvironmentInjector），总部仓库也没有，就报错（NullInjector）。</p>
+<ul><li><strong>EnvironmentInjector</strong> = 连锁餐厅的总部仓库，存放全链共享的食材（应用级服务）</li><li><strong>NodeInjector</strong> = 服务员的随身小推车，每个组件节点的服务员推着自己的小推车，车上只放本组件 <code>providers</code> 里的东西</li></ul>
+<p>🔗 NodeInjector 不是一个独立的对象，而是 LView 中的两个槽位——这个关键细节将在 <a href="#nodeinjector-的秘密">NodeInjector 的秘密</a> 一节展开。</p>
+<blockquote><p>💡 <strong>设计考量</strong>：Angular DI 的双层架构解决了一个根本矛盾：<strong>全局单例</strong>（应用级服务，如 <code>HttpClient</code>、<code>Router</code>）和<strong>局部隔离</strong>（组件级服务，如表单状态服务）需要共存。如果所有 provider 都在一个扁平容器里，组件级的 provider 会污染全局命名空间；如果每个组件有完全独立的容器，全局单例就需要复杂的传递机制。两层树的设计，优雅地切分了职责：NodeInjector 负责局部隔离，EnvironmentInjector 负责全局共享，查询时从局部到全局自动委托。</p></blockquote>
+<hr>
+<h2 id="h-inject-的完整旅程">inject() 的完整旅程</h2>
+<p>现在我们来追踪一次 <code>inject(UserService)</code> 调用的完整路径。</p>
+<h3 id="h-第一关-注入上下文检查">第一关：注入上下文检查</h3>
+<p><code>inject()</code> 函数在执行任何查找之前，先做一件事：确认自己是否在&quot;注入上下文（injection context）&quot;中。就像餐厅的点单机器会先验证你是否身在餐厅内部——在门外是无法下单的。</p>
+<pre><code class="language-typescript">// packages/core/src/di/injector_compatibility.ts（第 88-120 行）
+export function injectInjectorOnly&lt;T&gt;(token: ProviderToken&lt;T&gt;, flags = InternalInjectFlags.Default): T | null {
+  const currentInjector = getCurrentInjector();
+
+  if (currentInjector === undefined) {
+    // ❌ 未在注入上下文中 → 抛出 NG0203
+    throw new RuntimeError(RuntimeErrorCode.MISSING_INJECTION_CONTEXT, ...);
+  } else if (currentInjector === null) {
+    // ⚠️ Limp mode：启动早期，无活跃注入器
+    return injectRootLimpMode(token, undefined, flags);
+  } else {
+    // ✅ 正常路径：调用当前注入实现
+    return currentInjector.retrieve(token, options);
+  }
+}</code></pre>
+<p><code>getCurrentInjector()</code> 返回的是一个全局变量。这个变量在三种情况下会被设置：</p>
+<div class="table-wrap"><table><thead><tr><th>状态</th><th>含义</th></tr></thead><tbody><tr><td><code>undefined</code></td><td>未在注入上下文中（构造函数外、异步回调后）</td></tr><tr><td><code>null</code></td><td>应用启动极早期，进入 Limp mode</td></tr><tr><td><code>PrimitivesInjector</code> 实例</td><td>正常的注入上下文，可以查找</td></tr></tbody></table></div>
+<p>这就解释了那条 <code>NG0203</code> 错误：<code>inject()</code> 在检查上下文时，发现全局变量是 <code>undefined</code>——没有人在调用前设置它。</p>
+<blockquote><p>💡 <strong>Limp mode</strong> 是 Angular 的一个降级处理：当 <code>providedIn: 'root'</code> 的服务在无注入器的情况下被调用时，直接从服务类的 <code>ɵprov.value</code> 读取缓存的单例实例。这通常发生在单元测试的快速初始化场景中。</p></blockquote>
+<h3 id="h-第二关-选择执行路径">第二关：选择执行路径</h3>
+<p>通过上下文检查后，<code>inject()</code> 需要决定走哪条路。Angular 维护着一个全局的&quot;注入实现（inject implementation）&quot;变量：</p>
+<ul><li>当值为 <code>undefined</code> 时（默认），走 EnvironmentInjector 路由</li><li>当值为 <code>directiveInject</code> 函数时（在组件/指令构造时设置），走 NodeInjector 路由</li></ul>
+<p>这个切换机制是 Angular DI 双层架构的关键：在组件树渲染期间，Angular 会将注入实现切换为 <code>directiveInject</code>，这样 <code>inject()</code> 就能找到 NodeInjector。渲染引擎在每次组件构造前后，精确地设置和重置这个全局变量：</p>
+<div class="mermaid">sequenceDiagram
+    participant RE as 渲染引擎
+    participant DI as injectImplementation
+    participant Ctor as 组件构造函数
+
+    RE-&gt;&gt;DI: setInjectImplementation(directiveInject)
+    RE-&gt;&gt;Ctor: new ComponentClass()
+    Note over Ctor: inject() 调用走 NodeInjector 路由
+    Ctor--&gt;&gt;RE: 实例已创建
+    RE-&gt;&gt;DI: setInjectImplementation(undefined)</div>
+<p>三个阶段的状态对照：</p>
+<div class="table-wrap"><table><thead><tr><th>阶段</th><th><code>injectImplementation</code> 值</th><th><code>inject()</code> 行为</th></tr></thead><tbody><tr><td>组件构造前</td><td><code>directiveInject</code></td><td>走 NodeInjector 路由，查找组件树 providers</td></tr><tr><td>组件构造中</td><td><code>directiveInject</code></td><td>可访问当前节点及所有祖先节点的 providers</td></tr><tr><td>组件构造后</td><td><code>undefined</code>（默认）</td><td>走 EnvironmentInjector 路由</td></tr></tbody></table></div>
+<blockquote><p>💡 <strong>设计考量</strong>：<code>injectImplementation</code> 全局变量的切换机制（<code>undefined</code> ↔ <code>directiveInject</code>），是 Angular 实现&quot;同一个 <code>inject()</code> 函数，在不同上下文走不同路径&quot;的核心手段。这种全局状态虽然看起来不够&quot;纯粹&quot;，但它避免了在 inject API 上暴露上下文参数，使用户代码保持简洁。</p></blockquote>
+<h3 id="h-第三关-nodeinjector-链">第三关：NodeInjector 链</h3>
+<p>如果走 NodeInjector 路由，调用链是：</p>
+<pre><code>directiveInject(token)
+  → getOrCreateInjectable(tNode, lView, token, flags)
+    → lookupTokenUsingNodeInjector(...)  // 在组件树向上搜索
+      → lookupTokenUsingModuleInjector(...)  // 交给 EnvironmentInjector</code></pre>
+<p>NodeInjector 从当前组件节点开始，沿着组件树向上遍历，直到找到提供 token 的节点，或者到达树的顶端。到达顶端还没找到，就将查询委托给 EnvironmentInjector。</p>
+<h3 id="h-第四关-environmentinjector-链">第四关：EnvironmentInjector 链</h3>
+<p><code>R3Injector.get()</code> 是 EnvironmentInjector 的实现核心。它在自己的 <code>records</code> Map 中查找，找不到就委托给父级 R3Injector，最终到达 <code>NullInjector</code>。</p>
+<pre><code class="language-typescript">// packages/core/src/di/r3_injector.ts（第 376-383 行）
+// Self 标志：只查本注入器，禁止向上委托
+const nextInjector = !(flags &amp; InternalInjectFlags.Self)
+  ? this.parent
+  : getNullInjector();
+
+return nextInjector.get(token, notFoundValue);</code></pre>
+<h3 id="h-第五关-nullinjector-抛错">第五关：NullInjector 抛错</h3>
+<p><code>NullInjector</code> 是整条链的终点。它的 <code>get()</code> 方法非常简单：如果传入了 <code>Optional</code> 标志，返回 <code>null</code>；否则，抛出 <code>NullInjectorError</code>。</p>
+<p>那条看起来&quot;莫名其妙&quot;的报错，就是 NullInjector 在说：&quot;我是最后一个注入器，token 已经穿透了所有注入器，但谁都没提供它。&quot;</p>
+<div class="mermaid">flowchart LR
+  START[&quot;inject(UserService)&quot;]
+  CTX{&quot;注入上下文\n存在？&quot;}
+  NODE[&quot;NodeInjector\n(当前节点)&quot;]
+  NODE_UP[&quot;NodeInjector\n(父组件)&quot;]
+  ENV[&quot;EnvironmentInjector\n(Root)&quot;]
+  NULL[&quot;NullInjector\n抛出错误&quot;]
+  FOUND[&quot;✅ 返回实例&quot;]
+
+  START --&gt; CTX
+  CTX -- &quot;undefined → NG0203&quot; --&gt; NULL
+  CTX -- &quot;有效&quot; --&gt; NODE
+  NODE -- &quot;未找到，向上&quot; --&gt; NODE_UP
+  NODE_UP -- &quot;穿透组件树&quot; --&gt; ENV
+  ENV -- &quot;找到&quot; --&gt; FOUND
+  ENV -- &quot;未找到&quot; --&gt; NULL</div>
+<blockquote><p>⚠️ <code>@Self()</code> 和 <code>@SkipSelf()</code> 装饰器（以及 <code>inject()</code> 的 <code>self</code>/<code>skipSelf</code> 选项）正是通过修改这次旅程的起点和终点来工作的：<code>@Self()</code> 让旅程只经过当前节点就结束；<code>@SkipSelf()</code> 则从父节点开始出发。</p></blockquote>
+<hr>
+<h2 id="h-r3injector-的-token-解析">R3Injector 的 token 解析</h2>
+<p>当查询到达 EnvironmentInjector（即 <code>R3Injector</code>）时，它的 <code>get()</code> 方法需要做三件事：找到 provider、实例化它、缓存结果。</p>
+<h3 id="h-provider-的四种形式">provider 的四种形式</h3>
+<p>Angular 的 provider 配置有四种写法，<code>R3Injector</code> 在初始化时会把它们全部转换成统一的工厂函数（factory function）：</p>
+<pre><code class="language-typescript">// packages/core/src/di/r3_injector.ts（第 639-681 行）
+// useValue：直接返回固定值，最简单
+if (isValueProvider(provider)) {
+  factory = () =&gt; resolveForwardRef(provider.useValue);
+}
+
+// useFactory：调用工厂函数，先注入依赖
+if (isFactoryProvider(provider)) {
+  factory = () =&gt; provider.useFactory(...injectArgs(provider.deps || []));
+}
+
+// useExisting：代理到另一个 token（别名机制）
+if (isExistingProvider(provider)) {
+  factory = (_, flags) =&gt; ɵɵinject(resolveForwardRef(provider.useExisting), flags);
+}
+
+// useClass / 直接提供类型：实例化指定类
+const classRef = resolveForwardRef(provider.useClass || provider.provide);
+factory = () =&gt; new classRef(...injectArgs(provider.deps));</code></pre>
+<p>这四种形式最终都变成一个 <code>() =&gt; T</code> 形式的函数，存储在 <code>Record&lt;T&gt;</code> 的 <code>factory</code> 字段中。</p>
+<h3 id="h-惰性实例化-hydrate">惰性实例化：hydrate()</h3>
+<p><code>R3Injector</code> 不会在注册 provider 时立刻创建实例。它用两个特殊的哨兵值来控制惰性初始化：</p>
+<ul><li><code>NOT_YET</code>：尚未实例化</li><li><code>CIRCULAR</code>：正在实例化中（用于检测循环依赖）</li></ul>
+<pre><code class="language-typescript">// packages/core/src/di/r3_injector.ts（第 524-549 行）
+private hydrate&lt;T&gt;(token: ProviderToken&lt;T&gt;, record: Record&lt;T&gt;): T {
+  if (record.value === CIRCULAR) {
+    // 检测到循环依赖：A 依赖 B，B 又依赖 A
+    throw cyclicDependencyError(stringify(token));
+  }
+  if (record.value === NOT_YET) {
+    record.value = CIRCULAR;  // 标记&quot;正在处理&quot;，防止递归
+    record.value = record.factory!(undefined, flags);  // 执行工厂函数
+    // 如果服务有 ngOnDestroy，注册清理钩子
+    if (hasOnDestroy(record.value)) {
+      this._ngOnDestroyHooks.add(record.value);
+    }
+  }
+  return record.value as T;
+}</code></pre>
+<p>实例一旦创建，就存储在 <code>record.value</code> 中。下次查询同一个 token，直接返回缓存值，不再执行工厂函数——这就是&quot;单例&quot;的实现原理。</p>
+<h3 id="h-multi-provider-收集所有实现">multi provider：收集所有实现</h3>
+<p><code>{ provide: HTTP_INTERCEPTORS, useClass: MyInterceptor, multi: true }</code> 这样的写法，是通过 <code>multi</code> 字段实现的。R3Injector 对 <code>multi: true</code> 的 provider 特殊处理：</p>
+<pre><code class="language-typescript">// packages/core/src/di/r3_injector.ts（第 497-522 行）
+if (!isTypeProvider(provider) &amp;&amp; provider.multi === true) {
+  let multiRecord = this.records.get(token);
+  if (!multiRecord) {
+    // 第一次：创建一个收集器 Record，工厂函数返回 multi 数组的所有实例
+    multiRecord = makeRecord(undefined, NOT_YET, true);
+    multiRecord.factory = () =&gt; injectArgs(multiRecord!.multi!);
+    this.records.set(token, multiRecord);
+  }
+  // 将每个 provider 添加到收集器的 multi 数组
+  multiRecord.multi!.push(provider);
+}</code></pre>
+<p>当你调用 <code>inject(HTTP_INTERCEPTORS)</code> 时，收集器的工厂函数被调用，它依次实例化 <code>multi</code> 数组中的每一个 provider，返回实例数组。</p>
+<hr>
+<h2 id="h-nodeinjector-的秘密">NodeInjector 的秘密</h2>
+<p>NodeInjector 的实现有一个让很多人惊讶的细节：<strong>它不是一个真实的对象</strong>。</p>
+<p>在 Angular 的 render3 渲染引擎中，LView 是一个大数组，存储视图的所有运行时状态（DOM 节点、组件实例、绑定值等）。每个组件节点的 NodeInjector，其实是这个数组中的特定位置——一个&quot;TNODE 槽&quot;和一个&quot;PARENT 槽&quot;。</p>
+<pre><code>LView 数组（示意）：
+┌─────────┬──────────┬───────────────────────────────────────────┐
+│ 固定槽  │ 状态槽   │ ... 节点数据 ...                          │
+├─────────┼──────────┼─────────────────────────────────────────┤
+│ INJECTOR│ TVIEW    │ [injectorIndex+0..7]  ← Bloom Filter 桶  │
+│ (索引3) │ (索引1)  │ [injectorIndex+8]     ← TNODE 引用        │
+│         │          │ [injectorIndex+9]     ← PARENT 位置        │
+└─────────┴──────────┴─────────────────────────────────────────┘</code></pre>
+<p>继续用餐厅比喻：NodeInjector 不是服务员手里拿着的独立推车，而是<strong>餐厅地板上划出的一块区域</strong>——这块区域里有当前服务员的物品（providers），以及一张写着&quot;找我上级服务员去哪片区域找&quot;的纸条（PARENT 槽）。</p>
+<h3 id="h-向上遍历算法">向上遍历算法</h3>
+<p>NodeInjector 的查找算法是一个循环，沿着 PARENT 槽不断向上：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/di.ts（第 578-615 行）
+while (injectorIndex !== -1) {
+  // 先用 Bloom Filter 快速检查此节点是否可能有这个 token
+  if (bloomHasToken(bloomHash, injectorIndex, tView.data)) {
+    const instance = searchTokensOnInjector(injectorIndex, lView, token, ...);
+    if (instance !== NOT_FOUND) return instance;
+  }
+  // 读取 PARENT 槽，跳到父节点的注入器
+  parentLocation = lView[injectorIndex + NodeInjectorOffset.PARENT];
+  injectorIndex = getParentInjectorIndex(parentLocation);
+  lView = getParentInjectorView(parentLocation, lView);
+}</code></pre>
+<p>PARENT 槽存储的 <code>RelativeInjectorLocation</code> 是一个整数，编码了两个信息：低 16 位是父注入器在 LView 中的索引，高 16 位是需要跨越的视图层数。这样一个整数就能导航到任意层级的父节点，而不需要维护对象引用链。</p>
+<h3 id="h-深入-bloom-filter-快速检查">🔍 深入：Bloom Filter 快速检查</h3>
+<blockquote><p>以下内容是可选的深层探讨。如果你只想理解 DI 的工作原理，可以直接跳到下一节。</p></blockquote>
+<p>NodeInjector 在详细查找前，先做一次 <strong>Bloom Filter 过滤</strong>。这是一种概率型数据结构：如果 Bloom Filter 说&quot;没有&quot;，则一定没有；如果说&quot;可能有&quot;，才进行真正的线性查找。</p>
+<p>实现细节：每个注入器节点占用 TView.data 中的 <strong>8 个连续整数槽</strong>（共 256 位），构成 Bloom Filter。每当向节点注册一个 provider，就执行 <code>bloomAdd()</code>：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/di.ts（第 152-181 行）
+function bloomAdd(injectorIndex: number, tView: TView, type: ProviderToken&lt;any&gt;): void {
+  // 每个 token 有一个全局唯一 ID（存在 NG_ELEMENT_ID 属性上）
+  let id = (type as any)[NG_ELEMENT_ID];
+  if (id == null) id = (type as any)[NG_ELEMENT_ID] = nextNgElementId++;
+
+  const bloomHash = id &amp; 0xFF;  // 取低 8 位，得到 0-255 的 hash 值（实际代码使用 `BLOOM_MASK` 常量，此处展示等价逻辑）
+  // 找到对应的 32 位桶（共 8 个桶，每桶 32 位）
+  // 在桶中设置对应的位
+  (tView.data as number[])[injectorIndex + (bloomHash &gt;&gt; 5)] |= (1 &lt;&lt; (bloomHash &amp; 31));
+}</code></pre>
+<p>查询时，<code>bloomHasToken()</code> 计算同样的 hash，检查对应位是否为 1。如果为 0，当前节点绝对没有这个 token，直接跳到父节点——省去了线性扫描指令列表的开销。</p>
+<p>Bloom Filter 存在误判（不同 token 可能产生相同的 hash），但不存在漏判。误判只会导致多做一次无谓的线性查找，不会影响正确性。在 Angular 的实际使用中，每个组件注册的 provider 数量通常很少，这个优化在大型应用的深层组件树中效果显著。</p>
+<blockquote><p>💡 <strong>设计考量</strong>：Bloom Filter 的引入是一个典型的&quot;以空间换时间&quot;优化。每个 NodeInjector 占用 TView.data 中 8 个额外的整数槽（32 字节），换来的是在深层组件树中跳过无关节点的能力。在大型企业应用中，组件树深度可以超过 20 层，Bloom Filter 可以显著减少线性查找的次数。</p></blockquote>
+<p>🔗 NodeInjector 存储在 LView 中的详细布局（特别是 TNODE 和 PARENT 槽的精确位置），将在第5章分析 LView 数据结构时深入展开。</p>
+<hr>
+<h2 id="h-providedin-与摇树优化">providedIn 与摇树优化</h2>
+<p>理解了 DI 的查找机制后，我们来解答一个工程上的核心问题：为什么 <code>providedIn: 'root'</code> 可以被摇树优化（tree-shaking）掉，而 <code>providers: [MyService]</code> 不行？</p>
+<h3 id="h-prov-作用域标记字段">ɵprov：作用域标记字段</h3>
+<p>当你写下 <code>@Injectable({ providedIn: 'root' })</code> 时，Angular 编译器会在类上生成一个静态字段 <code>ɵprov</code>（正式名称是 <code>NG_PROV_DEF</code>）：</p>
+<pre><code class="language-typescript">// 你写的代码
+@Injectable({ providedIn: 'root' })
+export class UserService { ... }
+
+// 编译器生成的静态字段（简化）
+UserService.ɵprov = ɵɵdefineInjectable({
+  token: UserService,
+  providedIn: 'root',
+  factory: () =&gt; new UserService(inject(HttpClient)),
+});</code></pre>
+<p>这个 <code>ɵprov</code> 字段不需要被任何 providers 数组引用。<strong>它孤立地挂在类上</strong>，只有当 <code>R3Injector</code> 在查找 token 时，才会主动去读它：</p>
+<pre><code class="language-typescript">// packages/core/src/di/r3_injector.ts（行号随版本变化，约第 420 行附近）
+if (record === undefined) {
+  // 自动发现：查询 token 上的 ɵprov
+  const def = couldBeInjectableType(token) &amp;&amp; getInjectableDef(token);
+  if (def &amp;&amp; this.injectableDefInScope(def)) {
+    // 只有作用域匹配，才动态注册这个 provider
+    record = makeRecord(injectableDefOrInjectorDefFactory(token), NOT_YET);
+    this.records.set(token, record);
+  }
+}</code></pre>
+<p>摇树优化器（Webpack、Rollup、esbuild）的工作是：追踪&quot;被引用的代码&quot;。<code>providedIn: 'root'</code> 的服务，其 <code>ɵprov</code> 字段没有被任何数组持有——如果 <code>UserService</code> 本身从未在任何模板或代码中被用到，整个服务类（含 <code>ɵprov</code>）都可以被删除。</p>
+<h3 id="h-providers-数组为什么不能摇树">providers 数组为什么不能摇树</h3>
+<pre><code class="language-typescript">// 方案 A：可以摇树
+@Injectable({ providedIn: 'root' })
+class AnalyticsService {}
+
+// 方案 B：不能摇树
+@NgModule({
+  providers: [AnalyticsService]  // ← 这里有一个显式引用
+})
+class AppModule {}</code></pre>
+<p>在方案 B 中，<code>AppModule</code> 的 <code>ɵinj</code>（注入器定义）必须包含 <code>AnalyticsService</code> 的引用。<code>AppModule.ɵinj</code> 被 bootstrap 流程持有，因此整条引用链无法断开——即使 <code>AnalyticsService</code> 在应用中从未被 <code>inject()</code> 调用，它也会被打包进最终产物。</p>
+<div class="mermaid">flowchart LR
+  A[&quot;AnalyticsService\nɵprov&quot;]
+  B[&quot;AppModule\nɵinj.providers&quot;]
+  C[&quot;bootstrap()&quot;]
+  D[&quot;打包产物&quot;]
+
+  subgraph TREESHAKEABLE[&quot;providedIn: root（可摇树）&quot;]
+    A -- &quot;若未被使用\n可删除&quot; --&gt; D
+  end
+  subgraph NOT_TREESHAKEABLE[&quot;providers 数组（不可摇树）&quot;]
+    B -- &quot;被 bootstrap 引用&quot; --&gt; C --&gt; D
+    B -- &quot;引用&quot; --&gt; A
+  end</div>
+<blockquote><p>💡 standalone 组件的 <code>providers: []</code> 和 <code>bootstrapApplication()</code> 的 <code>providers: []</code> 也是同理：任何出现在 providers 数组中的 token，都会被打包工具认为是&quot;被引用的代码&quot;，无法删除。</p></blockquote>
+<h3 id="h-providedin-的作用域匹配">providedIn 的作用域匹配</h3>
+<p><code>injectableDefInScope()</code> 方法决定某个 <code>EnvironmentInjector</code> 是否应该接管一个 <code>@Injectable</code> 的创建：</p>
+<pre><code class="language-typescript">// packages/core/src/di/r3_injector.ts（第 551-559 行）
+private injectableDefInScope(def: ɵɵInjectableDeclaration&lt;any&gt;): boolean {
+  if (!def.providedIn) return false;
+  const providedIn = resolveForwardRef(def.providedIn);
+
+  if (typeof providedIn === 'string') {
+    // 'root' | 'platform' | 'any' | 'environment'
+    return providedIn === 'any' || this.scopes.has(providedIn);
+  } else {
+    // NgModule 类型：检查此注入器是否关联该 NgModule
+    return this.injectorDefTypes.has(providedIn);
+  }
+}</code></pre>
+<p>Root 注入器的 <code>scopes</code> Set 中包含 <code>'root'</code> 和 <code>'environment'</code>，Platform 注入器包含 <code>'platform'</code>。<code>providedIn: 'any'</code> 比较特殊，它匹配所有注入器——每个注入器都会为它创建一个独立的实例，适用于需要&quot;每个懒加载模块各自一份&quot;的场景。</p>
+<hr>
+<h2 id="h-小结">小结</h2>
+<p>本章追踪了 Angular DI 系统的完整内部机制：</p>
+<ul><li><strong>两棵树</strong>：EnvironmentInjector 树（应用级）和 NodeInjector 树（组件树同构），查询时从组件节点出发，穿越 NodeInjector 链，最终委托给 EnvironmentInjector，到达 NullInjector 则抛错</li><li><strong>inject() 的上下文</strong>：全局的 <code>currentInjector</code> 变量控制注入上下文；<code>injectImplementation</code> 变量决定走 NodeInjector 路由还是 EnvironmentInjector 路由</li><li><strong>R3Injector 解析</strong>：四种 provider 形式（useClass/useFactory/useValue/useExisting）统一转换为工厂函数；<code>hydrate()</code> 实现惰性单例，用 <code>NOT_YET</code>/<code>CIRCULAR</code> 哨兵值检测循环依赖；<code>multi: true</code> provider 聚合为数组</li><li><strong>NodeInjector 的本质</strong>：不是独立对象，而是 LView 中的特定槽位；Bloom Filter（256位，8个32位桶）提供快速存在性检查；PARENT 槽编码父节点位置，支持高效向上遍历</li><li><strong>摇树优化</strong>：<code>providedIn: 'root'</code> 将作用域信息隔离在 <code>ɵprov</code> 字段中，不被任何数组持有，构建工具可安全删除未引用的服务；<code>providers</code> 数组中的 token 总是被持有，无法删除</li></ul>
+<p>再看开场的两条错误，现在它们都有了精确的解释：</p>
+<ul><li><strong>NG0203</strong>：<code>inject()</code> 在第一关发现 <code>currentInjector</code> 为 <code>undefined</code>——调用方不在任何注入上下文中（不是构造函数、生命周期钩子或工厂函数）</li><li><strong>NullInjectorError</strong>：token 穿透了所有 NodeInjector 和 EnvironmentInjector，在第五关抵达 NullInjector——没有任何 provider 声明过这个 token</li></ul>
+<p>每一次 DI 报错，都是系统在精确地告诉你它卡在了五关旅程的哪个位置。</p>
+<hr>
+<h2 id="h-思考题">思考题</h2>
+<ol><li>如果一个服务同时出现在父组件的 <code>providers</code> 和子组件的 <code>providers</code> 中，子组件 <code>inject()</code> 时会得到哪个实例？为什么？（提示：追踪 NodeInjector 的向上遍历路径）</li></ol>
+<ol><li><code>@Self()</code> 装饰器的实现，对应 <code>InternalInjectFlags</code> 中的哪个标志？它如何改变 NodeInjector 和 EnvironmentInjector 的查找行为？</li></ol>
+<ol><li>如果你有一个服务需要在每个懒加载路由模块中独立实例化，应该使用哪种 <code>providedIn</code> 值？它的工作原理是什么？</li></ol>
+    <div class="chapter-nav"><a href="ch02.html">← 上一章：第2章：从零启动——bootstrapApplication 的旅程</a><a href="ch04.html">下一章：第4章：模板编译器——从 HTML 到指令序列 →</a></div>
+  </main>
+  
+<aside id="toc-right">
+  <div class="toc-title">本章目录</div>
+  <ul class="toc-list"><li><a href="#h-两棵注入器树">两棵注入器树</a></li>
+<li><a href="#h-inject-的完整旅程">inject() 的完整旅程</a></li>
+<li><a href="#h-r3injector-的-token-解析">R3Injector 的 token 解析</a></li>
+<li><a href="#h-nodeinjector-的秘密">NodeInjector 的秘密</a></li>
+<li><a href="#h-providedin-与摇树优化">providedIn 与摇树优化</a></li>
+<li><a href="#h-小结">小结</a></li>
+<li><a href="#h-思考题">思考题</a></li></ul>
+</aside>
+</div>
+<button id="back-to-top" title="返回顶部">↑</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+<script>
+(function () {
+  'use strict';
+  function updateProgress() {
+    var el = document.getElementById('progress-bar');
+    if (!el) return;
+    var st = window.pageYOffset || document.documentElement.scrollTop;
+    var dh = document.documentElement.scrollHeight - window.innerHeight;
+    el.style.width = (dh > 0 ? Math.min(100, st / dh * 100) : 0) + '%';
+  }
+  function updateBackToTop() {
+    var btn = document.getElementById('back-to-top');
+    if (!btn) return;
+    btn.classList.toggle('visible', (window.pageYOffset || document.documentElement.scrollTop) > 300);
+  }
+  function updateTocActive() {
+    var hs = Array.from(document.querySelectorAll('#main h2[id]'));
+    var ls = Array.from(document.querySelectorAll('#toc-right .toc-list a'));
+    if (!hs.length || !ls.length) return;
+    var active = -1;
+    hs.forEach(function (h, i) { if (h.getBoundingClientRect().top <= 120) active = i; });
+    ls.forEach(function (a, i) { a.classList.toggle('active', i === active); });
+  }
+  window.addEventListener('scroll', function () {
+    updateProgress(); updateBackToTop(); updateTocActive();
+  }, { passive: true });
+  var btn = document.getElementById('back-to-top');
+  if (btn) btn.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof hljs !== 'undefined') hljs.highlightAll();
+    updateProgress(); updateTocActive();
+  });
+})();
+</script>
+</body>
+</html>

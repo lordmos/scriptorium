@@ -45,7 +45,7 @@
 
 ### 从大纲提取依赖
 
-在Phase 1（大纲定稿）完成后，从 `outline-final.md` 中提取依赖关系:
+在Phase 1（大纲定稿）完成后，从 `output/memory/outline.md` 中提取依赖关系:
 
 ```
 方法1: 显式声明

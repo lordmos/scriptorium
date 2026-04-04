@@ -8,7 +8,7 @@
 | Agent类型 | 3个独立的general-purpose Agent并行工作 |
 | 参与阶段 | Phase 3 Step 4（审查通过后） |
 | 核心输入 | 定稿章节（审查修改后的版本） |
-| 核心输出 | `reader-feedback/chXX-panel.md`（三人评审汇总） |
+| 核心输出 | `output/reviews/chXX-panel.md`（三人评审汇总） |
 
 ## 三个角色定义
 
@@ -81,7 +81,7 @@
 
 ## 输出规格
 
-### reader-feedback/chXX-panel.md
+### output/reviews/chXX-panel.md
 
 ```markdown
 # 第{{章节号}}章 读者评审团反馈
@@ -200,7 +200,7 @@
 以学生视角阅读第{{章节号}}章，提供阅读体验反馈。
 
 ## 阅读
-- {{工作目录}}/drafts/ch{{章节号}}-draft.md（或定稿路径）
+- output/chapters/draft/ch{{章节号}}-draft.md（或定稿路径）
 
 ## 反馈重点
 1. 能看懂吗？哪里开始看不懂？
@@ -218,7 +218,7 @@
 以资深工程师视角阅读第{{章节号}}章，评估技术深度和实践价值。
 
 ## 阅读
-- {{工作目录}}/drafts/ch{{章节号}}-draft.md（或定稿路径）
+- output/chapters/draft/ch{{章节号}}-draft.md（或定稿路径）
 
 ## 反馈重点
 1. 技术深度是否足够？
@@ -236,7 +236,7 @@
 以科技爱好者视角阅读第{{章节号}}章，评估趣味性和可接近性。
 
 ## 阅读
-- {{工作目录}}/drafts/ch{{章节号}}-draft.md（或定稿路径）
+- output/chapters/draft/ch{{章节号}}-draft.md（或定稿路径）
 
 ## 反馈重点
 1. 有趣吗？能吸引你继续读下去吗？

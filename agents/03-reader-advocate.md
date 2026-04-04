@@ -7,8 +7,8 @@
 | 角色隐喻 | 产品经理 / 用户体验专家 |
 | Agent类型 | general-purpose |
 | 参与阶段 | Phase 1（大纲审核与优化） |
-| 核心输入 | `outline-draft.md`（架构师产出的章节大纲草案） |
-| 核心输出 | `reader-feedback.md`（问题清单 + 改进建议） |
+| 核心输入 | `output/memory/outline.md`（架构师产出的章节大纲草案） |
+| 核心输出 | `output/memory/reader-feedback.md`（问题清单 + 改进建议） |
 
 ## 核心职责
 
@@ -21,12 +21,12 @@
 
 | 文件 | 说明 |
 |------|------|
-| `{{工作目录}}/outline-draft.md` | 架构师产出的章节大纲草案 |
-| `{{工作目录}}/source-map.md` | 源码→章节映射（参考用，了解技术深度） |
+| `{{工作目录}}/output/memory/outline.md` | 架构师产出的章节大纲草案 |
+| `{{工作目录}}/output/memory/source-map.md` | 源码→章节映射（参考用，了解技术深度） |
 
 ## 输出规格
 
-### reader-feedback.md
+### output/memory/reader-feedback.md
 
 ```markdown
 # 读者代言人反馈报告
@@ -94,7 +94,7 @@
 {{目标读者描述}}
 
 ## 输入
-- 请阅读：{{工作目录}}/outline-draft.md
+- 请阅读：output/memory/outline.md
 
 ## 输出
 - 写入：{{工作目录}}/reader-feedback.md

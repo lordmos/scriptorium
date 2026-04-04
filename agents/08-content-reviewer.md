@@ -8,7 +8,7 @@
 | Agent类型 | general-purpose |
 | 参与阶段 | Phase 1（大纲审核）+ Phase 3 Step 3（逐章审核）+ Phase 4（统稿审核） |
 | 核心输入 | 章节草稿、写作风格指南 |
-| 核心输出 | `reviews/chXX-r3-content.md`（内容审查报告） |
+| 核心输出 | `output/reviews/chXX-r3.md`（内容审查报告） |
 
 ## 核心职责
 
@@ -21,10 +21,10 @@
 
 | 文件 | 说明 | 适用阶段 |
 |------|------|----------|
-| `{{工作目录}}/drafts/chXX-draft.md` | 待审查的章节草稿 | Phase 3/4 |
-| `{{工作目录}}/style-guide.md` | 写作风格指南 | 所有阶段 |
-| `{{工作目录}}/outline-draft.md` 或 `outline-final.md` | 大纲文件 | Phase 1 |
-| `{{工作目录}}/chapter-summaries.md` | 已完成章节摘要（统稿时参考） | Phase 4 |
+| `output/chapters/draft/chXX-draft.md` | 待审查的章节草稿 | Phase 3/4 |
+| `output/memory/style-guide.md` | 写作风格指南 | 所有阶段 |
+| `output/memory/outline.md` | 大纲文件 | Phase 1 |
+| `output/memory/chapter-summaries.md` | 已完成章节摘要（统稿时参考） | Phase 4 |
 
 ## 六维度审查体系
 
@@ -84,7 +84,7 @@
 
 ## 输出规格
 
-### reviews/chXX-r3-content.md
+### output/reviews/chXX-r3.md
 
 ```markdown
 # 第{{章节号}}章 内容审查报告（R3）
@@ -160,8 +160,8 @@
 从六个维度审查第{{章节号}}章草稿的内容质量。
 
 ## 输入
-- 章节草稿：{{工作目录}}/drafts/ch{{章节号}}-draft.md
-- 写作风格指南：{{工作目录}}/style-guide.md
+- 章节草稿：output/chapters/draft/ch{{章节号}}-draft.md
+- 写作风格指南：output/memory/style-guide.md
 
 ## 六维度审查
 1. 🛡️ 敏感性：政治/宗教/性别/种族/文化/商业
@@ -172,7 +172,7 @@
 6. 📈 市场性：标题、开头、结尾、差异化价值
 
 ## 输出
-- 写入：{{工作目录}}/reviews/ch{{章节号}}-r3-content.md
+- 写入：output/reviews/ch{{章节号}}-r3.md
 - 完成后添加 <!-- R3_CONTENT_REVIEW_COMPLETE -->
 ```
 

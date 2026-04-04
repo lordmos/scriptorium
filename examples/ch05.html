@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第5章：Ivy 渲染引擎——LView 的生命 | Angular 源码深度解析</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: #FEFCF8;
+  color: #2C2C2C;
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.85;
+}
+/* Progress bar */
+#progress-bar {
+  position: fixed; top: 0; left: 0; width: 0%; height: 3px;
+  background: #C7553A; z-index: 2000; transition: width 0.08s linear;
+}
+/* Layout */
+#layout { display: flex; min-height: 100vh; }
+/* Left sidebar */
+#sidebar {
+  position: fixed; top: 3px; left: 0;
+  width: 260px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-right: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100;
+}
+.sidebar-header { padding: 22px 18px 14px; border-bottom: 1px solid #E8E2D8; }
+.sidebar-title {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  font-size: 1em; font-weight: 700; color: #1A1A1A; line-height: 1.4; margin-bottom: 5px;
+}
+.sidebar-subtitle { font-size: 0.7em; color: #999; line-height: 1.4; }
+.sidebar-nav { padding: 10px 8px 24px; }
+.sidebar-nav a {
+  display: block; padding: 6px 12px; border-radius: 5px;
+  color: #444; font-size: 0.82em; text-decoration: none;
+  line-height: 1.45; margin-bottom: 2px; word-break: break-all;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar-nav a:hover { background: #EDE7DD; color: #1A1A1A; }
+.sidebar-nav a.active { background: #E8DDD0; color: #C7553A; font-weight: 600; }
+/* Main content */
+#main { margin-left: 260px; margin-right: 224px; padding: 48px 52px 80px; min-height: 100vh; }
+/* Right TOC */
+#toc-right {
+  position: fixed; top: 3px; right: 0;
+  width: 224px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-left: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100; padding: 22px 14px;
+}
+.toc-title {
+  font-size: 0.68em; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #aaa; margin-bottom: 10px;
+}
+.toc-list { list-style: none; }
+.toc-list li { margin-bottom: 3px; }
+.toc-list li a {
+  display: block; padding: 3px 8px; font-size: 0.77em; color: #666;
+  text-decoration: none; border-left: 2px solid transparent;
+  line-height: 1.4; word-break: break-all;
+  transition: color 0.15s, border-color 0.15s;
+}
+.toc-list li a:hover { color: #C7553A; }
+.toc-list li a.active { color: #C7553A; border-left-color: #C7553A; font-weight: 600; }
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  color: #1A1A1A; line-height: 1.4;
+  margin-top: 1.8em; margin-bottom: 0.55em;
+}
+h1 { font-size: 2.1em; margin-top: 0; padding-bottom: 0.35em; border-bottom: 2px solid #C7553A; }
+h2 { font-size: 1.55em; padding-bottom: 0.28em; border-bottom: 1px solid #E8E2D8; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1.08em; }
+h5 { font-size: 1em; }
+h6 { font-size: 0.95em; color: #666; }
+p { margin-bottom: 1em; }
+strong { color: #1A1A1A; font-weight: 700; }
+em { font-style: italic; }
+del { text-decoration: line-through; color: #999; }
+/* Links */
+a { color: #4A7C9B; text-decoration: none; }
+a:hover { text-decoration: underline; color: #3a6c8b; }
+/* Code */
+code {
+  font-family: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Courier New", monospace;
+  font-size: 0.875em; background: #F5F2ED; padding: 0.15em 0.38em;
+  border-radius: 3px; border: 1px solid #E0D9CF; word-break: break-all;
+}
+pre {
+  background: #F5F2ED; padding: 18px 22px; border-radius: 8px;
+  overflow-x: auto; margin: 1.4em 0; border: 1px solid #E0D9CF; line-height: 1.6;
+}
+pre code { background: none; padding: 0; border: none; border-radius: 0; font-size: 0.84em; word-break: normal; }
+.hljs { background: #F5F2ED !important; }
+/* Blockquote */
+blockquote {
+  margin: 1.4em 0; padding: 14px 20px;
+  border-left: 4px solid #C7553A;
+  background: linear-gradient(to right, #FFF9F5, #FEFCF8);
+  border-radius: 0 6px 6px 0;
+}
+blockquote p { margin: 0; color: #555; font-style: italic; }
+/* Lists */
+ul, ol { padding-left: 1.8em; margin-bottom: 1em; }
+li { margin-bottom: 0.38em; }
+li p { margin: 0; }
+/* Tables */
+.table-wrap { overflow-x: auto; margin: 1.4em 0; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+th, td { padding: 9px 13px; border: 1px solid #E8E2D8; text-align: left; vertical-align: top; }
+th { background: #F5F2ED; font-weight: 600; color: #1A1A1A; white-space: nowrap; }
+tr:nth-child(even) td { background: #FDFAF5; }
+/* HR */
+hr { border: none; border-top: 1px solid #E8E2D8; margin: 2.2em 0; }
+/* Images */
+img { max-width: 100%; height: auto; border-radius: 4px; display: block; margin: 1em auto; }
+/* Mermaid */
+.mermaid {
+  margin: 1.6em 0; padding: 20px;
+  background: #FDFAF5; border: 1px solid #E8E2D8; border-radius: 8px;
+  text-align: center; overflow-x: auto;
+}
+/* Chapter nav */
+.chapter-nav {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 4em; padding-top: 1.8em; border-top: 2px solid #E8E2D8; gap: 12px;
+}
+.chapter-nav a {
+  display: inline-flex; align-items: center; padding: 10px 16px;
+  background: #F5F2ED; border: 1px solid #E8E2D8; border-radius: 6px;
+  color: #4A7C9B; font-size: 0.85em; text-decoration: none; max-width: 46%;
+  word-break: break-all; line-height: 1.4;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.chapter-nav a:hover { background: #EDE7DD; border-color: #C7553A; color: #C7553A; text-decoration: none; }
+.chapter-nav span { flex: 1; }
+/* Back to top */
+#back-to-top {
+  position: fixed; bottom: 28px; right: 240px;
+  width: 42px; height: 42px; background: #C7553A; color: #fff;
+  border: none; border-radius: 50%; cursor: pointer;
+  font-size: 18px; font-weight: bold; display: none;
+  align-items: center; justify-content: center; z-index: 500;
+  box-shadow: 0 2px 12px rgba(199,85,58,0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+#back-to-top.visible { display: flex; }
+#back-to-top:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(199,85,58,0.5); }
+/* Index page */
+.index-hero {
+  text-align: center; padding: 44px 0 52px;
+  border-bottom: 1px solid #E8E2D8; margin-bottom: 52px;
+}
+.index-hero h1 { font-size: 2.6em; border: none; margin-bottom: 14px; padding: 0; }
+.index-hero .subtitle { font-size: 1.08em; color: #666; font-style: italic; margin: 0; }
+.index-intro { margin-bottom: 48px; }
+.index-intro p { font-size: 1.05em; margin-bottom: 1.2em; }
+.index-toc { margin-bottom: 48px; }
+.chapter-list { padding-left: 0; list-style: none; }
+.chapter-list li {
+  margin-bottom: 10px; padding: 13px 20px;
+  background: #F8F4EE; border-radius: 8px; border: 1px solid #E8E2D8;
+  transition: background 0.15s, border-color 0.15s;
+}
+.chapter-list li:hover { background: #EDE7DD; border-color: #C7553A; }
+.chapter-list li a { color: #1A1A1A; font-size: 1em; font-weight: 500; text-decoration: none; }
+.chapter-list li a:hover { color: #C7553A; text-decoration: none; }
+.index-audience { margin-bottom: 48px; }
+.index-audience ul { padding-left: 0; list-style: none; }
+.index-audience li { padding: 10px 0; border-bottom: 1px solid #EEE9E0; font-size: 0.95em; }
+/* Responsive */
+@media (max-width: 1200px) {
+  #toc-right { display: none; }
+  #main { margin-right: 0; }
+  #back-to-top { right: 24px; }
+}
+@media (max-width: 900px) { #main { padding: 32px 28px 60px; } }
+@media (max-width: 768px) {
+  #sidebar { display: none; }
+  #main { margin-left: 0; padding: 24px 18px 60px; }
+  h1 { font-size: 1.75em; }
+  h2 { font-size: 1.35em; }
+}
+@media print {
+  #sidebar, #toc-right, #progress-bar, #back-to-top, .chapter-nav { display: none !important; }
+  #main { margin: 0; padding: 0; max-width: 100%; }
+}
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div id="layout">
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">📖 Angular 源码深度解析</div>
+      <div class="sidebar-subtitle">深入 Angular 17+ 运行时、编译器与响应式系统的源码之旅</div>
+    </div>
+    <div class="sidebar-nav">
+      <a href="index.html">📚 目录首页</a>
+<a href="ch01.html">第1章：宏观架构——Angular 的世界观</a>
+<a href="ch02.html">第2章：从零启动——bootstrapApplication 的旅程</a>
+<a href="ch03.html">第3章：依赖注入——框架的神经系统</a>
+<a href="ch04.html">第4章：模板编译器——从 HTML 到指令序列</a>
+<a href="ch05.html" class="active">第5章：Ivy 渲染引擎——LView 的生命</a>
+<a href="ch06.html">第6章：变更检测——Angular 如何知道界面需要更新</a>
+<a href="ch07.html">第7章：Signals——细粒度响应式的实现</a>
+<a href="ch08.html">第8章：组件模型——从装饰器到运行时对象</a>
+<a href="ch09.html">第9章：路由系统——URL 与组件树的映射</a>
+<a href="ch10.html">第10章：服务端渲染与水合——让 Angular 应用「秒开」</a>
+
+    </div>
+  </nav>
+  <main id="main">
+    <h1 id="h-第5章-ivy-渲染引擎-lview-的生命">第5章：Ivy 渲染引擎——LView 的生命</h1>
+<p><code>ɵɵelementStart(0, 'div')</code> 执行的那一刻，Angular 把什么存在了哪里？</p>
+<p>这行代码你可能在编译器生成的产物里见过，也可能在调试器的调用栈里偶然扫到过，但大多数时候它就像黑盒子里的机器齿轮——你知道它转，但不知道它咬合着什么。新建的 <code>&lt;div&gt;</code> DOM 节点要有地方住；你的组件实例（<code>this</code>）要有地方住；上一次渲染留下的属性绑定值，也要存在某个地方，等着下次变更检测来比对。</p>
+<p>这个&quot;地方&quot;，就是 <strong>LView</strong>——一个用扁平数组模拟的组件运行时内存快照。</p>
+<p>延续第1章建立的剧院比喻：LView 是今晚这场演出的<strong>舞台</strong>——舞台上有演员（DOM 节点）、道具（绑定值缓存）、幕布状态（视图标志位），每场演出（每个组件实例）都有一块独立的舞台。而 <strong>TView</strong> 是剧院的<strong>建筑设计图纸</strong>——描述这类舞台的结构：该有几盏灯、几个入场口、几处布景悬挂点。同一类舞台（同一组件类型）共用一份图纸，图纸本身无论演了多少场都不会改变。</p>
+<p>理解 LView 与 TView，是读懂 Angular Ivy 渲染引擎的基础；而这两个数据结构，又是后续章节——变更检测（第6章）、Signals 集成（第7章）、SSR 水合（第10章）——一切讨论的起点。</p>
+<p>还有第三个主角你需要认识：<strong>TNode</strong>（Template Node，模板节点）。如果说 TView 是剧院的建筑图纸，TNode 就是图纸里对每个座椅或道具架的精确描述——它的类型（元素/文本/容器）、静态属性、关联的指令列表。TNode 存储在 TView 的 <code>data</code> 数组中，与 LView 在相同索引处存储运行时的 DOM 节点形成严格对应。这三者——TView、LView、TNode——构成了 Ivy 渲染引擎的数据模型三角，理解它们的分工是本章的核心任务。</p>
+<hr>
+<h2 id="h-全景设计-蓝图与实例">全景设计：蓝图与实例</h2>
+<h3 id="h-一份图纸-无数舞台">一份图纸，无数舞台</h3>
+<p>TView 和 LView 的关系，可以借用面向对象语言的类比来理解：TView 是&quot;类描述符&quot;，LView 是&quot;类实例&quot;。</p>
+<p>同一个组件类型（如 <code>UserCardComponent</code>）无论在页面上被实例化多少次，只有<strong>一个</strong> TView。这个 TView 记录的是静态、编译期已知的结构信息——模板里有几个节点、每个节点是什么类型、注册了哪些指令、有多少个绑定、生命周期钩子注册在哪里。这些信息在第一个实例创建时固化，后续所有实例共享。</p>
+<p>每次创建新的组件实例，Angular 都会克隆 TView 中预存的<strong>蓝图（blueprint）</strong>，得到一个新的 LView 数组。LView 存储的是运行时变化的数据：当前帧的 DOM 节点引用、组件实例（<code>this</code>）、上次渲染后缓存的绑定值、视图的当前状态标志。</p>
+<div class="mermaid">flowchart TD
+  CompDef[&quot;ComponentDef&lt;br/&gt;(UserCardComponent.ɵcmp)&quot;]
+  TView1[&quot;TView&lt;br/&gt;(共享，不可变)&quot;]
+  BP[&quot;TView.blueprint&lt;br/&gt;(LView 蓝图数组)&quot;]
+  LVA[&quot;LView 实例 A&lt;br/&gt;(用户卡片 #1)&quot;]
+  LVB[&quot;LView 实例 B&lt;br/&gt;(用户卡片 #2)&quot;]
+  LVC[&quot;LView 实例 C&lt;br/&gt;(用户卡片 #3)&quot;]
+
+  CompDef --&gt;|&quot;def.tView&quot;| TView1
+  TView1 --&gt; BP
+  BP --&gt;|&quot;blueprint.slice()&quot;| LVA
+  BP --&gt;|&quot;blueprint.slice()&quot;| LVB
+  BP --&gt;|&quot;blueprint.slice()&quot;| LVC
+
+  style TView1 fill:#dbeafe,stroke:#3b82f6
+  style BP fill:#dbeafe,stroke:#3b82f6
+  style LVA fill:#dcfce7,stroke:#22c55e
+  style LVB fill:#dcfce7,stroke:#22c55e
+  style LVC fill:#dcfce7,stroke:#22c55e</div>
+<p>这里有一个关键性能细节：<code>blueprint.slice()</code> 是一次 O(n) 的纯数组复制——蓝图中已经预填好了所有槽位的初始值（固定头部为 <code>null</code>，绑定值区域为 <code>NO_CHANGE</code> 哨兵），克隆即可得到一个开箱即用的 LView，不需要任何额外的初始化逻辑。</p>
+<h3 id="h-header_offset-27-固定与动态的分界线">HEADER_OFFSET = 27：固定与动态的分界线</h3>
+<p>LView 是一个普通的 JavaScript 数组，但它的内部结构被划分为两个语义截然不同的区域。</p>
+<p><strong>固定头部（索引 0–26）</strong>：27 个语义固定的槽位，存储视图的元信息。无论模板有多复杂，这 27 个槽位的含义始终不变。常量 <code>HEADER_OFFSET = 27</code> 是固定头部的边界标志，也是动态体部的起始索引。</p>
+<p><strong>动态体部（索引 27 起）</strong>：由编译器根据模板内容在编译时静态计算的动态区域，存放 DOM 节点引用、指令实例、绑定值缓存。体部的大小写入 <code>ComponentDef</code> 的 <code>decls</code>（节点数）和 <code>vars</code>（绑定数）字段，在每次 <code>createTView()</code> 时用来分配蓝图。</p>
+<p>理解这个分层设计有一个直观的角度：固定头部是框架自用的&quot;系统区&quot;，与具体模板内容无关；动态体部是&quot;用户数据区&quot;，完全由编译器按模板分配。两者合并成一个连续数组，框架在遍历时凭借 <code>HEADER_OFFSET</code> 这一个边界，便能同时访问两个区域的内容。</p>
+<p>体部的三个子区段：</p>
+<div class="table-wrap"><table><thead><tr><th>子区段</th><th>索引范围</th><th>存储内容</th></tr></thead><tbody><tr><td>Decls 区</td><td><code>[27, 27 + decls)</code></td><td>DOM 节点引用、LContainer、指令实例</td></tr><tr><td>Vars 区</td><td><code>[27 + decls, 27 + decls + vars)</code></td><td>绑定值缓存，初始为 <code>NO_CHANGE</code></td></tr><tr><td>Expando 区</td><td><code>expandoStartIndex</code> 起，动态扩展</td><td>运行时匹配的指令实例、Host Binding 数据</td></tr></tbody></table></div>
+<p><code>HEADER_OFFSET = 27</code> 这个数字随 Ivy 的演化而增长：每当框架新增一个需要在所有视图上追踪的全局状态（v17 加入的 <code>REACTIVE_TEMPLATE_CONSUMER</code>、v18 加入的 <code>EFFECTS</code>），头部就扩展一格。这也是为什么源码中始终使用 <code>HEADER_OFFSET</code> 常量，而不是硬编码数字 <code>27</code>。</p>
+<hr>
+<h2 id="h-lview-槽位解剖">LView 槽位解剖</h2>
+<p>这一节是本章最核心的部分。只有理解了固定头部每个槽位的语义，你才能在调试器里&quot;认出&quot;一个 LView，才能理解变更检测为何能以如此精准的方式工作。</p>
+<p>在进入槽位列表之前，先建立一个直觉：LView 的固定头部可以被分为几个功能组。</p>
+<p><strong>身份与结构组</strong>（槽位 0–5）：回答&quot;这个视图是谁、在哪、父子关系如何&quot;。<code>HOST</code> 告诉你宿主元素，<code>TVIEW</code> 告诉你它属于哪类组件，<code>PARENT</code> 告诉你它在视图树中的位置。</p>
+<p><strong>状态与清理组</strong>（槽位 6–7）：<code>HYDRATION</code> 用于 SSR 水合（hydration），<code>CLEANUP</code> 记录需要在销毁时释放的资源（事件监听器、订阅等）。</p>
+<p><strong>执行上下文组</strong>（槽位 8–11）：回答&quot;模板函数执行时，从哪里取组件实例、注入器、渲染器&quot;。这四个槽位是每次执行 <code>executeTemplate()</code> 时最频繁被读取的。</p>
+<p><strong>树遍历组</strong>（槽位 12–16）：回答&quot;如何找到子视图和声明位置&quot;。变更检测和视图树操作高度依赖这几个槽位。</p>
+<p><strong>框架扩展组</strong>（槽位 17–26）：记录查询、Effect、Signal 消费者、动画等各功能模块在视图上的状态。每增加一个功能，这个区域就可能扩展一格，<code>HEADER_OFFSET</code> 随之增加。</p>
+<p>理解这些功能分组后，槽位表就不再是一份需要死记硬背的清单，而是一张有内在逻辑的地图。</p>
+<p>所有槽位常量都定义在同一个文件：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/interfaces/view.ts（槽位常量，完整列表）
+export const HOST         = 0;
+export const TVIEW        = 1;
+export const FLAGS        = 2;
+export const PARENT       = 3;
+export const NEXT         = 4;
+export const T_HOST       = 5;
+export const HYDRATION    = 6;
+export const CLEANUP      = 7;
+export const CONTEXT      = 8;
+export const INJECTOR     = 9;
+export const ENVIRONMENT  = 10;
+export const RENDERER     = 11;
+export const CHILD_HEAD   = 12;
+export const CHILD_TAIL   = 13;
+export const DECLARATION_VIEW              = 14;
+export const DECLARATION_COMPONENT_VIEW   = 15;
+export const DECLARATION_LCONTAINER       = 16;
+export const PREORDER_HOOK_FLAGS          = 17;
+export const QUERIES      = 18;
+export const ID           = 19;
+export const EMBEDDED_VIEW_INJECTOR       = 20;
+export const ON_DESTROY_HOOKS             = 21;
+export const EFFECTS_TO_SCHEDULE          = 22;
+export const EFFECTS      = 23;
+export const REACTIVE_TEMPLATE_CONSUMER  = 24;
+export const AFTER_RENDER_SEQUENCES_TO_ADD = 25;
+export const ANIMATIONS   = 26;
+export const HEADER_OFFSET = 27;</code></pre>
+<h3 id="h-固定头部关键槽位详解">固定头部关键槽位详解</h3>
+<div class="table-wrap"><table><thead><tr><th>索引</th><th>常量名</th><th>类型</th><th>含义与用途</th></tr></thead><tbody><tr><td>0</td><td><code>HOST</code></td><td>`RElement \</td><td>null`</td><td>宿主 DOM 元素。对于组件视图，指向组件的宿主元素（如 <code>&lt;app-hello&gt;</code>）；根视图为 <code>null</code></td></tr><tr><td>1</td><td><code>TVIEW</code></td><td><code>TView</code></td><td>指向共享的 TView。<strong>所有同类型实例的此槽位都指向同一个对象</strong>，是 flyweight 模式的直接体现</td></tr><tr><td>2</td><td><code>FLAGS</code></td><td><code>LViewFlags</code></td><td>位标志组合，编码了视图的完整状态：创建模式、脏标记、是否已附加、是否已销毁等</td></tr><tr><td>3</td><td><code>PARENT</code></td><td>`LView \</td><td>LContainer \</td><td>null`</td><td>父级视图或容器。普通子组件指向父 LView；嵌入视图指向所在的 LContainer</td></tr><tr><td>4</td><td><code>NEXT</code></td><td>`LView \</td><td>LContainer \</td><td>null`</td><td>兄弟视图/容器链表的下一节点，用于横向遍历</td></tr><tr><td>5</td><td><code>T_HOST</code></td><td>`TNode \</td><td>null`</td><td>此 LView 对应的 TNode，指向其所在模板节点；嵌入视图中指向容器 TNode，组件视图中指向宿主元素 TNode</td></tr><tr><td>6</td><td><code>HYDRATION</code></td><td>`DehydratedView \</td><td>null`</td><td>SSR 水合（hydration）相关序列化数据；非 SSR 环境为 <code>null</code></td></tr><tr><td>7</td><td><code>CLEANUP</code></td><td>`any[] \</td><td>null`</td><td>DOM 事件监听器的清理函数列表。视图销毁时，框架遍历此数组移除所有事件监听</td></tr><tr><td>8</td><td><code>CONTEXT</code></td><td><code>T</code></td><td><strong>组件实例本身（即 <code>this</code>）</strong>。模板执行时，所有 <code>ctx.xxx</code> 访问的都是这里存储的对象</td></tr><tr><td>9</td><td><code>INJECTOR</code></td><td><code>Injector</code></td><td>后备环境注入器（原 Module Injector）。NodeInjector 在元素树中查找失败时，向此注入器委托</td></tr><tr><td>10</td><td><code>ENVIRONMENT</code></td><td><code>LViewEnvironment</code></td><td>跨视图共享的应用级环境：<code>rendererFactory</code>、<code>sanitizer</code>、<code>scheduler</code>。<strong>区别于 <code>INJECTOR</code></strong>：这是渲染环境，不是 DI 容器</td></tr><tr><td>11</td><td><code>RENDERER</code></td><td><code>Renderer</code></td><td>当前视图专属的渲染器实例。浏览器平台为 DOM Renderer，SSR 时为 Server Renderer</td></tr><tr><td>12</td><td><code>CHILD_HEAD</code></td><td>`LView \</td><td>LContainer \</td><td>null`</td><td><strong>子视图/容器链表头</strong>。变更检测遍历子视图的入口，<code>refreshView</code> 通过它触发子视图刷新</td></tr><tr><td>13</td><td><code>CHILD_TAIL</code></td><td>`LView \</td><td>LContainer \</td><td>null`</td><td><strong>子视图/容器链表尾</strong>。新子视图通过 <code>addToEndOfViewTree</code> 追加到此</td></tr><tr><td>14</td><td><code>DECLARATION_VIEW</code></td><td>`LView \</td><td>null`</td><td>模板<strong>声明处</strong>所在的 LView（与渲染位置可能不同）。<code>ng-template</code> 跨组件传递时，这个槽位让框架正确解析闭包变量</td></tr><tr><td>24</td><td><code>REACTIVE_TEMPLATE_CONSUMER</code></td><td>`ReactiveLViewConsumer \</td><td>null`</td><td>Signals 的模板消费者节点（v17+）。模板函数执行期间，通过此节点追踪被读取的 signal，一旦 signal 变化即标记视图为脏。（Signals 消费者的详细机制见第 7 章）</td></tr></tbody></table></div>
+<p>其中，<code>FLAGS</code>（槽位 2）值得单独展开。<code>LViewFlags</code> 是一个位枚举，视图的所有状态都编码在这一个整数里：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/interfaces/view.ts（LViewFlags 枚举，节选）
+export const enum LViewFlags {
+  CreationMode   = 1 &lt;&lt; 2,   //   4：首次创建阶段，模板函数正在构建 DOM 树
+  FirstLViewPass = 1 &lt;&lt; 3,   //   8：首次完整创建+更新流程未结束
+  CheckAlways    = 1 &lt;&lt; 4,   //  16：Default 变更检测策略，每次 tick 都检查此视图
+  Dirty          = 1 &lt;&lt; 6,   //  64：标记需要重新检查（OnPush 时由 markForCheck 设置）
+  Attached       = 1 &lt;&lt; 7,   // 128：已附加到变更检测树，会被遍历到
+  Destroyed      = 1 &lt;&lt; 8,   // 256：已销毁，所有后续操作应跳过
+  RefreshView    = 1 &lt;&lt; 10,  //1024：需要强制刷新（Signal 视图、跨组件移动的视图）
+  SignalView     = 1 &lt;&lt; 12,  //4096：signal 驱动的组件（v19+，Zoneless 模式关键标志）
+}</code></pre>
+<p>一个默认策略（Default）的新建视图，<code>FLAGS</code> 的初始值是：</p>
+<pre><code>CreationMode(4) | FirstLViewPass(8) | CheckAlways(16) | Dirty(64) | Attached(128) | RefreshView(1024)
+= 4 | 8 | 16 | 64 | 128 | 1024 = 1244</code></pre>
+<p>变更检测算法通过位运算读写这个整数——例如，清除 <code>Dirty</code> 标志是 <code>lView[FLAGS] &amp;= ~LViewFlags.Dirty</code>，检查是否处于创建模式是 <code>(lView[FLAGS] &amp; LViewFlags.CreationMode) !== 0</code>。</p>
+<p>🔗 关于 <code>Dirty</code> 标志何时被设置（属性绑定变化、Input 变化、事件处理等）以及 <code>markForCheck()</code> 如何向上标记祖先链，详见第 6 章。</p>
+<h3 id="h-一个真实的-lview-快照">一个真实的 LView 快照</h3>
+<p>来看一个具体例子。对于下面这个组件：</p>
+<pre><code class="language-typescript">// 示例组件
+@Component({
+  selector: 'app-user-card',
+  template: `&lt;div class=&quot;card&quot;&gt;{{ userName }}&lt;/div&gt;`
+})
+export class UserCardComponent {
+  userName = 'Alice';
+}</code></pre>
+<p>编译器会生成 <code>decls = 2</code>（一个 <code>&lt;div&gt;</code> 元素节点 + 一个文本节点）、<code>vars = 1</code>（一个插值绑定）。 对应的 LView 在首次渲染后快照如下：</p>
+<pre><code>// LView 内存快照（UserCardComponent 实例，首次渲染后）
+lView = [
+  /*  0: HOST        */ &lt;app-user-card&gt;,          // 组件宿主元素
+  /*  1: TVIEW       */ TView{ type: Component },  // 指向共享的 TView
+  /*  2: FLAGS       */ 16,                        // CheckAlways（首次变更检测完成后的稳定状态；创建阶段初始值为 1244）
+  /*  3: PARENT      */ rootLView,                 // 父级视图
+  /*  ...            */
+  /*  8: CONTEXT     */ UserCardComponent{userName:'Alice'}, // 组件实例 this
+  /*  9: INJECTOR    */ EnvironmentInjector{},
+  /* 10: ENVIRONMENT */ LViewEnvironment{…},
+  /* 11: RENDERER    */ DefaultDomRenderer2{},
+  /* 12: CHILD_HEAD  */ null,                      // 无子视图
+  /* 13: CHILD_TAIL  */ null,
+  /*  ...            */
+  /* 27: Decls[0]    */ &lt;div class=&quot;card&quot;&gt;,        // TNode#27 对应的 DOM 元素
+  /* 28: Decls[1]    */ #text &quot;Alice&quot;,             // TNode#28 对应的文本节点
+  /* 29: Vars[0]     */ 'Alice',                   // userName 上一次的绑定值（已由 NO_CHANGE 更新）
+]</code></pre>
+<p>注意 <code>TView.data</code> 中的对应位置：</p>
+<pre><code>// TView.data 在相同索引处存储静态描述
+tView.data = [
+  /* 0-26: null */
+  /* 27 */ TElementNode{ index:27, type:Element, value:'div', ... },
+  /* 28 */ TTextNode{ index:28, type:Text, value:'', ... },
+  /* 29 */ 'userName',   // 绑定属性名元数据
+]</code></pre>
+<p><code>TView.data[i]</code> 是节点的<strong>静态描述</strong>（TNode 对象），<code>LView[i]</code> 是节点的<strong>动态实例</strong>（DOM 节点）。同一个索引，两个数组，各司其职——这是 Ivy 最优雅的设计决策之一。</p>
+<p>这个并排布局还有一个重要推论：框架从来不需要&quot;查找&quot;某个节点在哪里。节点的索引在编译时已经确定并写入 <code>TNode.index</code>，运行时访问 <code>lView[tNode.index]</code> 是 O(1) 的直接索引操作，没有哈希表查找，没有链表遍历，也没有树搜索。在一个有数千个绑定需要频繁更新的应用里，这个设计差异累积起来是显著的性能优势。</p>
+<hr>
+<h2 id="h-tview-的三种类型">TView 的三种类型</h2>
+<p>Angular 的视图并非铁板一块。根据创建方式和使用场景，TView 分为三种类型：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/interfaces/view.ts
+export const enum TViewType {
+  Root = 0,       // 应用根视图，bootstrapApplication 创建
+  Component = 1,  // 普通组件视图
+  Embedded = 2,   // ng-template 创建的嵌入视图
+}</code></pre>
+<p><strong>Root TView</strong>：整棵视图树的起点，由 <code>bootstrapApplication</code> 在应用启动时创建。它没有父组件，<code>HOST</code> 槽位指向根组件的挂载元素（如 <code>&lt;body&gt;</code> 或 <code>&lt;app-root&gt;</code>）。全应用只有一个根视图。</p>
+<p><strong>Component TView</strong>：最常见的类型，每个组件类对应唯一一个。当 <code>UserCardComponent</code> 第一次被实例化时，框架调用 <code>getOrCreateComponentTView(def)</code>，如果 <code>def.tView</code> 尚未初始化则创建，否则复用。这意味着即便你的应用里有一千个 <code>UserCardComponent</code> 实例，也只有一个 Component TView 被创建。</p>
+<p><strong>Embedded TView</strong>：专为 <code>&lt;ng-template&gt;</code> 和结构型指令（<code>*ngFor</code>、<code>@for</code> 等）创建的视图。嵌入 TView 的存储位置特殊——它不挂在 <code>ComponentDef</code> 上，而是挂在其所在的容器节点（<code>TContainerNode</code>）的 <code>.tView</code> 字段上：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/instructions/template.ts（简化）
+const embeddedTView = (tNode.tView = createTView(
+  TViewType.Embedded,
+  tNode,          // 声明此 embedded view 的容器 TNode
+  templateFn,     // ng-template 编译生成的模板函数
+  decls, vars,
+  declarationTView.directiveRegistry,
+  // ...
+));</code></pre>
+<p><code>*ngFor</code> 每次迭代创建一个新的 LView（Embedded 类型），但<strong>所有迭代共享同一个 Embedded TView</strong>——这与组件的情况完全一致。列表里有 100 条数据，就有 100 个 LView，但只有 1 个 TView。</p>
+<p>这里有一个容易混淆的细节：Embedded TView 的 <code>template</code> 字段存储的是 <code>&lt;ng-template&gt;</code> 内部内容的模板函数，而非宿主组件的模板函数。当 <code>*ngFor</code> 创建一个新的迭代视图时，它用 Embedded TView 的 <code>template</code> 函数来渲染每一个列表项，同时把迭代上下文（<code>NgForOfContext</code>，包含 <code>$implicit</code>、<code>index</code>、<code>first</code>、<code>last</code> 等）存入新建 LView 的 <code>CONTEXT</code> 槽位（槽位 8）。这就是模板变量 <code>let item of items; let i = index</code> 能正确获取值的底层机制。</p>
+<h3 id="h-蓝图克隆机制-从图纸到舞台">蓝图克隆机制：从图纸到舞台</h3>
+<p>TView 的关键字段 <code>blueprint</code> 是 LView 实例的原型数组。<code>createTView()</code> 调用 <code>createViewBlueprint()</code> 生成它：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/view/construction.ts
+function createViewBlueprint(bindingStartIndex: number, initialViewLength: number): LView {
+  const blueprint = [];
+  for (let i = 0; i &lt; initialViewLength; i++) {
+    // Header 区（索引 0 到 bindingStartIndex-1）初始化为 null
+    // Vars 区（bindingStartIndex 起）初始化为 NO_CHANGE 哨兵值
+    blueprint.push(i &lt; bindingStartIndex ? null : NO_CHANGE);
+  }
+  return blueprint as LView;
+}</code></pre>
+<p>每次 <code>createLView()</code> 被调用，核心操作只有一行：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/view/construction.ts
+const lView = tView.blueprint.slice() as LView;</code></pre>
+<p>不带参数的 <code>Array.prototype.slice()</code> 对整个数组做浅拷贝，V8 引擎对此做了高度优化（内部直接 <code>memcpy</code>）。对于一个典型组件（数十个节点 + 数十个绑定），这意味着数十次基础类型赋值，远比&quot;为新对象逐字段初始化&quot;的方式节省 GC 分配压力。</p>
+<p>此外，<code>NO_CHANGE</code> 是 Angular 内部定义的一个特殊符号引用（<code>const NO_CHANGE: unique symbol</code>），Vars 区初始化为 <code>NO_CHANGE</code> 而非 <code>null</code>，确保首次绑定检查时 <code>Object.is(NO_CHANGE, '真实值')</code> 必然返回 <code>false</code>，强制触发首次更新——而不会误把 <code>null</code> 解读为合法的绑定值。</p>
+<hr>
+<h2 id="h-组件生命周期追踪">组件生命周期追踪</h2>
+<p>现在把所有知识串在一起，完整追踪一个组件从创建到首次渲染屏幕的全过程。</p>
+<p>假设有如下组件：</p>
+<pre><code class="language-typescript">@Component({
+  selector: 'app-hello',
+  template: `&lt;div&gt;Hello, {{ name }}!&lt;/div&gt;`
+})
+export class HelloComponent {
+  name = 'World';
+}</code></pre>
+<p>编译器将为它生成：<code>decls = 2</code>，<code>vars = 1</code>，以及一个模板函数。</p>
+<h3 id="h-创建阶段-一次性搭建所有舞台布景">创建阶段：一次性搭建所有舞台布景</h3>
+<p>整个创建流程的起点是 <code>createComponent()</code>（或通过路由匹配、动态组件等路径间接触发）。创建阶段最重要的特征是 <code>LViewFlags.CreationMode</code> 标志被设置——所有渲染指令通过检查这个标志来决定是&quot;创建并存储&quot;还是&quot;读取并比较&quot;。</p>
+<pre><code>// 调用链（简化，packages/core/src/render3/）
+createComponent(HelloComponent, options)
+  └─ component.ts: ComponentFactory.create()
+       └─ view/construction.ts: createLView(parentLView, tView, context, flags, host)
+            │  tView.blueprint.slice()  ← 克隆蓝图
+            │  lView[FLAGS] |= CreationMode | Attached | FirstLViewPass | Dirty | RefreshView
+            │
+            └─ instructions/shared.ts: renderView(tView, lView, context)
+                 └─ executeTemplate(tView, lView, templateFn, RenderFlags.Create, context)
+                      └─ templateFn(RenderFlags.Create, ctx)
+                           ├─ ɵɵelementStart(0, 'div')   // 创建 TNode + DOM 节点
+                           ├─ ɵɵtext(1)                  // 创建文本 TNode + 文本节点
+                           └─ ɵɵelementEnd()</code></pre>
+<p>🔗 <strong>第4章回顾</strong>：关于 <code>RenderFlags</code> 的定义和位标志的工作原理，详见第 4 章。</p>
+<h3 id="h-更新阶段-只改动发生变化的部分">更新阶段：只改动发生变化的部分</h3>
+<p>当 <code>name</code> 从 <code>'World'</code> 变为 <code>'Angular'</code>，变更检测被触发。此时 <code>CreationMode</code> 已清除，模板函数以 <code>RenderFlags.Update</code> 执行：</p>
+<pre><code class="language-typescript">// 编译器生成，非手写
+function HelloComponent_Template(rf: RenderFlags, ctx: HelloComponent) {
+  if (rf &amp; RenderFlags.Create) {     // 1：创建阶段
+    ɵɵelementStart(0, 'div');
+    ɵɵtext(1);
+    ɵɵelementEnd();
+  }
+  if (rf &amp; RenderFlags.Update) {     // 2：更新阶段
+    ɵɵadvance(1);                    // 移动内部游标到节点索引 1
+    ɵɵtextInterpolate1('Hello, ', ctx.name, '!');
+  }
+}</code></pre>
+<p>⚠️ <strong>注意</strong>：<code>ɵɵelementStart</code> 本身不会在更新阶段重复执行——它被 <code>if (rf &amp; RenderFlags.Create)</code> 分支保护，只在创建阶段运行一次。只有绑定指令（如 <code>ɵɵproperty</code>、<code>ɵɵtextInterpolate1</code>）才会在更新阶段执行。</p>
+<p>更新路径的核心在 <code>bindingUpdated()</code>：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/bindings.ts（简化）
+export function bindingUpdated(lView: LView, bindingIndex: number, value: unknown): boolean {
+  const oldValue = lView[bindingIndex];
+  if (Object.is(oldValue, value)) {
+    return false; // 值未变化，跳过所有后续 DOM 操作
+  }
+  lView[bindingIndex] = value; // 更新缓存
+  return true;                 // 值变化，调用方负责更新 DOM
+}</code></pre>
+<p><code>Object.is()</code> 只执行一次，若旧值与新值相同则函数立刻返回。没有 TNode 创建，没有 DOM 节点创建，没有属性设置——什么都没有。对于一个有 50 个属性绑定但只有 2 个实际变化的组件，48 次 <code>bindingUpdated()</code> 调用只消耗 48 次 <code>Object.is()</code> 比较，代价几乎为零。</p>
+<p>两种模式下的完整行为对比：</p>
+<div class="table-wrap"><table><thead><tr><th>操作</th><th>创建模式（<code>CreationMode</code> 位为 1）</th><th>更新模式（<code>CreationMode</code> 位为 0）</th></tr></thead><tbody><tr><td>TNode 操作</td><td><code>getOrCreateTNode</code> 创建并存入 <code>tView.data</code></td><td>从 <code>tView.data[i]</code> 直接读取（已存在）</td></tr><tr><td>DOM 节点创建</td><td><code>renderer.createElement()</code> 调用</td><td>完全跳过</td></tr><tr><td>指令匹配</td><td><code>resolveDirectives()</code> 扫描并注册指令</td><td>跳过</td></tr><tr><td>绑定检查</td><td><code>NO_CHANGE → 新值</code>，必然触发更新</td><td><code>Object.is()</code> 比较，无变化则跳过</td></tr><tr><td>生命周期钩子</td><td>执行 <code>ngOnInit</code>、<code>ngAfterViewInit</code></td><td>执行 <code>ngDoCheck</code>、<code>ngOnChanges</code></td></tr><tr><td><code>RenderFlags</code> 参数</td><td><code>RenderFlags.Create（1）</code></td><td><code>RenderFlags.Update（2）</code></td></tr></tbody></table></div>
+<p>这个双阶段设计有一个工程意义：编译器把&quot;创建逻辑&quot;和&quot;更新逻辑&quot;编译进同一个模板函数，通过 <code>RenderFlags</code> 参数的位标志分支，而不是生成两个独立函数。对于摇树优化（tree-shaking）来说，一个在 SSR 环境中只被创建而从不更新的组件，理论上可以移除更新分支。这是 Ivy 相比前代 View Engine 在 tree-shaking 粒度上的重要进步。</p>
+<h3 id="h-销毁阶段-清理舞台">销毁阶段：清理舞台</h3>
+<p>组件销毁时，Angular 调用 <code>destroyLView(tView, lView)</code>：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/view/construction.ts（简化）
+ViewRef.destroy()
+  → destroyLView(tView, lView)
+       ├─ 执行 tView.destroyHooks 中所有 ngOnDestroy 回调
+       ├─ 遍历 lView[CLEANUP] 移除所有 DOM 事件监听器
+       └─ lView[FLAGS] |= LViewFlags.Destroyed</code></pre>
+<p><code>lView[CLEANUP]</code>（槽位 7）在创建阶段由 <code>ɵɵlistener</code> 等渲染指令逐条注册清理函数。销毁时一次性全部调用，这是 Angular 不产生内存泄漏的重要保证。</p>
+<hr>
+<h2 id="h-关键渲染指令深度解析">关键渲染指令深度解析</h2>
+<p>理解了数据结构，我们现在跟踪一条具体的渲染指令（instruction），看看它如何在 TView 和 LView 之间完成精准的读写。理解这条调用链，你就掌握了 Ivy 渲染指令的通用模式——其他所有渲染指令（<code>ɵɵtext</code>、<code>ɵɵproperty</code>、<code>ɵɵlistener</code>）都遵循类似的&quot;首次创建做完整初始化，后续执行仅比较绑定值&quot;的结构。</p>
+<h3 id="h-elementstart-四层协作的起点">ɵɵelementStart：四层协作的起点</h3>
+<p>以模板 <code>&lt;div [class]=&quot;cardClass&quot;&gt;</code> 为例，编译产物调用 <code>ɵɵelementStart(0, 'div')</code>（相对索引 0，标签名 <code>'div'</code>）。</p>
+<p>首次创建时的完整调用链：</p>
+<pre><code>ɵɵelementStart(0, 'div')
+│ // packages/core/src/render3/instructions/element.ts
+│
+├─ adjustedIndex = 0 + HEADER_OFFSET = 27    ← 相对索引 → 绝对索引
+│
+├─ [tView.firstCreatePass === true，首次创建]
+│   └─ directiveHostFirstCreatePass(27, lView, TNodeType.Element, 'div', attrs)
+│        // packages/core/src/render3/view/elements.ts
+│        │
+│        ├─ getOrCreateTNode(tView, 27, TNodeType.Element, 'div', attrs)
+│        │    // packages/core/src/render3/tnode_manipulation.ts
+│        │    ├─ tView.data[27] === null？
+│        │    └─ [是] → createTNodeAtIndex(tView, 27, Element, 'div', attrs)
+│        │              └─ createTNode(tView, parent, Element, 27, 'div', attrs)
+│        │                   // 返回 TElementNode{index:27, type:Element, value:'div'}
+│        │                   // tView.data[27] = tNode  ← 存入共享的 TView
+│        │
+│        └─ resolveDirectives(...)    // 匹配并注册指令（仅首次）
+│
+└─ elementLikeStartShared(tNode, lView, 0, 'div', _locateOrCreateElementNode)
+     // packages/core/src/render3/instructions/shared.ts
+     │
+     ├─ native = renderer.createElement('div', namespace)
+     │    // packages/core/src/render3/dom_node_manipulation.ts 第 35 行
+     │    └─ 调用浏览器 document.createElement('div')
+     │
+     ├─ lView[27] = native         ← DOM 节点存入当前实例的 LView
+     ├─ setCurrentTNode(tNode, true)
+     ├─ setupStaticAttributes(renderer, native, tNode)
+     └─ appendChild(tView, lView, native, tNode)</code></pre>
+<p>注意两次&quot;存入&quot;的目标完全不同：</p>
+<ul><li><code>tView.data[27] = tNode</code>：写入<strong>共享的 TView</strong>，所有实例只写一次</li><li><code>lView[27] = nativeElement</code>：写入<strong>当前实例的 LView</strong>，每次创建都执行</li></ul>
+<p>这是&quot;静态元数据/动态实例&quot;分离原则在最基层的体现。第二个组件实例创建时，<code>tView.firstCreatePass</code> 已为 <code>false</code>，<code>getOrCreateTNode</code> 直接从 <code>tView.data[27]</code> 读取已存在的 TNode，省去了所有 TNode 创建和指令匹配的开销。</p>
+<p>从这个调用链还可以看出 Angular 渲染器（<code>Renderer</code>）的抽象价值：<code>renderer.createElement('div')</code> 是唯一一个真正&quot;触碰&quot;运行平台的调用——在浏览器里它调用 <code>document.createElement()</code>，在 Node.js（SSR）里它创建一个虚拟 DOM 节点对象。渲染指令层（<code>ɵɵelementStart</code>）对运行平台完全无感，只通过 <code>lView[RENDERER]</code> 持有的渲染器接口进行间接调用。这是 Angular 支持多平台（浏览器、SSR、Web Worker）的核心架构保证。</p>
+<h3 id="h-property-精准绑定更新">ɵɵproperty：精准绑定更新</h3>
+<p>更新阶段的 <code>ɵɵproperty('class', ctx.cardClass)</code>：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/instructions/property.ts（简化）
+export function ɵɵproperty&lt;T&gt;(propName: string, value: T): typeof ɵɵproperty {
+  const lView = getLView();
+  const bindingIndex = nextBindingIndex(); // 从 bindingStartIndex 单调递增
+
+  if (bindingUpdated(lView, bindingIndex, value)) {
+    // 仅当 Object.is(旧值, 新值) 为 false 时才进入此分支
+    const tNode = getSelectedTNode();
+    setPropertyAndInputs(tNode, lView, propName, value, lView[RENDERER], sanitizer);
+    //  ├─ 有 @Input('class')？→ 调用 setAllInputsForProperty 触发输入绑定
+    //  └─ 无 @Input       ？→ renderer.setProperty(element, 'className', value)
+  }
+  return ɵɵproperty;
+}</code></pre>
+<p>⚠️ <strong>注意</strong>：<code>ɵɵproperty</code> 使用 <code>Object.is()</code> 而非 <code>===</code> 进行比较。两者的区别在于：<code>Object.is(NaN, NaN)</code> 返回 <code>true</code>（视为&quot;未变化&quot;，不更新 DOM），而 <code>NaN === NaN</code> 返回 <code>false</code>。这意味着如果你的绑定值是 <code>NaN</code>，Angular 不会反复更新 DOM——这是有意为之的优化。</p>
+<p>💡 <strong>提示</strong>：<code>ɵɵtext</code> 和 <code>ɵɵtextInterpolate1</code> 的工作方式类似，只不过它们用 <code>interpolation1()</code> 拼接字符串后，最终调用 <code>renderer.setValue(textNode, interpolatedString)</code> 更新文本节点内容，而非 <code>renderer.setProperty()</code>。</p>
+<hr>
+<h2 id="h-lview-树-嵌套组件的世界">LView 树：嵌套组件的世界</h2>
+<p>现实中的 Angular 应用是一棵组件树。LView 不是孤立存在的，而是通过多种链接方式形成一棵可遍历的树。</p>
+<h3 id="h-子组件的安置方式">子组件的安置方式</h3>
+<p>当父模板中出现 <code>&lt;child-comp&gt;</code>，Angular 在处理该元素时检测到 <code>isComponentHost(tNode) === true</code>——这是一个组件宿主节点。框架为子组件创建 LView，并将其存放在<strong>父 LView 中该宿主节点的槽位</strong>：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/view/construction.ts（简化）
+export function createComponentLView&lt;T&gt;(
+  parentLView: LView,
+  hostTNode: TElementNode,  // &lt;child-comp&gt; 对应的 TNode
+  def: ComponentDef&lt;T&gt;,
+): LView {
+  const tView = getOrCreateComponentTView(def);
+  const componentView = createLView(
+    parentLView, tView, null, getInitialLViewFlagsFromDef(def), native, hostTNode, ...
+  );
+
+  addToEndOfViewTree(parentLView, componentView); // 加入 CHILD_HEAD/CHILD_TAIL 链表
+
+  // 子组件 LView 存储在父 LView 主机节点对应的槽位
+  return (parentLView[hostTNode.index] = componentView);
+}</code></pre>
+<p>假设父模板是 <code>&lt;div&gt;&lt;child-comp&gt;&lt;/child-comp&gt;&lt;/div&gt;</code>，TNode 索引 27 是 <code>&lt;div&gt;</code>，索引 28 是 <code>&lt;child-comp&gt;</code> 的宿主节点，那么：</p>
+<ul><li><code>parentLView[27]</code> = <code>&lt;div&gt;</code> 的 DOM 元素引用</li><li><code>parentLView[28]</code> = <code>childLView</code>（子组件的 LView 对象）</li></ul>
+<p>同一个槽位，在 TView.data 里是 TNode，在 LView 里是 DOM 节点<strong>或</strong> LView——这是 Ivy 索引对应规则的一个微妙之处：如果该节点是普通 DOM 节点，存 DOM 引用；如果是组件宿主，存子组件的 LView。</p>
+<h3 id="h-child_head-child_tail-变更检测的路线图">CHILD_HEAD / CHILD_TAIL：变更检测的路线图</h3>
+<p><code>CHILD_HEAD</code>（槽位 12）和 <code>CHILD_TAIL</code>（槽位 13）构成了一条单向链表，链接当前视图的所有直接子视图（子组件 LView 和 LContainer 都在其中）：</p>
+<div class="mermaid">flowchart LR
+  PL[&quot;父 LView&lt;br/&gt;CHILD_HEAD&quot;]
+  C1[&quot;子 LView A&lt;br/&gt;ChildComp #1&quot;]
+  C2[&quot;子 LView B&lt;br/&gt;ChildComp #2&quot;]
+  LC[&quot;LContainer&lt;br/&gt;(*ngIf 容器)&quot;]
+  EL[&quot;嵌入 LView&lt;br/&gt;(ng-template 实例)&quot;]
+  NULL[&quot;null&lt;br/&gt;(链表结尾)&quot;]
+
+  PL --&gt;|&quot;CHILD_HEAD&quot;| C1
+  C1 --&gt;|&quot;NEXT&quot;| C2
+  C2 --&gt;|&quot;NEXT&quot;| LC
+  LC --&gt;|&quot;NEXT&quot;| EL
+  EL --&gt;|&quot;NEXT&quot;| NULL
+
+  style PL fill:#dbeafe,stroke:#3b82f6
+  style LC fill:#fef3c7,stroke:#f59e0b
+  style EL fill:#fef3c7,stroke:#f59e0b
+  style NULL fill:#f3f4f6,stroke:#9ca3af</div>
+<p>变更检测时，<code>refreshView</code> 通过遍历 <code>tView.components</code> 数组（存储所有子组件 TNode 的索引）触发子组件检测，同时遍历嵌入视图链表刷新结构型指令创建的视图：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/instructions/change_detection.ts（节选）
+function refreshView&lt;T&gt;(tView: TView, lView: LView, templateFn, context: T) {
+  // ... 执行模板函数（更新模式）...
+
+  detectChangesInEmbeddedViews(lView, mode);     // 遍历 LContainer 内的嵌入视图
+  refreshContentQueries(tView, lView);           // 刷新内容查询
+  processHostBindingOpCodes(tView, lView);       // 更新 host bindings
+
+  const components = tView.components;
+  if (components !== null) {
+    detectChangesInChildComponents(lView, components, mode); // 触发子组件检测
+  }
+}</code></pre>
+<h3 id="h-lcontainer-结构型指令的视图仓库">LContainer：结构型指令的视图仓库</h3>
+<p><code>*ngIf</code>、<code>*ngFor</code>、<code>@if</code>、<code>@for</code> 等结构型指令并不直接操作 LView——它们操作的是 <strong>LContainer</strong>（视图容器）。LContainer 同样是一个数组，前几个槽位与 LView 共享（<code>FLAGS</code>、<code>PARENT</code>、<code>NEXT</code>、<code>T_HOST</code>），从 <code>CONTAINER_HEADER_OFFSET</code>（= 10）起存放嵌入 LView 的数组。</p>
+<p>从 <code>parentLView[tNode.index]</code> 的角度看，<code>*ngIf</code> 宿主节点的槽位存储的是 LContainer 对象，而非 DOM 节点。当 <code>*ngIf</code> 条件变为 <code>true</code>，框架创建一个新的嵌入 LView，推入 LContainer 数组，并将其中的 DOM 节点插入 DOM 树；条件变为 <code>false</code> 时，将 LView 从数组中移除，对应 DOM 也被移除。整个过程不需要重新创建 TNode 或重新解析模板。</p>
+<h3 id="h-内容投影-跨视图边界的借用">内容投影：跨视图边界的借用</h3>
+<p><code>&lt;ng-content&gt;</code> 的实现依赖两条配合工作的渲染指令：</p>
+<p><code>ɵɵprojectionDef</code>（在子组件模板函数的创建阶段执行）：扫描从父组件传入的内容节点（TNode 链表），按 <code>&lt;ng-content select=&quot;...&quot;&gt;</code> 的 CSS 选择器将它们分组存入子组件宿主 TNode 的 <code>projection</code> 数组。</p>
+<p><code>ɵɵprojection</code>（在子组件模板函数的创建阶段，<code>&lt;ng-content&gt;</code> 占位处执行）：遍历对应选择器分组的 TNode 链，将它们对应的 DOM 节点实际插入子组件视图的指定位置。</p>
+<p>关键特性：投影内容的 TNode 和 LView <strong>归属于父组件</strong>，子组件只是借用了它们的 DOM 位置。这意味着：</p>
+<ul><li>投影内容的变更检测由<strong>父组件</strong>负责触发（谁声明，谁负责）</li><li>投影内容销毁时，其 DOM 节点的清理也属于父组件的职责</li></ul>
+<p>这个&quot;归属权&quot;的区别有一个实际的调试意义：如果你在父组件中修改了投影内容绑定的值，却发现它没有更新，问题往往不在子组件，而在父组件的变更检测策略（比如父组件是 OnPush 策略且没有被标记为 dirty）。</p>
+<p>🔗 <strong>交叉引用</strong>：内容投影与 <code>viewProviders</code>、<code>ContentChildren</code> 的交互关系将在第8章详细展开。</p>
+<hr>
+<h2 id="h-设计思考">设计思考</h2>
+<blockquote><p><strong>设计思考</strong><br>
+<br>
+<strong>为什么用扁平数组，而不是对象树？</strong><br>
+<br>
+最直观的设计或许是：一个组件对应一个 JS 对象，拥有 <code>domNodes</code>、<code>bindings</code>、<code>context</code>、<code>children</code> 等属性。这样代码可读性更好，Angular 为什么选择了&quot;数组 + 整数索引&quot;这种看似原始的方案？<br>
+<br>
+核心原因是<strong>内存局部性（memory locality）</strong>。CPU L1/L2 缓存对连续内存区域极为友好：遍历数组时，相邻元素通常在同一缓存行（cache line）中，访问速度极快；而对象树意味着大量指针间接寻址——每次访问子节点都需要解引用一个堆指针，极易引发缓存失效（cache miss）。变更检测需要对整棵视图树进行高频遍历，这个差异在规模化应用中是实测可见的。<br>
+<br>
+另一个角度是 <strong>GC 压力</strong>。JavaScript 的垃圾回收器需要追踪所有对象引用关系。一个扁平数组只是&quot;一个对象&quot;，而对象树的每个节点是独立的堆分配对象。当一个大型应用有数千个组件时，这个差异对 GC 暂停时间（jank）有直接影响。此外，整数索引访问在 V8 等引擎中有专项优化（SMI 索引数组可以内部表示为原生 C 数组），访问速度接近命名属性访问的两倍。<br>
+<br>
+<strong>Blueprint 克隆 vs 工厂函数</strong><br>
+<br>
+另一种选择是工厂函数——每次调用返回一个初始化好的 LView。工厂函数更易于理解和测试，但每次调用都要执行初始化逻辑，有额外的函数调用和分支开销。蓝图克隆是纯粹的内存复制语义：一次 <code>slice()</code>，得到一个正确初始化的数组，V8 内部将其降为 <code>memcpy</code> 级别的操作。蓝图还充当了一份&quot;活文档&quot;——直接看 <code>tView.blueprint</code> 就能知道 LView 的初始化形态，无需执行任何逻辑。<br>
+<br>
+工厂函数的一个潜在优势是灵活性——可以根据运行时条件动态调整初始化。但对于 Angular 来说，LView 的初始布局在编译时完全确定，不需要运行时灵活性，因此蓝图克隆是更合适的选择：简单、可预测、高性能。<br>
+<br>
+<strong><code>HEADER_OFFSET = 27</code> 的演化史</strong><br>
+<br>
+这个数字不是一开始就是 27 的。Ivy 早期（v9 发布时），HEADER_OFFSET 只有 17 左右；随着框架功能增加，头部不断扩展：i18n 支持新增了 <code>HYDRATION</code> 槽，Signals 集成新增了 <code>REACTIVE_TEMPLATE_CONSUMER</code>、<code>EFFECTS</code> 和 <code>EFFECTS_TO_SCHEDULE</code>，<code>afterRender</code> API 新增了 <code>AFTER_RENDER_SEQUENCES_TO_ADD</code>……每增加一个全局视图状态，所有历史代码访问的动态体部索引都要相应偏移。Angular 团队通过将 <code>HEADER_OFFSET</code> 作为常量导出，确保无论数字如何变化，框架内外的代码都只依赖常量名，不依赖具体数值。<br>
+<br>
+如果你在 Angular 源码中看到 <code>lView[27]</code> 而非 <code>lView[HEADER_OFFSET]</code>，那几乎可以判定是历史遗留的 tech debt——这样的代码在下一次头部扩展时就会静默地出错，产生极难排查的偏移 bug。</p></blockquote>
+<hr>
+<h2 id="h-小结">小结</h2>
+<p>从一个问题出发：<code>ɵɵelementStart(0, 'div')</code> 执行时数据存在哪里？答案是两个地方，各司其职——<strong>TNode 存入共享的 TView（静态元数据），DOM 节点存入当前实例的 LView（动态状态）</strong>。</p>
+<p>本章核心要点：</p>
+<ul><li><strong>LView</strong> 是扁平数组，索引 0–26 为固定头部（元信息），27 起为动态体部（节点/绑定）；<code>HEADER_OFFSET = 27</code> 是两者的分界常量</li><li><strong>TView</strong> 是共享蓝图，同类型所有 LView 实例指向同一 TView；蓝图克隆（<code>blueprint.slice()</code>）是 LView 创建的核心优化</li><li><strong>TViewType</strong> 分为 Root、Component、Embedded 三种，<code>*ngFor</code> 的每次迭代是 Embedded LView，但共享同一个 Embedded TView</li><li><strong>TNode 与 LView 并排布局</strong>：<code>TView.data[i]</code> 存 TNode（静态结构描述），<code>LView[i]</code> 存 DOM 节点（动态实例），同一索引，两类数据</li><li><strong>CreationMode 标志</strong>区分首次创建与后续更新，两种模式下模板函数走完全不同的代码路径，避免重复创建 TNode 和 DOM 节点</li><li><strong>嵌套组件</strong>的 LView 存于父 LView 主机节点槽位，同时链入 <code>CHILD_HEAD/CHILD_TAIL</code> 链表供变更检测遍历</li><li><code>NO_CHANGE</code> 哨兵值与 <code>Object.is()</code> 配合，保证绑定检查的正确性与最低开销</li></ul>
+<p>这些设计决策不是孤立的——它们都服务于同一个目标：在频繁的变更检测循环中，以最小的计算和内存代价，精准地更新发生变化的 DOM。Ivy 的性能优势，归根结底来自于这个数据模型的精心设计。</p>
+<p>🔗 <strong>交叉引用</strong>：第6章将从变更检测的视角重新审视 LView——<code>Dirty</code> 标志如何被设置和清除、<code>refreshView</code> 如何递归遍历 <code>CHILD_HEAD/CHILD_TAIL</code> 链表、OnPush 策略如何利用 <code>CheckAlways</code>/<code>Dirty</code> 位组合跳过整棵子树的检查。LView 是变更检测的&quot;操作对象&quot;，本章建立的数据结构认知是理解下一章算法的直接前提。</p>
+<p>变更检测将按深度优先顺序遍历 <code>CHILD_HEAD/CHILD_TAIL</code> 链表，<code>Dirty</code> 标志决定哪些节点需要被实际检查——这是第 6 章的核心议题。此外，<code>EFFECTS</code>（槽位 23）和 <code>REACTIVE_TEMPLATE_CONSUMER</code>（槽位 24）是 Signals 运行时架构的两个支点，第 7 章将深入展开它们与 LView 的协作机制。</p>
+<hr>
+<h2 id="h-思考题">思考题</h2>
+<ol><li>一个页面中有 50 个 <code>ProductCardComponent</code> 实例。此时内存中有多少个 <code>TView</code> 对象？有多少个 <code>LView</code> 对象？50 个 LView 中，<code>TVIEW</code>（槽位 1）的值相同还是不同？<code>CONTEXT</code>（槽位 8）的值相同还是不同？为什么？</li></ol>
+<ol><li>打开 Chrome DevTools，在任意 Angular 组件的 <code>ngOnInit</code> 中加断点。查看调用栈，尝试找到 <code>refreshView</code> 或 <code>renderView</code> 栈帧，在其局部变量中找到 <code>lView</code>。分别查看 <code>lView[1]</code>（TVIEW）和 <code>lView[8]</code>（CONTEXT）存储了什么。再找到同一组件类型的另一个实例，比较两个 <code>lView[1]</code> 是否是同一个对象引用。</li></ol>
+<ol><li><code>ɵɵproperty</code> 的 <code>bindingUpdated</code> 使用 <code>Object.is()</code> 而非 <code>===</code>。考虑以下场景：组件有一个绑定 <code>[value]=&quot;computedValue&quot;</code>，而 <code>computedValue</code> getter 每次都返回一个新的对象 <code>{x: 1}</code>。请分析：每次变更检测时会触发 DOM 更新吗？如果想避免不必要的更新，应该怎么做？</li></ol>
+    <div class="chapter-nav"><a href="ch04.html">← 上一章：第4章：模板编译器——从 HTML 到指令序列</a><a href="ch06.html">下一章：第6章：变更检测——Angular 如何知道界面需要更新 →</a></div>
+  </main>
+  
+<aside id="toc-right">
+  <div class="toc-title">本章目录</div>
+  <ul class="toc-list"><li><a href="#h-全景设计-蓝图与实例">全景设计：蓝图与实例</a></li>
+<li><a href="#h-lview-槽位解剖">LView 槽位解剖</a></li>
+<li><a href="#h-tview-的三种类型">TView 的三种类型</a></li>
+<li><a href="#h-组件生命周期追踪">组件生命周期追踪</a></li>
+<li><a href="#h-关键渲染指令深度解析">关键渲染指令深度解析</a></li>
+<li><a href="#h-lview-树-嵌套组件的世界">LView 树：嵌套组件的世界</a></li>
+<li><a href="#h-设计思考">设计思考</a></li>
+<li><a href="#h-小结">小结</a></li>
+<li><a href="#h-思考题">思考题</a></li></ul>
+</aside>
+</div>
+<button id="back-to-top" title="返回顶部">↑</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+<script>
+(function () {
+  'use strict';
+  function updateProgress() {
+    var el = document.getElementById('progress-bar');
+    if (!el) return;
+    var st = window.pageYOffset || document.documentElement.scrollTop;
+    var dh = document.documentElement.scrollHeight - window.innerHeight;
+    el.style.width = (dh > 0 ? Math.min(100, st / dh * 100) : 0) + '%';
+  }
+  function updateBackToTop() {
+    var btn = document.getElementById('back-to-top');
+    if (!btn) return;
+    btn.classList.toggle('visible', (window.pageYOffset || document.documentElement.scrollTop) > 300);
+  }
+  function updateTocActive() {
+    var hs = Array.from(document.querySelectorAll('#main h2[id]'));
+    var ls = Array.from(document.querySelectorAll('#toc-right .toc-list a'));
+    if (!hs.length || !ls.length) return;
+    var active = -1;
+    hs.forEach(function (h, i) { if (h.getBoundingClientRect().top <= 120) active = i; });
+    ls.forEach(function (a, i) { a.classList.toggle('active', i === active); });
+  }
+  window.addEventListener('scroll', function () {
+    updateProgress(); updateBackToTop(); updateTocActive();
+  }, { passive: true });
+  var btn = document.getElementById('back-to-top');
+  if (btn) btn.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof hljs !== 'undefined') hljs.highlightAll();
+    updateProgress(); updateTocActive();
+  });
+})();
+</script>
+</body>
+</html>

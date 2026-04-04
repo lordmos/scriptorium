@@ -130,12 +130,12 @@ AND NOT EXISTS (
 # 推断脚本逻辑（伪代码）
 
 echo "=== Phase 1 检查 ==="
-if [ -f "outline-final.md" ]; then echo "Phase 1: ✅"; fi
+if [ -f "output/memory/outline.md" ]; then echo "Phase 1: ✅"; fi
 if [ -f "source-map.md" ]; then echo "source-map: ✅"; fi
 
 echo "=== Phase 2 检查 ==="
-for f in meta/glossary.md meta/style-guide.md meta/metaphor-registry.md \
-         meta/chapter-summaries.md meta/cross-references.md; do
+for f in output/memory/glossary.md output/memory/style-guide.md output/memory/metaphor-registry.md \
+         output/memory/chapter-summaries.md output/memory/cross-references.md; do
   if [ -f "$f" ]; then echo "$f: ✅"; else echo "$f: ❌"; fi
 done
 
@@ -144,7 +144,7 @@ for ch in $(seq -w 1 {{章节数}}); do
   echo "--- ch${ch} ---"
 
   # 研究
-  f="research/ch${ch}-research.md"
+  f="output/research/ch${ch}-research.md"
   if [ -f "$f" ] && grep -q "RESEARCH_COMPLETE" "$f"; then
     echo "  研究: ✅"
   elif [ -f "$f" ]; then
@@ -154,7 +154,7 @@ for ch in $(seq -w 1 {{章节数}}); do
   fi
 
   # 写作
-  f="drafts/ch${ch}-draft.md"
+  f="output/chapters/draft/ch${ch}-draft.md"
   if [ -f "$f" ] && grep -q "DRAFT_COMPLETE" "$f"; then
     echo "  写作: ✅"
   elif [ -f "$f" ]; then
@@ -165,7 +165,7 @@ for ch in $(seq -w 1 {{章节数}}); do
 
   # 审查 (R1/R2/R3)
   for r in r1-code r2-consistency r3-content; do
-    f="reviews/ch${ch}-${r}.md"
+    f="output/reviews/ch${ch}-${r}.md"
     marker=$(echo "$r" | tr '[:lower:]' '[:upper:]' | sed 's/-/_/g')
     if [ -f "$f" ] && grep -q "${marker}_REVIEW_COMPLETE" "$f"; then
       echo "  $r: ✅"
@@ -177,7 +177,7 @@ for ch in $(seq -w 1 {{章节数}}); do
   done
 
   # 合并审查
-  f="reviews/ch${ch}-review.md"
+  f="output/reviews/ch${ch}-review.md"
   if [ -f "$f" ] && grep -q "REVIEW_COMPLETE" "$f"; then
     echo "  合并审查: ✅"
   elif [ -f "$f" ]; then
@@ -187,7 +187,7 @@ for ch in $(seq -w 1 {{章节数}}); do
   fi
 
   # 读者评审
-  f="reader-feedback/ch${ch}-panel.md"
+  f="output/reviews/ch${ch}-panel.md"
   if [ -f "$f" ] && grep -q "READER_PANEL_COMPLETE" "$f"; then
     echo "  读者评审: ✅"
   elif [ -f "$f" ]; then
@@ -211,7 +211,7 @@ done
 
 echo "=== Phase 5 检查 ==="
 for ch in $(seq -w 1 {{章节数}}); do
-  f="publish/ch${ch}.html"
+  f="output/publish/ch${ch}.html"
   if [ -f "$f" ]; then echo "ch${ch} HTML: ✅"; else echo "ch${ch} HTML: —"; fi
 done
 ```
@@ -253,7 +253,7 @@ done
 ```bash
 # 检测所有研究报告的完成状态
 echo "=== 研究完成状态 ==="
-for f in research/ch*-research.md; do
+for f in output/research/ch*-research.md; do
   ch=$(basename "$f" | grep -o 'ch[0-9]*')
   if grep -q "RESEARCH_COMPLETE" "$f" 2>/dev/null; then
     echo "✅ $ch"
@@ -387,7 +387,7 @@ Phase切换时:
 ```
 症状:
   - 会话突然断开
-  - drafts/chXX-draft.md 可能是半成品
+  - output/chapters/draft/chXX-draft.md 可能是半成品
 
 恢复步骤:
   1. 读取 checkpoint.md 确定中断点
@@ -397,7 +397,7 @@ Phase切换时:
 
 示例:
   checkpoint显示 ch05 写作=⏳
-  drafts/ch05-draft.md 存在但无 DRAFT_COMPLETE 标记
+  output/chapters/draft/ch05-draft.md 存在但无 DRAFT_COMPLETE 标记
   → 备份 ch05-draft.md
   → 重新调度作家(#4)写作第5章
 ```
@@ -410,14 +410,14 @@ Phase切换时:
   - 例如R1和R3完成，但R2的报告不存在
 
 恢复步骤:
-  1. 检测 reviews/chXX-r{1,2,3}-*.md 的完成标记
+  1. 检测 output/reviews/chXX-r{1,2,3}-*.md 的完成标记
   2. 只重做缺失/不完整的reviewer
   3. 已完成的reviewer报告保留不动
 
 示例:
-  reviews/ch05-r1-code.md     → 有R1_CODE_REVIEW_COMPLETE ✅
-  reviews/ch05-r2-consistency.md → 不存在 ❌
-  reviews/ch05-r3-content.md  → 有R3_CONTENT_REVIEW_COMPLETE ✅
+  output/reviews/ch05-r1-code.md     → 有R1_CODE_REVIEW_COMPLETE ✅
+  output/reviews/ch05-r2-consistency.md → 不存在 ❌
+  output/reviews/ch05-r3-content.md  → 有R3_CONTENT_REVIEW_COMPLETE ✅
   → 只需重新调度R2审查ch05
   → R2完成后合并三份报告
 ```
@@ -430,14 +430,14 @@ Phase切换时:
   - glossary.md 缺少某些已完成章节的术语
 
 恢复步骤:
-  1. 从已完成的 chapters/ 或 drafts/ 重建长记忆
+  1. 从已完成的 chapters/ 或 output/chapters/draft/ 重建长记忆
   2. 逐章扫描，重新提取摘要、术语、比喻
   3. 重建 chapter-summaries.md, glossary.md, metaphor-registry.md
 
 重建策略:
-  if chapters/chXX.md 存在（Phase 4产出）:
+  if output/chapters/final/chXX-final.md 存在（Phase 4产出）:
     → 从最终定稿重建（最可靠）
-  elif drafts/chXX-draft.md 有 DRAFT_COMPLETE 标记:
+  elif output/chapters/draft/chXX-draft.md 有 DRAFT_COMPLETE 标记:
     → 从初稿重建（可靠）
   else:
     → 该章需要重做
@@ -527,14 +527,14 @@ Phase切换时:
 3. {{具体的下一步操作}}
 
 ## 重要文件位置
-- 检查点: {{工作目录}}/checkpoint.md
-- 大纲: {{工作目录}}/outline-final.md
-- 源码映射: {{工作目录}}/source-map.md
-- 共享资源: {{工作目录}}/meta/
-- 草稿: {{工作目录}}/drafts/
-- 审查: {{工作目录}}/reviews/
-- 定稿: {{工作目录}}/chapters/
-- 发布: {{工作目录}}/publish/
+- 检查点: output/memory/checkpoint.md
+- 大纲: output/memory/outline.md
+- 源码映射: output/memory/source-map.md
+- 共享资源: {{工作目录}}/output/memory/
+- 草稿: output/chapters/draft/
+- 审查: output/reviews/
+- 定稿: output/chapters/final/
+- 发布: output/publish/
 ```
 
 ### RESUME.md 的使用流程

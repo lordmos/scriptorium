@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第4章：模板编译器——从 HTML 到指令序列 | Angular 源码深度解析</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: #FEFCF8;
+  color: #2C2C2C;
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.85;
+}
+/* Progress bar */
+#progress-bar {
+  position: fixed; top: 0; left: 0; width: 0%; height: 3px;
+  background: #C7553A; z-index: 2000; transition: width 0.08s linear;
+}
+/* Layout */
+#layout { display: flex; min-height: 100vh; }
+/* Left sidebar */
+#sidebar {
+  position: fixed; top: 3px; left: 0;
+  width: 260px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-right: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100;
+}
+.sidebar-header { padding: 22px 18px 14px; border-bottom: 1px solid #E8E2D8; }
+.sidebar-title {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  font-size: 1em; font-weight: 700; color: #1A1A1A; line-height: 1.4; margin-bottom: 5px;
+}
+.sidebar-subtitle { font-size: 0.7em; color: #999; line-height: 1.4; }
+.sidebar-nav { padding: 10px 8px 24px; }
+.sidebar-nav a {
+  display: block; padding: 6px 12px; border-radius: 5px;
+  color: #444; font-size: 0.82em; text-decoration: none;
+  line-height: 1.45; margin-bottom: 2px; word-break: break-all;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar-nav a:hover { background: #EDE7DD; color: #1A1A1A; }
+.sidebar-nav a.active { background: #E8DDD0; color: #C7553A; font-weight: 600; }
+/* Main content */
+#main { margin-left: 260px; margin-right: 224px; padding: 48px 52px 80px; min-height: 100vh; }
+/* Right TOC */
+#toc-right {
+  position: fixed; top: 3px; right: 0;
+  width: 224px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-left: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100; padding: 22px 14px;
+}
+.toc-title {
+  font-size: 0.68em; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #aaa; margin-bottom: 10px;
+}
+.toc-list { list-style: none; }
+.toc-list li { margin-bottom: 3px; }
+.toc-list li a {
+  display: block; padding: 3px 8px; font-size: 0.77em; color: #666;
+  text-decoration: none; border-left: 2px solid transparent;
+  line-height: 1.4; word-break: break-all;
+  transition: color 0.15s, border-color 0.15s;
+}
+.toc-list li a:hover { color: #C7553A; }
+.toc-list li a.active { color: #C7553A; border-left-color: #C7553A; font-weight: 600; }
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  color: #1A1A1A; line-height: 1.4;
+  margin-top: 1.8em; margin-bottom: 0.55em;
+}
+h1 { font-size: 2.1em; margin-top: 0; padding-bottom: 0.35em; border-bottom: 2px solid #C7553A; }
+h2 { font-size: 1.55em; padding-bottom: 0.28em; border-bottom: 1px solid #E8E2D8; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1.08em; }
+h5 { font-size: 1em; }
+h6 { font-size: 0.95em; color: #666; }
+p { margin-bottom: 1em; }
+strong { color: #1A1A1A; font-weight: 700; }
+em { font-style: italic; }
+del { text-decoration: line-through; color: #999; }
+/* Links */
+a { color: #4A7C9B; text-decoration: none; }
+a:hover { text-decoration: underline; color: #3a6c8b; }
+/* Code */
+code {
+  font-family: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Courier New", monospace;
+  font-size: 0.875em; background: #F5F2ED; padding: 0.15em 0.38em;
+  border-radius: 3px; border: 1px solid #E0D9CF; word-break: break-all;
+}
+pre {
+  background: #F5F2ED; padding: 18px 22px; border-radius: 8px;
+  overflow-x: auto; margin: 1.4em 0; border: 1px solid #E0D9CF; line-height: 1.6;
+}
+pre code { background: none; padding: 0; border: none; border-radius: 0; font-size: 0.84em; word-break: normal; }
+.hljs { background: #F5F2ED !important; }
+/* Blockquote */
+blockquote {
+  margin: 1.4em 0; padding: 14px 20px;
+  border-left: 4px solid #C7553A;
+  background: linear-gradient(to right, #FFF9F5, #FEFCF8);
+  border-radius: 0 6px 6px 0;
+}
+blockquote p { margin: 0; color: #555; font-style: italic; }
+/* Lists */
+ul, ol { padding-left: 1.8em; margin-bottom: 1em; }
+li { margin-bottom: 0.38em; }
+li p { margin: 0; }
+/* Tables */
+.table-wrap { overflow-x: auto; margin: 1.4em 0; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+th, td { padding: 9px 13px; border: 1px solid #E8E2D8; text-align: left; vertical-align: top; }
+th { background: #F5F2ED; font-weight: 600; color: #1A1A1A; white-space: nowrap; }
+tr:nth-child(even) td { background: #FDFAF5; }
+/* HR */
+hr { border: none; border-top: 1px solid #E8E2D8; margin: 2.2em 0; }
+/* Images */
+img { max-width: 100%; height: auto; border-radius: 4px; display: block; margin: 1em auto; }
+/* Mermaid */
+.mermaid {
+  margin: 1.6em 0; padding: 20px;
+  background: #FDFAF5; border: 1px solid #E8E2D8; border-radius: 8px;
+  text-align: center; overflow-x: auto;
+}
+/* Chapter nav */
+.chapter-nav {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 4em; padding-top: 1.8em; border-top: 2px solid #E8E2D8; gap: 12px;
+}
+.chapter-nav a {
+  display: inline-flex; align-items: center; padding: 10px 16px;
+  background: #F5F2ED; border: 1px solid #E8E2D8; border-radius: 6px;
+  color: #4A7C9B; font-size: 0.85em; text-decoration: none; max-width: 46%;
+  word-break: break-all; line-height: 1.4;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.chapter-nav a:hover { background: #EDE7DD; border-color: #C7553A; color: #C7553A; text-decoration: none; }
+.chapter-nav span { flex: 1; }
+/* Back to top */
+#back-to-top {
+  position: fixed; bottom: 28px; right: 240px;
+  width: 42px; height: 42px; background: #C7553A; color: #fff;
+  border: none; border-radius: 50%; cursor: pointer;
+  font-size: 18px; font-weight: bold; display: none;
+  align-items: center; justify-content: center; z-index: 500;
+  box-shadow: 0 2px 12px rgba(199,85,58,0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+#back-to-top.visible { display: flex; }
+#back-to-top:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(199,85,58,0.5); }
+/* Index page */
+.index-hero {
+  text-align: center; padding: 44px 0 52px;
+  border-bottom: 1px solid #E8E2D8; margin-bottom: 52px;
+}
+.index-hero h1 { font-size: 2.6em; border: none; margin-bottom: 14px; padding: 0; }
+.index-hero .subtitle { font-size: 1.08em; color: #666; font-style: italic; margin: 0; }
+.index-intro { margin-bottom: 48px; }
+.index-intro p { font-size: 1.05em; margin-bottom: 1.2em; }
+.index-toc { margin-bottom: 48px; }
+.chapter-list { padding-left: 0; list-style: none; }
+.chapter-list li {
+  margin-bottom: 10px; padding: 13px 20px;
+  background: #F8F4EE; border-radius: 8px; border: 1px solid #E8E2D8;
+  transition: background 0.15s, border-color 0.15s;
+}
+.chapter-list li:hover { background: #EDE7DD; border-color: #C7553A; }
+.chapter-list li a { color: #1A1A1A; font-size: 1em; font-weight: 500; text-decoration: none; }
+.chapter-list li a:hover { color: #C7553A; text-decoration: none; }
+.index-audience { margin-bottom: 48px; }
+.index-audience ul { padding-left: 0; list-style: none; }
+.index-audience li { padding: 10px 0; border-bottom: 1px solid #EEE9E0; font-size: 0.95em; }
+/* Responsive */
+@media (max-width: 1200px) {
+  #toc-right { display: none; }
+  #main { margin-right: 0; }
+  #back-to-top { right: 24px; }
+}
+@media (max-width: 900px) { #main { padding: 32px 28px 60px; } }
+@media (max-width: 768px) {
+  #sidebar { display: none; }
+  #main { margin-left: 0; padding: 24px 18px 60px; }
+  h1 { font-size: 1.75em; }
+  h2 { font-size: 1.35em; }
+}
+@media print {
+  #sidebar, #toc-right, #progress-bar, #back-to-top, .chapter-nav { display: none !important; }
+  #main { margin: 0; padding: 0; max-width: 100%; }
+}
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div id="layout">
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">📖 Angular 源码深度解析</div>
+      <div class="sidebar-subtitle">深入 Angular 17+ 运行时、编译器与响应式系统的源码之旅</div>
+    </div>
+    <div class="sidebar-nav">
+      <a href="index.html">📚 目录首页</a>
+<a href="ch01.html">第1章：宏观架构——Angular 的世界观</a>
+<a href="ch02.html">第2章：从零启动——bootstrapApplication 的旅程</a>
+<a href="ch03.html">第3章：依赖注入——框架的神经系统</a>
+<a href="ch04.html" class="active">第4章：模板编译器——从 HTML 到指令序列</a>
+<a href="ch05.html">第5章：Ivy 渲染引擎——LView 的生命</a>
+<a href="ch06.html">第6章：变更检测——Angular 如何知道界面需要更新</a>
+<a href="ch07.html">第7章：Signals——细粒度响应式的实现</a>
+<a href="ch08.html">第8章：组件模型——从装饰器到运行时对象</a>
+<a href="ch09.html">第9章：路由系统——URL 与组件树的映射</a>
+<a href="ch10.html">第10章：服务端渲染与水合——让 Angular 应用「秒开」</a>
+
+    </div>
+  </nav>
+  <main id="main">
+    <h1 id="h-第4章-模板编译器-从-html-到指令序列">第4章：模板编译器——从 HTML 到指令序列</h1>
+<p><code>&lt;div [class]=&quot;active&quot;&gt;{{title}}&lt;/div&gt;</code></p>
+<p>这行你每天都在写的 HTML，Angular 看到它的第一反应不是&quot;创建一个 div&quot;——而是把它翻译成这样一段代码：</p>
+<pre><code class="language-typescript">// 编译器生成，非手写
+function MyComponent_Template(rf, ctx) {
+  if (rf &amp; 1) {
+    ɵɵelementStart(0, &quot;div&quot;);
+    ɵɵtext(1);
+    ɵɵelementEnd();
+  }
+  if (rf &amp; 2) {
+    ɵɵclassMap(ctx.active);
+    ɵɵadvance(1);
+    ɵɵtextInterpolate(ctx.title);
+  }
+}</code></pre>
+<p>这个翻译过程在你运行 <code>ng build</code> 时就已完成。浏览器打开页面时，它看到的不是那行 HTML，而是这段精确的函数调用序列。Angular 是一个 AOT（Ahead-of-Time，预编译）框架——模板在构建时就被彻底&quot;消化&quot;，运行时不再解析任何 HTML 字符串。</p>
+<p>但&quot;翻译&quot;这个词掩盖了背后的复杂性。从一行 HTML 到一组 <code>ɵɵ</code> 前缀的函数调用，中间经历了词法分析、语法分析、语义转换、中间表示、优化流水线、代码生成——六道工序，每一道都有专属的数据结构和算法。</p>
+<p>本章的目标，就是陪你走完这六道工序。</p>
+<hr>
+<h2 id="h-编译器全景-五层流水线">编译器全景——五层流水线</h2>
+<p>把模板比作一首用五线谱写就的钢琴曲，Angular 编译器的工作就是把它翻译成钢琴指法谱。演奏者（render3 运行时）只需按指法谱弹，不再需要五线谱——这就是&quot;乐谱翻译&quot;比喻的核心：<strong>编译时翻译，运行时只执行</strong>。</p>
+<p>翻译过程分为五层：</p>
+<div class="mermaid">flowchart TD
+    A[&quot;HTML 模板字符串&lt;br/&gt;&amp;lt;div [class]=&amp;quot;active&amp;quot;&amp;gt;{{title}}&amp;lt;/div&amp;gt;&quot;]
+    B[&quot;ML AST&lt;br/&gt;html.Element / html.Text / html.Attribute&lt;br/&gt;packages/compiler/src/ml_parser/&quot;]
+    C[&quot;Template AST&lt;br/&gt;t.Element / BoundAttribute / BoundText&lt;br/&gt;packages/compiler/src/render3/r3_ast.ts&quot;]
+    D[&quot;IR（中间表示）&lt;br/&gt;OpList&amp;lt;CreateOp&amp;gt; + OpList&amp;lt;UpdateOp&amp;gt;&lt;br/&gt;packages/compiler/src/template/pipeline/&quot;]
+    E[&quot;IR 优化阶段（68 个 Phase）&lt;br/&gt;slot 分配 → vars 计数 → advance 生成 → reify&quot;]
+    F[&quot;输出：template 函数&lt;br/&gt;function MyComponent_Template(rf, ctx) { ... }&quot;]
+
+    A --&gt;|&quot;tokenize() + _TreeBuilder.build()&quot;| B
+    B --&gt;|&quot;htmlAstToRender3Ast()&quot;| C
+    C --&gt;|&quot;ingestComponent() / ingestNodes()&quot;| D
+    D --&gt;|&quot;transform() — 68 个处理阶段&quot;| E
+    E --&gt;|&quot;emitView() + emitTemplateFn()&quot;| F</div>
+<p>各层的职责一句话概括：</p>
+<div class="table-wrap"><table><thead><tr><th>层</th><th>名称</th><th>职责</th></tr></thead><tbody><tr><td>1</td><td>ML AST</td><td>词法 + 语法分析，产出通用 HTML 树，不理解 Angular 语义</td></tr><tr><td>2</td><td>Template AST</td><td>语义转换，把 <code>[class]=&quot;x&quot;</code> 识别为绑定，输出 Ivy 专属节点</td></tr><tr><td>3</td><td>IR</td><td>中间表示，将 Template AST 转为操作序列，与具体指令解耦</td></tr><tr><td>4</td><td>优化阶段</td><td>68 个独立 Phase 依次处理：分配 slot、统计 vars、生成 advance…</td></tr><tr><td>5</td><td>输出</td><td>从优化后的 IR 生成最终 TypeScript 函数</td></tr></tbody></table></div>
+<blockquote><p>🔗 <strong>交叉引用</strong>：第1章已经介绍了 <code>@angular/compiler</code>（模板编译 API）、<code>@angular/compiler-cli</code>（ngtsc，AOT 编译 CLI 插件）与 <code>@angular/core</code> 三者的分工关系。本章深入 <code>@angular/compiler</code> 的内部。</p></blockquote>
+<p>接下来，我们逐层拆解。</p>
+<hr>
+<h2 id="h-ml-ast-html-的骨架">ML AST——HTML 的骨架</h2>
+<h3 id="h-为什么-angular-要自研-html-解析器">为什么 Angular 要自研 HTML 解析器</h3>
+<p>你可能会问：浏览器本身有 HTML 解析能力，Angular 为什么要自己造一个？</p>
+<p>原因有三。</p>
+<p><strong>第一，Angular 在构建阶段运行，不在浏览器里。</strong> <code>ng build</code> 在 Node.js 环境里执行，那里没有浏览器 DOM API，没有 <code>document.createElement</code>，没有 <code>innerHTML</code> 可以借用。</p>
+<p><strong>第二，浏览器的 HTML 解析会&quot;自动修正&quot;错误，这对编译器是有害的。</strong> 浏览器遇到 <code>&lt;div&gt;&lt;p&gt;&lt;/div&gt;</code> 会悄悄补全闭合标签，开发者不知道自己写了有问题的模板。Angular 编译器需要严格报错，不需要这种容错性。</p>
+<p><strong>第三，Angular 模板里有浏览器不认识的语法。</strong> <code>@if (condition) { ... }</code>、<code>@for (item of items; track item.id) { ... }</code> 这类控制流语法是 Angular 专有的，浏览器解析器遇到它们会直接跳过，而 Angular 编译器需要把它们当作一等公民处理。</p>
+<p>Angular 自研的解析器定义在 <code>packages/compiler/src/ml_parser/</code> 目录下，&quot;ML&quot;代表 Markup Language（标记语言），强调这一层是语言无关的——它同样可以解析 SVG、MathML 等标记语言。</p>
+<h3 id="h-词法分析-把字符串切成-token">词法分析：把字符串切成 Token</h3>
+<p>解析的第一步是词法分析（Lexer）。<code>tokenize()</code> 函数（<code>ml_parser/lexer.ts:109</code>）把 HTML 字符串切割成一个 Token 流。</p>
+<p>对于 <code>&lt;div [class]=&quot;active&quot;&gt;{{title}}&lt;/div&gt;</code>，词法分析的输出大致是：</p>
+<pre><code>TAG_OPEN_START   → &quot;&lt;div&quot;
+ATTR_NAME        → &quot;[class]&quot;
+ATTR_VALUE_TEXT  → &quot;active&quot;
+TAG_OPEN_END     → &quot;&gt;&quot;
+INTERPOLATION    → &quot;{{title}}&quot;
+TAG_CLOSE        → &quot;&lt;/div&gt;&quot;
+EOF</code></pre>
+<p><code>TokenType</code> 枚举（<code>ml_parser/tokens.ts:11</code>）共定义了 40 个类型，覆盖标签开闭、属性名值、插值表达式、HTML 注释、CDATA、以及 Angular v17+ 的 <code>@block</code> 控制流语法等。此时词法分析只是机械地切割字符，并不理解 <code>[class]</code> 这个方括号有什么 Angular 含义。</p>
+<h3 id="h-语法分析-token-流-html-树">语法分析：Token 流 → HTML 树</h3>
+<p>词法之后是语法分析。<code>_TreeBuilder.build()</code> 方法（<code>ml_parser/parser.ts:86</code>）按 Token 类型分派处理，把扁平的 Token 序列重建为树形结构。</p>
+<p>对于示例模板，最终得到的 ML AST 是（伪 JSON 风格，省略位置信息）：</p>
+<pre><code class="language-json">[
+  {
+    &quot;type&quot;: &quot;Element&quot;,
+    &quot;name&quot;: &quot;div&quot;,
+    &quot;attrs&quot;: [
+      { &quot;type&quot;: &quot;Attribute&quot;, &quot;name&quot;: &quot;[class]&quot;, &quot;value&quot;: &quot;active&quot; }
+    ],
+    &quot;children&quot;: [
+      {
+        &quot;type&quot;: &quot;Text&quot;,
+        &quot;value&quot;: &quot;{{title}}&quot;,
+        &quot;tokens&quot;: [{ &quot;type&quot;: &quot;INTERPOLATION&quot;, &quot;parts&quot;: [&quot;{{&quot;, &quot;title&quot;, &quot;}}&quot;] }]
+      }
+    ]
+  }
+]</code></pre>
+<p>注意此刻 ML AST 仍然对 Angular 一无所知：<code>[class]=&quot;active&quot;</code> 只是一个名字恰好带方括号的普通属性，<code>{{title}}</code> 是一段含有插值 Token 的文本节点。意义的赋予发生在下一层。</p>
+<p>ML AST 的节点类型定义于 <code>ml_parser/ast.ts:100</code>（Element 类），除了 <code>Element</code>、<code>Text</code>、<code>Attribute</code>、<code>Comment</code> 这些经典 HTML 节点，还包括 <code>Block</code>（<code>@if</code>/<code>@for</code> 控制流块）、<code>Component</code>/<code>Directive</code>（Angular v19 引入的 Selectorless 语法）等现代扩展。</p>
+<p>💡 <strong>提示</strong>：ML AST 不仅服务于模板编译，Angular 语言服务（Language Service）、i18n 消息提取工具都在这一层工作，这也是 Angular 将解析层单独抽象的原因——解析一次，多个工具复用。</p>
+<hr>
+<p>到此为止，我们手里有了一棵标准的 HTML 语法树。接下来，编译器要赋予它 Angular 的&quot;灵魂&quot;。</p>
+<hr>
+<h2 id="h-template-ast-angular-的语义层">Template AST——Angular 的语义层</h2>
+<h3 id="h-从语法到语义的跨越">从语法到语义的跨越</h3>
+<p>ML AST 是一棵&quot;语法树&quot;，而 Template AST 是一棵&quot;语义树&quot;。两者的核心区别在于：Template AST 知道什么是数据绑定、什么是事件处理器、什么是模板引用变量——这些都是 Angular 层面的概念，HTML 标准里没有。</p>
+<p>转换的入口函数是 <code>htmlAstToRender3Ast()</code>（<code>render3/r3_template_transform.ts:91</code>）：</p>
+<pre><code class="language-typescript">// packages/compiler/src/render3/r3_template_transform.ts 第 91-113 行
+export function htmlAstToRender3Ast(
+  htmlNodes: html.Node[],
+  bindingParser: BindingParser,
+  options: Render3ParseOptions,
+): Render3ParseResult {
+  const transformer = new HtmlAstToIvyAst(bindingParser, options);
+  const ivyNodes = html.visitAll(transformer, htmlNodes, htmlNodes);
+  // 合并 bindingParser 的错误（表达式解析错误）和 transformer 的错误（语义错误）
+  const allErrors = bindingParser.errors.concat(transformer.errors);
+  return { nodes: ivyNodes, errors: allErrors, ... };
+}</code></pre>
+<p><code>HtmlAstToIvyAst</code> 是核心访问者类，它实现了 <code>html.Visitor</code> 接口，对 ML AST 的每种节点类型都有对应的 <code>visitXxx()</code> 方法。<code>html.visitAll()</code> 驱动遍历，访问者在过程中将每个 ML 节点&quot;翻译&quot;为一个或多个 Template AST 节点。</p>
+<h3 id="h-属性的语义解析">属性的语义解析</h3>
+<p>Template AST 转换最精彩的部分发生在 <code>visitElement()</code> 方法里（<code>r3_template_transform.ts:136</code>）。当遇到一个 ML <code>Element</code> 节点时，访问者会对它的所有属性调用 <code>prepareAttributes()</code>，将它们分类成四种：</p>
+<ul><li><strong>TextAttribute</strong>：纯文本属性，如 <code>id=&quot;foo&quot;</code>、<code>class=&quot;btn&quot;</code></li><li><strong>BoundAttribute</strong>：绑定属性，如 <code>[class]=&quot;active&quot;</code>、<code>[style.color]=&quot;color&quot;</code></li><li><strong>BoundEvent</strong>：事件绑定，如 <code>(click)=&quot;handler()&quot;</code></li><li><strong>Variable / Reference</strong>：模板变量 <code>let-x</code> / 模板引用 <code>#ref</code></li></ul>
+<p>分类的依据很简单：方括号 <code>[xxx]</code> 是属性绑定，圆括号 <code>(xxx)</code> 是事件绑定，<code>[(...)]</code> 是双向绑定——这些规则由 <code>BindingParser</code> 负责执行。</p>
+<h3 id="h-template-ast-的关键节点">Template AST 的关键节点</h3>
+<p>对于 <code>&lt;div [class]=&quot;active&quot;&gt;{{title}}&lt;/div&gt;</code>，转换后的 Template AST 如下：</p>
+<pre><code class="language-json">[
+  {
+    &quot;type&quot;: &quot;t.Element&quot;,
+    &quot;name&quot;: &quot;div&quot;,
+    &quot;attributes&quot;: [],
+    &quot;inputs&quot;: [
+      {
+        &quot;type&quot;: &quot;BoundAttribute&quot;,
+        &quot;name&quot;: &quot;class&quot;,
+        &quot;bindingType&quot;: &quot;BindingType.Class&quot;,
+        &quot;value&quot;: {
+          &quot;ast&quot;: &quot;PropertyRead { name: 'active', receiver: ImplicitReceiver }&quot;
+        }
+      }
+    ],
+    &quot;outputs&quot;: [],
+    &quot;children&quot;: [
+      {
+        &quot;type&quot;: &quot;BoundText&quot;,
+        &quot;value&quot;: {
+          &quot;ast&quot;: &quot;Interpolation { strings: ['', ''], expressions: [PropertyRead('title')] }&quot;
+        }
+      }
+    ]
+  }
+]</code></pre>
+<p>与 ML AST 相比，发生了三件事：</p>
+<ol><li><code>[class]=&quot;active&quot;</code> 从一个普通 <code>Attribute</code> 变成了 <code>BoundAttribute</code>，其中 <code>bindingType</code> 是 <code>BindingType.Class</code>（区别于属性绑定 <code>BindingType.Property</code>），<code>value</code> 字段是已经解析好的表达式 AST——<code>PropertyRead { name: 'active' }</code></li><li>文本节点 <code>{{title}}</code> 从 <code>Text</code> 变成了 <code>BoundText</code>，其 <code>value</code> 字段是 <code>Interpolation</code> 表达式 AST，包含插值字符串数组和表达式数组</li><li><code>div</code> 元素的 <code>inputs</code> 数组收纳了所有绑定属性，与静态 <code>attributes</code> 分离</li></ol>
+<p>Template AST 完整的节点类型定义于 <code>render3/r3_ast.ts</code>。除了上面出现的 <code>Element</code>、<code>BoundAttribute</code>、<code>BoundText</code>，还有对应 <code>&lt;ng-template&gt;</code> 和结构型指令宿主的 <code>Template</code> 节点，以及 Angular v17+ 控制流的 <code>IfBlock</code>、<code>ForLoopBlock</code>、<code>DeferredBlock</code> 等。</p>
+<p>⚠️ <strong>注意</strong>：<code>BindingType.Class</code>（不带具体类名）对应 <code>[class]=&quot;expr&quot;</code> 整体赋值形式，最终生成 <code>ɵɵclassMap()</code>；而 <code>[class.active]=&quot;flag&quot;</code> 是 <code>BindingType.Class</code> 带具体类名，最终生成 <code>ɵɵclassProp(&quot;active&quot;, flag)</code>。两者的 vars 消耗量不同。</p>
+<hr>
+<p>Template AST 已经&quot;知道&quot;Angular 语义了。但如果直接从 Template AST 生成最终代码，优化空间会很受限。这就引出了编译流水线中最重要的一层——IR。</p>
+<hr>
+<h2 id="h-ir-优化的中间层">IR——优化的中间层</h2>
+<h3 id="h-为什么需要中间层">为什么需要中间层</h3>
+<p>为什么不从 Template AST 直接生成 JavaScript？因为代码生成不只是&quot;翻译&quot;，还需要&quot;优化&quot;。</p>
+<p>想象一个更复杂的模板，里面有十几个绑定、几个结构型指令、嵌套的 <code>@if</code> 和 <code>@for</code>。如果直接从 Template AST 生成代码，你必须在一次遍历里同时计算 slot 分配、变量计数、上下文引用、advance 插入……这会让代码生成逻辑复杂到难以维护，更无法独立测试每一类优化。</p>
+<p>IR（Intermediate Representation，中间表示）把这些关切彻底分离：每个优化是一个独立的 Phase 函数，输入一组 IR 操作，输出修改后的 IR 操作，可以独立测试，可以随时在任意两个 Phase 之间断点检查状态。Angular 的编译器里这样的 Phase 共有 68 个。</p>
+<blockquote><p>这个思路和传统编译器（如 LLVM）的 IR 设计如出一辙：把&quot;理解程序&quot;和&quot;优化程序&quot;的工作彻底分离。Angular 只是把这个思想应用在了模板编译上。</p></blockquote>
+<h3 id="h-oplist-双向链表上的操作序列">OpList：双向链表上的操作序列</h3>
+<p>IR 的核心数据结构是 <code>OpList</code>，定义于 <code>template/pipeline/ir/src/operations.ts:55</code>：</p>
+<pre><code class="language-typescript">// packages/compiler/src/template/pipeline/ir/src/operations.ts 第 55-80 行
+export class OpList&lt;OpT extends Op&lt;OpT&gt;&gt; {
+  readonly head: OpT;   // 哨兵头节点（kind=ListEnd）
+  readonly tail: OpT;   // 哨兵尾节点（kind=ListEnd）
+
+  push(op: OpT | Array&lt;OpT&gt;): void { ... }
+  prepend(ops: OpT[]): void { ... }
+  *[Symbol.iterator](): Generator&lt;OpT&gt; { ... }
+
+  static insertBefore&lt;T extends Op&lt;T&gt;&gt;(op: T, target: T): void { ... }
+  static replace&lt;T extends Op&lt;T&gt;&gt;(op: T, newOp: T | T[]): void { ... }
+  static remove&lt;T extends Op&lt;T&gt;&gt;(op: T): void { ... }
+}</code></pre>
+<p>为什么是<strong>双向链表</strong>而不是数组？因为 Phase 处理时最频繁的操作是&quot;在特定 Op 前后插入新 Op&quot;——比如 <code>generateAdvance</code> Phase 需要在每个需要推进游标的 Update Op 前面插入一个 <code>AdvanceOp</code>。链表的这种插入是 O(1)，数组则是 O(n)。处理数千个 Op 时，这个差距不可忽视。</p>
+<p>每个视图（<code>ViewCompilationUnit</code>）有两条独立的 <code>OpList</code>（<code>compilation.ts:165-170</code>）：</p>
+<pre><code class="language-typescript">// packages/compiler/src/template/pipeline/src/compilation.ts 第 165-170 行
+readonly create = new ir.OpList&lt;ir.CreateOp&gt;();  // 创建阶段操作
+readonly update = new ir.OpList&lt;ir.UpdateOp&gt;();  // 更新阶段操作</code></pre>
+<p><strong>Create 链表</strong> 对应 template 函数里的 <code>if (rf &amp; 1)</code> 块，记录&quot;如何构建 DOM 结构&quot;的操作序列——创建元素、文本节点、注册事件监听、声明嵌入视图等，首次渲染时执行一次，此后不再执行。</p>
+<p><strong>Update 链表</strong> 对应 <code>if (rf &amp; 2)</code> 块，记录&quot;如何更新数据绑定&quot;的操作序列——属性更新、插值刷新、条件判断等，每次变更检测时都可能执行。</p>
+<p>这个&quot;创建/更新双轨&quot;设计是 Angular 高效的关键：首次渲染之后，框架只需执行 Update 序列，完全跳过 DOM 构建逻辑。</p>
+<h3 id="h-ingest-从-template-ast-到-ir">ingest：从 Template AST 到 IR</h3>
+<p>将 Template AST&quot;喂入&quot;IR 的过程称为 <strong>ingest</strong>，入口是 <code>ingestComponent()</code>（<code>template/pipeline/src/ingest.ts:55</code>），它递归遍历 Template AST 节点，对每种节点类型调用对应的 <code>ingestXxx()</code> 函数，向 Create/Update 链表追加相应的 IR 操作。</p>
+<p>对于 <code>&lt;div [class]=&quot;active&quot;&gt;{{title}}&lt;/div&gt;</code>，ingest 后 Create 链表的内容是：</p>
+<pre><code>ElementStartOp { xref: XrefId(0), tag: &quot;div&quot;, handle: null (待分配) }
+TextOp         { xref: XrefId(1), initialValue: &quot;&quot;,  handle: null (待分配) }
+ElementEndOp   { xref: XrefId(0) }</code></pre>
+<p>Update 链表是：</p>
+<pre><code>BindingOp      { kind: ClassName,   target: XrefId(0), expr: PropertyRead(&quot;active&quot;) }
+InterpolateTextOp { target: XrefId(1), interpolation: Interpolation([&quot;&quot;,&quot;&quot;], [PropertyRead(&quot;title&quot;)]) }</code></pre>
+<p>注意 <code>target: XrefId(0)</code> 和 <code>target: XrefId(1)</code> 这两个跨引用。<strong>XrefId</strong> 是 IR 中的稳定标识符（类型安全的 <code>number &amp; { __brand: 'XrefId' }</code>），Update Op 通过它引用对应的 Create Op。之所以不用直接的 JavaScript 对象引用，是因为 Phase 处理可能会删除或替换 Op 对象——XrefId 就像数据库主键，无论行被替换，键不变。</p>
+<h3 id="h-68-个-phase-的流水线">68 个 Phase 的流水线</h3>
+<p>ingest 完成后，<code>transform()</code> 函数（<code>emit.ts:181</code>）会依次调用 68 个 Phase 函数对 IR 进行优化和转换。下图展示了最关键的几个 Phase 及其位置：</p>
+<div class="mermaid">flowchart LR
+    A[&quot;ingest&lt;br/&gt;Template AST → IR 操作序列&quot;]
+    B[&quot;Phase 8&lt;br/&gt;specializeStyleBindings&lt;br/&gt;BindingOp → ClassMapOp / StylePropOp&quot;]
+    C[&quot;Phase 17&lt;br/&gt;orderOps&lt;br/&gt;调整操作顺序&quot;]
+    D[&quot;Phase 42&lt;br/&gt;optimizeVariables&lt;br/&gt;内联/消除冗余临时变量&quot;]
+    E[&quot;Phase 49&lt;br/&gt;allocateSlots&lt;br/&gt;分配 slot → unit.decls&quot;]
+    F[&quot;Phase 57&lt;br/&gt;countVariables&lt;br/&gt;统计 vars → unit.vars&quot;]
+    G[&quot;Phase 58&lt;br/&gt;generateAdvance&lt;br/&gt;插入 ɵɵadvance 调用&quot;]
+    H[&quot;Phase 67&lt;br/&gt;reify&lt;br/&gt;IR Op → o.Statement&quot;]
+    I[&quot;Phase 68&lt;br/&gt;chain&lt;br/&gt;合并调用链&quot;]
+    J[&quot;emitView&lt;br/&gt;生成最终 template 函数&quot;]
+
+    A --&gt; B --&gt; C --&gt; D --&gt; E --&gt; F --&gt; G --&gt; H --&gt; I --&gt; J</div>
+<p>让我们把 68 个 Phase 中对理解编译器最关键的四个拿出来详解。</p>
+<h3 id="h-phase-49-allocateslots-slot-分配-决定-decls">Phase 49：allocateSlots（slot 分配，决定 decls）</h3>
+<p><strong>文件</strong>：<code>template/pipeline/src/phases/slot_allocation.ts</code></p>
+<p>LView 是一个平坦数组（第5章会详细解剖它）。<code>decls</code> 告诉运行时这个数组的前多少个槽用于存 DOM 节点引用。每个需要占用 LView 槽的 Create Op 都实现了 <code>ConsumesSlotOpTrait</code> 接口。<code>allocateSlots</code> 遍历 Create 链表，按顺序为这些 Op 分配索引：</p>
+<pre><code class="language-typescript">// packages/compiler/src/template/pipeline/src/phases/slot_allocation.ts 第 28-52 行
+let slotCount = 0;
+for (const op of unit.create) {
+  if (!ir.hasConsumesSlotTrait(op)) continue;
+  op.handle.slot = slotCount;       // 分配索引
+  slotMap.set(op.xref, op.handle.slot);
+  slotCount += op.numSlotsUsed;     // 通常步进 1
+}
+unit.decls = slotCount;             // 记录总 decls 值</code></pre>
+<p>需要占用 slot 的 Create Op 包括：<code>ElementStart</code>、<code>Text</code>、<code>Template</code>（嵌入视图）、<code>Pipe</code>、<code>Projection</code> 等。不占用 slot 的 Create Op 包括：<code>ElementEnd</code>（只是闭合标签，不对应 DOM 节点）、<code>Listener</code>（事件处理器不在数据区，在运行时通过其他机制存储）。</p>
+<p>对于示例模板，Phase 49 后：<code>ElementStartOp.handle.slot = 0</code>，<code>TextOp.handle.slot = 1</code>，<code>unit.decls = 2</code>。</p>
+<blockquote><p>🔗 <strong>TView 关联</strong>：<code>decls = 2</code> 将在代码生成阶段写入 <code>TView.blueprint</code> 数组的长度预算——每个组件<strong>类</strong>共享一个 TView（运行时元数据蓝图），所有组件<strong>实例</strong>的 LView 都以此 blueprint 为模板分配内存。slot 分配的结果正是 TView blueprint 中&quot;DOM 节点区&quot;的边界标记（第5章详解）。</p></blockquote>
+<h3 id="h-phase-57-countvariables-变量计数-决定-vars">Phase 57：countVariables（变量计数，决定 vars）</h3>
+<p><strong>文件</strong>：<code>template/pipeline/src/phases/var_counting.ts</code></p>
+<p><code>vars</code> 告诉运行时 LView 数组中紧跟 DOM 节点之后，还需要多少个槽用于存储&quot;上次变更检测时的旧值&quot;——这是脏检查的物质基础。每次变更检测时，<code>ɵɵclassMap(ctx.active)</code> 需要把新值和旧值比较，只有不同时才真正更新 DOM，旧值就存在这里。</p>
+<p>不同类型的绑定消耗的 vars 数量不同：</p>
+<div class="table-wrap"><table><thead><tr><th>绑定类型</th><th>消耗的 vars</th><th>原因</th></tr></thead><tbody><tr><td><code>property</code></td><td>1</td><td>只需存上次的值</td></tr><tr><td><code>classMap</code> / <code>styleMap</code></td><td>2</td><td>需要存上次的对象引用 + 字符串化后的值</td></tr><tr><td><code>classProp</code> / <code>styleProp</code></td><td>2</td><td>同上</td></tr><tr><td><code>textInterpolate</code>（n 个表达式）</td><td>n</td><td>每个表达式各存一个旧值</td></tr><tr><td><code>conditional</code>（@if）</td><td>1</td><td>存上次的条件结果</td></tr><tr><td><code>pipe</code>（管道）</td><td>1 + 参数数量</td><td>存管道实例 + 每个参数的旧值</td></tr></tbody></table></div>
+<blockquote><p>🔍 <strong>vars 消耗的本质</strong>：vars 槽的数量取决于<strong>变更检测需要多少&quot;记忆&quot;</strong>。<code>property</code>/<code>textInterpolate</code> 只需记住上次的<strong>值</strong>，1 个 var 够用。<code>classMap</code>/<code>styleMap</code> 需要两层记忆：<code>var[i]</code> 存旧的<strong>对象引用</strong>（用 <code>===</code> 判断对象身份是否改变），<code>var[i+1]</code> 存旧的<strong>字符串化值</strong>（对象引用不变但内容变时进行逐属性比较）——因此消耗 2 个 vars。这个设计让运行时既能快速跳过未变化的对象，又能精确检测对象内容变化。</p></blockquote>
+<p>对于示例模板：<code>ClassMapOp</code> 消耗 2 个 vars，<code>InterpolateTextOp</code>（1 个表达式）消耗 1 个 vars，合计 <code>unit.vars = 3</code>。</p>
+<h3 id="h-phase-58-generateadvance-生成-advance">Phase 58：generateAdvance（生成 ɵɵadvance）</h3>
+<p><strong>文件</strong>：<code>template/pipeline/src/phases/generate_advance.ts</code></p>
+<p>运行时维护一个<strong>隐式 slot 游标</strong>，初始为 0。Update 链表中的绑定指令（<code>classMap</code>、<code>property</code>、<code>textInterpolate</code> 等）不接受 slot 参数，而是隐式作用于游标当前指向的 slot。<code>ɵɵadvance(n)</code> 将游标向前推进 n 步。</p>
+<p>为什么要这样设计？节省代码体积。一个简单的组件模板可能有数十个绑定指令，如果每个指令都需要传 slot 索引，生成的 JavaScript 文件会更大。利用游标，只在位置需要跳跃时插入 <code>advance()</code>，其余情况游标自然递增。</p>
+<p><code>generateAdvance</code> 模拟运行时执行，跟踪游标的当前位置，在需要跳跃的 Update Op 前插入 <code>AdvanceOp</code>：</p>
+<pre><code class="language-typescript">// packages/compiler/src/template/pipeline/src/phases/generate_advance.ts 第 36-75 行（伪代码示意）
+let slotContext = 0;  // 模拟运行时游标
+for (const op of unit.update) {
+  // 实际源码使用 ir.hasDependsOnSlotContextTrait(op) trait 检查
+  // 及 ir.visitExpressionsInOp() 遍历嵌套表达式；此处简化为 findSlotDependency()
+  const consumer = findSlotDependency(op);  // 伪代码，代表 DependsOnSlotContext trait 检查
+  if (consumer === null) continue;
+
+  const slot = slotMap.get(consumer.target)!;
+  if (slotContext !== slot) {
+    const delta = slot - slotContext;   // 需要跳跃的步数（只能为正）
+    ir.OpList.insertBefore&lt;ir.UpdateOp&gt;(
+      ir.createAdvanceOp(delta, consumer.sourceSpan), op
+    );
+    slotContext = slot;
+  }
+}</code></pre>
+<p>对于示例模板：<code>ClassMapOp</code> 作用于 slot 0（游标初始为 0，不需要 advance），<code>InterpolateTextOp</code> 作用于 slot 1（游标当前在 0，需要 advance(1)）。Phase 58 后，Update 链表变为：</p>
+<pre><code>ClassMapOp { target: XrefId(0) }
+→ AdvanceOp { delta: 1 }
+→ InterpolateTextOp { target: XrefId(1) }</code></pre>
+<h3 id="h-phase-67-reify-ir-具体化">Phase 67：reify（IR 具体化）</h3>
+<p><strong>文件</strong>：<code>template/pipeline/src/phases/reify.ts</code></p>
+<p>reify 是最后一道实质性变换：将每个语义 IR Op 替换为对应的运行时指令调用（<code>o.Statement</code>）。这里&quot;具体化&quot;这个词很准确——之前的 IR 操作是抽象的（&quot;创建一个元素&quot;），reify 之后变成具体的（<code>ɵɵelementStart(0, &quot;div&quot;)</code>）。</p>
+<pre><code class="language-typescript">// packages/compiler/src/template/pipeline/src/phases/reify.ts 第 101 行（简化）
+switch (op.kind) {
+  case ir.OpKind.ElementStart:
+    // IR Op → ɵɵelementStart(slot, tag, attrs, refs)
+    ir.OpList.replace(op, ng.elementStart(op.handle.slot!, op.tag!, ...));
+    break;
+  case ir.OpKind.ClassMap:
+    // IR Op → ɵɵclassMap(expr)
+    ir.OpList.replace(op, ng.classMap(op.expression, ...));
+    break;
+  case ir.OpKind.Advance:
+    // IR Op → ɵɵadvance(delta)
+    ir.OpList.replace(op, ng.advance(op.delta, ...));
+    break;
+}</code></pre>
+<p>Phase 68（<code>chain</code>）在 reify 之后运行，将连续的同类指令调用合并为链式调用（如 <code>ɵɵelementStart(0, &quot;div&quot;).text(1).elementEnd()</code> 这样的形式，在 bundle 体积上更紧凑）。</p>
+<hr>
+<p>理解了 IR 的设计，代码生成就只剩下最后的&quot;装配&quot;了。</p>
+<hr>
+<h2 id="h-代码生成-最终输出">代码生成——最终输出</h2>
+<h3 id="h-template-函数的结构">template 函数的结构</h3>
+<p>所有 68 个 Phase 执行完毕后，<code>emitView()</code> 函数（<code>emit.ts:219</code>）从 Create 和 Update 链表中提取所有 <code>o.Statement</code>，分别用 <code>if (rf &amp; 1) {...}</code> 和 <code>if (rf &amp; 2) {...}</code> 包裹，组装成最终的 template 函数：</p>
+<pre><code class="language-typescript">// packages/compiler/src/template/pipeline/src/emit.ts 第 219-256 行（简化）
+function emitView(view: ViewCompilationUnit): o.FunctionExpr {
+  const createStatements: o.Statement[] = [];
+  for (const op of view.create) {
+    createStatements.push(op.statement);  // 所有 Op 已被 reify 转为 StatementOp
+  }
+  const updateStatements: o.Statement[] = [];
+  for (const op of view.update) {
+    updateStatements.push(op.statement);
+  }
+  const createCond = maybeGenerateRfBlock(1, createStatements); // if (rf &amp; 1)
+  const updateCond = maybeGenerateRfBlock(2, updateStatements); // if (rf &amp; 2)
+  return o.fn(
+    [new o.FnParam('rf', o.NUMBER_TYPE), new o.FnParam('ctx', o.DYNAMIC_TYPE)],
+    [...createCond, ...updateCond],
+    undefined, undefined, view.fnName,
+  );
+}</code></pre>
+<p><code>rf</code> 是 <code>RenderFlags</code> 的简写，是一个位掩码：<code>1</code> 代表 Create 模式（首次渲染），<code>2</code> 代表 Update 模式（变更检测）。<code>ctx</code> 是组件实例（<code>this</code> 的替代——函数里没有 <code>this</code>，通过参数传入）。</p>
+<h3 id="h-完整示例-从模板到函数">完整示例：从模板到函数</h3>
+<p>以 <code>&lt;div [class]=&quot;active&quot;&gt;{{title}}&lt;/div&gt;</code> 为例，完整的编译输出如下：</p>
+<pre><code class="language-typescript">// 编译器生成，非手写
+// packages/compiler/src/render3/view/compiler.ts 第 240-241 行 写入 decls/vars
+// decls: 2  — slot 0 = div 元素, slot 1 = 文本节点
+// vars:  3  — classMap(2) + textInterpolate(1) = 3 个脏检查槽
+
+function MyComponent_Template(rf, ctx) {
+  if (rf &amp; 1) {
+    // ——— 创建模式：执行一次，构建 DOM 骨架 ———
+    ɵɵelementStart(0, &quot;div&quot;);  // LView[0] = &lt;div&gt; 元素的 DOM 引用
+    ɵɵtext(1);                 // LView[1] = 文本节点的 DOM 引用（初始值空字符串）
+    ɵɵelementEnd();            // 闭合 &lt;div&gt;（不占用 slot）
+  }
+  if (rf &amp; 2) {
+    // ——— 更新模式：每次变更检测时执行 ———
+    ɵɵclassMap(ctx.active);    // 游标在 0；LView[2][3] 存旧值用于脏检查
+    ɵɵadvance(1);              // 游标 0 → 1
+    ɵɵtextInterpolate(ctx.title); // 游标在 1；LView[4] 存旧值
+  }
+}</code></pre>
+<p>与 <code>ɵɵdefineComponent</code> 中的字段对应：</p>
+<pre><code class="language-typescript">// 编译器生成，非手写
+MyComponent.ɵcmp = ɵɵdefineComponent({
+  decls: 2,   // ← Phase 49 allocateSlots 的结果
+  vars: 3,    // ← Phase 57 countVariables 的结果
+  template: MyComponent_Template,
+  // ...
+});</code></pre>
+<h3 id="h-decls-和-vars-lview-的-预算表">decls 和 vars：LView 的&quot;预算表&quot;</h3>
+<p><code>decls</code> 和 <code>vars</code> 经常让初学者困惑。用一个比喻来理解：</p>
+<p><strong>LView 是一栋楼</strong>，<code>decls</code> 告诉运行时&quot;这栋楼前 N 层住 DOM 节点&quot;，<code>vars</code> 告诉运行时&quot;接下来 M 层住脏检查旧值&quot;。楼层分配在启动时就固定了，不会动态扩展。</p>
+<p>如果 <code>decls</code> 算错了，DOM 节点引用会&quot;住进&quot;旧值层，下次变更检测取出的会是错误数据。如果 <code>vars</code> 算错了，脏检查会访问越界的内存，造成随机的更新失败。<strong>这两个数字的正确性对运行时的正确性至关重要</strong>。</p>
+<blockquote><p>🔗 <strong>交叉引用</strong>：第5章「Ivy 渲染引擎」会详细解剖 LView 数组的内存布局，届时 <code>decls</code> 和 <code>vars</code> 所描述的&quot;楼层结构&quot;会有完整的图示。</p></blockquote>
+<h3 id="h-关键指令一览">关键指令一览</h3>
+<div class="table-wrap"><table><thead><tr><th>渲染指令</th><th>作用</th><th>出现阶段</th></tr></thead><tbody><tr><td><code>ɵɵelementStart(slot, tag, attrs?, refs?)</code></td><td>创建元素节点，并将其 DOM 引用存入 LView[slot]</td><td>Create</td></tr><tr><td><code>ɵɵelementEnd()</code></td><td>闭合当前元素（必须与 elementStart 配对）</td><td>Create</td></tr><tr><td><code>ɵɵtext(slot, initialValue?)</code></td><td>创建文本节点，DOM 引用存入 LView[slot]</td><td>Create</td></tr><tr><td><code>ɵɵadvance(delta)</code></td><td>将运行时隐式 slot 游标向前移动 delta 步</td><td>Update</td></tr><tr><td><code>ɵɵproperty(name, value)</code></td><td>设置元素属性（含脏检查）</td><td>Update</td></tr><tr><td><code>ɵɵclassMap(value)</code></td><td>设置 class 绑定（对象/字符串形式，2 个 vars）</td><td>Update</td></tr><tr><td><code>ɵɵclassProp(name, value)</code></td><td>设置单个 class 绑定（2 个 vars）</td><td>Update</td></tr><tr><td><code>ɵɵtextInterpolate(value)</code></td><td>更新文本节点内容（含脏检查）</td><td>Update</td></tr><tr><td><code>ɵɵlistener(event, handler)</code></td><td>注册 DOM 事件监听器</td><td>Create</td></tr><tr><td><code>ɵɵtemplate(slot, fn, decls, vars)</code></td><td>声明嵌入视图（@if/@for/ng-template）</td><td>Create</td></tr></tbody></table></div>
+<p>💡 <strong>提示</strong>：<code>ɵɵelementStart</code> 与 <code>ɵɵelementEnd</code> 必须成对出现，但对于没有子节点的元素，编译器会优化为一个单独的 <code>ɵɵelement(slot, tag)</code>（Phase 63 <code>collapseEmptyInstructions</code> 负责此优化），省去一次函数调用。</p>
+<hr>
+<blockquote><p>💡 <strong>编译时序说明</strong>：TCB 与 IR 流水线<strong>独立并行</strong>运行，两者都从 Template AST 出发，但走不同的路径。IR 流水线在 68 个 Phase 中会做常量折叠、变量内联等优化，这些变换会消除原始表达式信息；TCB 直接保留原始 Template AST 供 TypeScript 做准确类型推断——独立路径正是为此而设，两者互不干扰，且 TCB 的输出不进入最终 bundle。</p></blockquote>
+<h2 id="h-类型检查-模板错误的侦探">类型检查——模板错误的侦探</h2>
+<h3 id="h-什么是-tcb">什么是 TCB</h3>
+<p>你有没有遇到过这样的报错：模板里用了一个不存在的属性，TypeScript 给了你一个准确的错误位置？这背后是 Angular 的<strong>模板类型检查（Template Type Checking）</strong>系统，核心是 <strong>TCB</strong>（Type Check Block，类型检查块）。</p>
+<p>TCB 是 Angular 编译器额外生成的一段&quot;虚假&quot;TypeScript 代码。这段代码不会出现在最终 bundle 里，只用于类型检查：它把模板中的表达式翻译成 TypeScript 表达式，让 TypeScript 的类型检查器（tsc）能够理解它们的类型。</p>
+<p>以 <code>&lt;div [class]=&quot;active&quot;&gt;{{title}}&lt;/div&gt;</code> 为例，生成的 TCB 类似：</p>
+<pre><code class="language-typescript">// TCB（类型检查块，不会出现在生产代码中）
+function _tcb_MyComponent(ctx: MyComponent) {
+  // [class]=&quot;active&quot; → 检查 ctx.active 的类型是否可赋值给 class 属性
+  const _t1 = ctx.active;
+  // {{title}} → 检查 ctx.title 是否存在
+  const _t2 = &quot;&quot; + ctx.title + &quot;&quot;;
+}</code></pre>
+<p>TypeScript 编译器对这段虚假代码做类型检查时，一旦发现 <code>ctx.active</code> 或 <code>ctx.title</code> 不存在，就会报错——Angular 语言服务把这个错误&quot;映射&quot;回原始模板的具体位置，你就看到了准确的模板错误提示。</p>
+<h3 id="h-stricttemplates-的影响">strictTemplates 的影响</h3>
+<p><code>tsconfig.json</code> 中的 <code>angularCompilerOptions.strictTemplates</code> 控制类型检查的严格程度。关闭时，Angular 对许多模板表达式使用 <code>any</code> 类型，放宽检查；开启时，Angular 对每个绑定表达式执行完整的 TypeScript 类型推断。</p>
+<div class="table-wrap"><table><thead><tr><th>选项</th><th><code>strictTemplates: false</code></th><th><code>strictTemplates: true</code></th></tr></thead><tbody><tr><td><code>[prop]=&quot;value&quot;</code></td><td><code>value</code> 可以是任意类型</td><td><code>value</code> 必须与 prop 的类型兼容</td></tr><tr><td><code>{{expr}}</code></td><td>不检查 <code>expr</code> 是否为 <code>null</code>/<code>undefined</code></td><td>必须处理 <code>null</code>/<code>undefined</code>（或使用 <code>??</code>、<code>?.</code>）</td></tr><tr><td>管道类型</td><td>不检查管道参数类型</td><td>严格检查</td></tr><tr><td>Signal 解包</td><td>—</td><td>自动识别 <code>signal()</code> 返回值并解包类型</td></tr></tbody></table></div>
+<p>对于新项目，强烈建议开启 <code>strictTemplates</code>——它让模板类型错误在编译时暴露，而非留到运行时。</p>
+<p>⚠️ <strong>注意</strong>：TCB 不参与运行时代码生成，它的错误只影响开发体验，不影响应用能否运行。但 Angular 语言服务（Language Service）的智能提示、跳转定义、重命名重构等能力都依赖 TCB 的准确性。</p>
+<hr>
+<h2 id="h-设计思考">设计思考</h2>
+<blockquote><p><strong>设计思考</strong></p></blockquote>
+<h3 id="h-为什么是-aot-而非-jit">为什么是 AOT 而非 JIT？</h3>
+<p>Angular 从 v9 开始将 AOT 设为默认模式，背后有几个相互加强的理由。</p>
+<p><strong>包体积</strong>。JIT 模式下，<code>@angular/compiler</code>（约 160KB gzip 后约 55KB）必须随应用一起下载，因为模板需要在浏览器里现场编译。AOT 模式下，编译器完全不进入生产 bundle。这不只是省了 compiler 的体积，更重要的是 AOT 让 tree-shaking 工具能够精确识别哪些 directive 和 pipe 被真正使用——未使用的代码可以被安全删除。</p>
+<p><strong>安全性</strong>。JIT 模式本质上是在运行时执行动态代码求值（<code>eval()</code>），在 Content Security Policy（CSP）严格的环境（如某些企业内网应用）中无法工作。AOT 生成的是静态函数，完全兼容 CSP。</p>
+<p><strong>IDE 支持</strong>。Angular 语言服务（Language Service）正是基于 AOT 编译流水线（包括 Template AST 和 TCB）实现的。JIT 路径下，编译器只在运行时&quot;看到&quot;模板，语言服务无法利用这些信息提供精准的类型推断和跳转定义。</p>
+<blockquote><p>预制菜 vs 现炒：AOT 是工厂预制好的成品——用户打开应用时直接&quot;加热上桌&quot;（执行编译好的函数），没有现场编译的开销；JIT 是到场点单现炒——灵活，但&quot;上菜慢&quot;（启动时间长、内存占用高）。</p></blockquote>
+<h3 id="h-ir-层的历史背景">IR 层的历史背景</h3>
+<p>Angular v14 之前，模板编译器使用 <code>TemplateDefinitionBuilder</code>（TDB）——一个单遍的访问者，直接在 Template AST 遍历过程中输出代码。TDB 工作得不错，但有一个根本性的限制：单遍遍历意味着看到后面节点之前不知道 <code>decls</code> 和 <code>vars</code> 的值，代码生成逻辑和优化逻辑纠缠在一起，难以维护和扩展。</p>
+<p>Angular v14 引入了新的 IR（Internal Representation）层，彻底替代 TDB。68 个 Phase 的多遍优化架构，使得每一类变换都可以独立实现、独立测试、独立扩展。<code>@if</code>/<code>@for</code> 控制流语法（v17）、<code>@let</code> 局部变量（v18）、Selectorless 组件语法（v19 实验性）等新特性，都是以新增 IR 操作和 Phase 的方式实现的，完全不影响已有的代码路径。</p>
+<h3 id="h-与其他框架的编译策略对比">与其他框架的编译策略对比</h3>
+<p>从&quot;有没有专属编译器&quot;这个维度看，主流框架可以分为两类：</p>
+<p><strong>React + JSX Transform</strong>：JSX 本质上是语法糖，<code>&lt;div className={active}&gt;</code> 被 Babel/swc/tsc 直接转换为 <code>React.createElement(&quot;div&quot;, { className: active })</code>。这是一个通用的语法变换，不需要理解 React 语义。代价是运行时必须有一个虚拟 DOM 协调器（Reconciler）来处理数据绑定和 DOM 更新。React 编译器（React Compiler，前 React Forget）是近年的尝试，在 JSX 层面做记忆化优化，但它是可选的、不改变运行模型的。</p>
+<p><strong>Vue 模板编译</strong>：Vue 有一个专属的模板编译器，将 <code>&lt;div :class=&quot;active&quot;&gt;{{ title }}&lt;/div&gt;</code> 编译为 <code>h(&quot;div&quot;, { class: active }, title)</code> 这样的虚拟 DOM 创建调用，再经过 Virtual DOM diff 更新 DOM。Vue 3 在编译器里引入了静态提升（Static Hoisting）等优化，但运行时仍然依赖虚拟 DOM diff。</p>
+<p><strong>Angular 的路径</strong>：Angular 编译器输出的不是&quot;创建虚拟 DOM&quot;的调用，而是&quot;直接操作真实 DOM&quot;的命令式函数。脏检查在 LView 的绑定槽里以旧值比较的方式完成，完全跳过虚拟 DOM。这个选择的代价是编译器更复杂（需要精确计算 decls/vars/advance），收益是运行时零虚拟 DOM 开销——对大型应用的性能而言，这是值得的权衡。</p>
+<blockquote><p>三者的本质差异在于<strong>编译器与运行时的解耦程度</strong>：React 把运行时 Reconciler 视为必须依赖；Vue 在编译层优化但运行层仍靠 Virtual DOM；Angular 则把尽可能多的决策前移到编译期，让运行时成为一台执行预先计算好指令的&quot;机器&quot;——编译器越聪明，运行时越轻薄。</p></blockquote>
+<hr>
+<h2 id="h-小结">小结</h2>
+<p>让我们用五层流水线回顾整个旅程：</p>
+<ol><li><strong>ML AST</strong>：Angular 自研的 HTML 解析器（不依赖浏览器 DOM）将模板字符串切割为词法 Token，再组装为通用 HTML 语法树。此时 <code>[class]=&quot;active&quot;</code> 只是普通属性。</li></ol>
+<ol><li><strong>Template AST</strong>：<code>HtmlAstToIvyAst</code> 访问者赋予 HTML 骨架以 Angular 语义。<code>[class]=&quot;active&quot;</code> 变成 <code>BoundAttribute { bindingType: Class, value: PropertyRead(&quot;active&quot;) }</code>，<code>{{title}}</code> 变成 <code>BoundText { value: Interpolation([PropertyRead(&quot;title&quot;)]) }</code>。</li></ol>
+<ol><li><strong>IR</strong>：<code>ingestComponent()</code> 将 Template AST 摊平为两条 OpList——Create 链表（DOM 构建指令）和 Update 链表（数据绑定指令），通过 XrefId 跨引用相互关联。</li></ol>
+<ol><li><strong>68 个 Phase</strong>：多遍优化流水线依次处理 IR——特化绑定类型、分配 slot（决定 <code>decls</code>）、统计变量（决定 <code>vars</code>）、插入 <code>advance</code>、消除临时变量，最后由 <code>reify</code> 将 IR Op 具体化为 <code>ɵɵXxx</code> 指令调用。</li></ol>
+<ol><li><strong>输出</strong>：<code>emitView()</code> 将所有语句包裹进 <code>if (rf &amp; 1)</code> 和 <code>if (rf &amp; 2)</code> 两个分支，生成最终的 <code>ComponentTemplate</code> 函数，写入 <code>ComponentDef.template</code> 字段。</li></ol>
+<p><strong>特别要记住 <code>decls</code> 和 <code>vars</code> 的含义</strong>：<code>decls</code> 是视图中 DOM 节点的数量，决定 LView 数据区的大小；<code>vars</code> 是变量槽的数量，决定 LView 绑定区的大小。第5章解剖 LView 的内存布局时，这两个数字会变得更加直观——它们是连接编译器与运行时的桥梁。</p>
+<h3 id="h-衔接第5章-lview-与-tview-预览">衔接第5章：LView 与 TView 预览</h3>
+<p>本章讲的是<strong>编译时的决策</strong>，第5章讲的是<strong>运行时的执行</strong>。在正式进入第5章之前，先建立一个直观印象：</p>
+<p>Angular 创建组件实例时，根据 <code>decls</code> 和 <code>vars</code> 分配一个<strong>固定大小的平坦数组</strong>，这就是 <strong>LView</strong>。以本章示例（decls=2, vars=3）为例，LView 的内存布局如下：</p>
+<pre><code>LView[0] = &lt;div&gt; 的 DOM 引用          ← elementStart(0) 写入
+LView[1] = 文本节点的 DOM 引用         ← text(1) 写入
+—————————— decls = 2 的边界 ——————————
+LView[2] = classMap 旧对象引用（var 0）← ɵɵclassMap 脏检查时读写
+LView[3] = classMap 旧字符串值（var 1）← ɵɵclassMap 逐属性比较时读写
+LView[4] = textInterpolate 旧值（var 2）← ɵɵtextInterpolate 脏检查时读写
+—————————— decls + vars = 5 的边界 ——</code></pre>
+<ul><li><strong>首次渲染</strong>执行 <code>if (rf &amp; 1)</code> 块，向 <code>LView[0..decls-1]</code> 存入 DOM 节点引用</li><li><strong>变更检测</strong>执行 <code>if (rf &amp; 2)</code> 块，从 <code>LView[decls..decls+vars-1]</code> 取旧值与新值比较</li><li><strong>TView</strong>（Template View）是编译器为每个组件<strong>类</strong>生成的共享元数据蓝图，不随实例复制；LView 是每个组件<strong>实例</strong>的独立运行时数组，按 TView 的 blueprint 分配</li></ul>
+<p><code>decls</code> 和 <code>vars</code> 在编译时确定，LView 大小在实例化时一次性分配，运行期间不再动态扩展——这正是 Angular 脏检查高效的物质基础。</p>
+<hr>
+<p><strong>思考题</strong></p>
+<ol><li>对于模板 <code>&lt;button (click)=&quot;submit()&quot; [disabled]=&quot;isLoading&quot;&gt;提交&lt;/button&gt;</code>，请手动计算其 <code>decls</code> 和 <code>vars</code> 的值。（提示：事件绑定 <code>(click)</code> 生成 <code>Listener</code> Op，<code>Listener</code> 不实现 <code>ConsumesSlotOpTrait</code>；<code>[disabled]</code> 是 <code>PropertyOp</code>，消耗 1 个 var）</li></ol>
+<ol><li>为什么 <code>ɵɵclassMap</code> 需要 2 个 vars，而 <code>ɵɵproperty</code> 只需要 1 个？运行时需要存储哪两种信息？</li></ol>
+<ol><li>如果你在模板中写了 <code>@if (show) { &lt;span&gt;{{message}}&lt;/span&gt; }</code>，<code>@if</code> 块的 <code>decls</code> 和 <code>vars</code> 会如何计算？主视图的 <code>decls</code> 和 <code>vars</code> 是否会包含 <code>&lt;span&gt;</code> 这个子视图的节点？（提示：子视图是独立的 <code>ViewCompilationUnit</code>，有自己的 <code>decls</code> 和 <code>vars</code>；主视图的 <code>decls</code> 包含一个 <code>ConditionalCreateOp</code> 的 slot，但不包含 <code>&lt;span&gt;</code> 本身的 slot）</li></ol>
+    <div class="chapter-nav"><a href="ch03.html">← 上一章：第3章：依赖注入——框架的神经系统</a><a href="ch05.html">下一章：第5章：Ivy 渲染引擎——LView 的生命 →</a></div>
+  </main>
+  
+<aside id="toc-right">
+  <div class="toc-title">本章目录</div>
+  <ul class="toc-list"><li><a href="#h-编译器全景-五层流水线">编译器全景——五层流水线</a></li>
+<li><a href="#h-ml-ast-html-的骨架">ML AST——HTML 的骨架</a></li>
+<li><a href="#h-template-ast-angular-的语义层">Template AST——Angular 的语义层</a></li>
+<li><a href="#h-ir-优化的中间层">IR——优化的中间层</a></li>
+<li><a href="#h-代码生成-最终输出">代码生成——最终输出</a></li>
+<li><a href="#h-类型检查-模板错误的侦探">类型检查——模板错误的侦探</a></li>
+<li><a href="#h-设计思考">设计思考</a></li>
+<li><a href="#h-小结">小结</a></li></ul>
+</aside>
+</div>
+<button id="back-to-top" title="返回顶部">↑</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+<script>
+(function () {
+  'use strict';
+  function updateProgress() {
+    var el = document.getElementById('progress-bar');
+    if (!el) return;
+    var st = window.pageYOffset || document.documentElement.scrollTop;
+    var dh = document.documentElement.scrollHeight - window.innerHeight;
+    el.style.width = (dh > 0 ? Math.min(100, st / dh * 100) : 0) + '%';
+  }
+  function updateBackToTop() {
+    var btn = document.getElementById('back-to-top');
+    if (!btn) return;
+    btn.classList.toggle('visible', (window.pageYOffset || document.documentElement.scrollTop) > 300);
+  }
+  function updateTocActive() {
+    var hs = Array.from(document.querySelectorAll('#main h2[id]'));
+    var ls = Array.from(document.querySelectorAll('#toc-right .toc-list a'));
+    if (!hs.length || !ls.length) return;
+    var active = -1;
+    hs.forEach(function (h, i) { if (h.getBoundingClientRect().top <= 120) active = i; });
+    ls.forEach(function (a, i) { a.classList.toggle('active', i === active); });
+  }
+  window.addEventListener('scroll', function () {
+    updateProgress(); updateBackToTop(); updateTocActive();
+  }, { passive: true });
+  var btn = document.getElementById('back-to-top');
+  if (btn) btn.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof hljs !== 'undefined') hljs.highlightAll();
+    updateProgress(); updateTocActive();
+  });
+})();
+</script>
+</body>
+</html>

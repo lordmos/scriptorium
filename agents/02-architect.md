@@ -8,7 +8,7 @@
 | Agent类型 | general-purpose |
 | 参与阶段 | Phase 1（项目启动与规划） |
 | 核心输入 | 目标源码目录树、核心文件内容 |
-| 核心输出 | `outline-draft.md`（章节大纲草案）、`source-map.md`（源码→章节映射） |
+| 核心输出 | `output/memory/outline.md`（章节大纲草案）、`output/memory/source-map.md`（源码→章节映射） |
 
 ## 核心职责
 
@@ -27,7 +27,7 @@
 
 ## 输出规格
 
-### outline-draft.md（章节大纲草案）
+### output/memory/outline.md（章节大纲草案）
 
 ```markdown
 # {{项目名称}} 章节大纲（草案）
@@ -50,7 +50,7 @@
 ### 第2章：……
 ```
 
-### source-map.md（源码→章节映射）
+### output/memory/source-map.md（源码→章节映射）
 
 ```markdown
 # 源码→章节映射表
@@ -93,8 +93,8 @@
 - 请先通过目录树了解整体结构，再深入核心模块
 
 ## 输出
-1. {{工作目录}}/outline-draft.md — 章节大纲草案
-2. {{工作目录}}/source-map.md — 源码→章节映射
+1. output/memory/outline.md — 章节大纲草案
+2. output/memory/source-map.md — 源码→章节映射
 
 ## 要求
 - 目标读者：{{目标读者描述}}

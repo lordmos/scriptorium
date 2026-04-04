@@ -7,8 +7,8 @@
 | 角色隐喻 | 源码考古学家 / 技术侦探 |
 | Agent类型 | explore |
 | 参与阶段 | Phase 3 Step 1（逐章调研） |
-| 核心输入 | `source-map.md`（本章对应源码路径）、`outline-final.md`（本章大纲） |
-| 核心输出 | `research/chXX-research.md`（调研报告） |
+| 核心输入 | `output/memory/source-map.md`（本章对应源码路径）、`output/memory/outline.md`（本章大纲） |
+| 核心输出 | `output/research/chXX-report.md`（调研报告） |
 
 ## 核心职责
 
@@ -21,13 +21,13 @@
 
 | 文件 | 说明 |
 |------|------|
-| `{{工作目录}}/source-map.md` | 本章对应的源码文件/目录路径列表 |
-| `{{工作目录}}/outline-final.md` | 定稿大纲中本章的具体内容要求 |
+| `output/memory/source-map.md` | 本章对应的源码文件/目录路径列表 |
+| `output/memory/outline.md` | 定稿大纲中本章的具体内容要求 |
 | `{{源码根目录}}/{{对应源码路径}}` | 实际源码文件（根据source-map定位） |
 
 ## 输出规格
 
-### research/chXX-research.md
+### output/research/chXX-report.md
 
 ```markdown
 # 第{{章节号}}章 调研报告：{{章节标题}}
@@ -97,7 +97,7 @@
 深入调研第{{章节号}}章（{{章节标题}}）涉及的源码。
 
 ## 本章大纲
-{{从outline-final.md中摘取本章大纲}}
+{{从output/memory/outline.md中摘取本章大纲}}
 
 ## 需要调研的源码路径
 {{从source-map.md中摘取本章对应的源码路径列表}}
@@ -106,7 +106,7 @@
 {{源码根目录}}
 
 ## 输出
-- 写入：{{工作目录}}/research/ch{{章节号}}-research.md
+- 写入：output/research/ch{{章节号}}-report.md
 
 ## 要求
 - 精确到文件路径和行号

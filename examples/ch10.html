@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第10章：服务端渲染与水合——让 Angular 应用「秒开」 | Angular 源码深度解析</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: #FEFCF8;
+  color: #2C2C2C;
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.85;
+}
+/* Progress bar */
+#progress-bar {
+  position: fixed; top: 0; left: 0; width: 0%; height: 3px;
+  background: #C7553A; z-index: 2000; transition: width 0.08s linear;
+}
+/* Layout */
+#layout { display: flex; min-height: 100vh; }
+/* Left sidebar */
+#sidebar {
+  position: fixed; top: 3px; left: 0;
+  width: 260px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-right: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100;
+}
+.sidebar-header { padding: 22px 18px 14px; border-bottom: 1px solid #E8E2D8; }
+.sidebar-title {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  font-size: 1em; font-weight: 700; color: #1A1A1A; line-height: 1.4; margin-bottom: 5px;
+}
+.sidebar-subtitle { font-size: 0.7em; color: #999; line-height: 1.4; }
+.sidebar-nav { padding: 10px 8px 24px; }
+.sidebar-nav a {
+  display: block; padding: 6px 12px; border-radius: 5px;
+  color: #444; font-size: 0.82em; text-decoration: none;
+  line-height: 1.45; margin-bottom: 2px; word-break: break-all;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar-nav a:hover { background: #EDE7DD; color: #1A1A1A; }
+.sidebar-nav a.active { background: #E8DDD0; color: #C7553A; font-weight: 600; }
+/* Main content */
+#main { margin-left: 260px; margin-right: 224px; padding: 48px 52px 80px; min-height: 100vh; }
+/* Right TOC */
+#toc-right {
+  position: fixed; top: 3px; right: 0;
+  width: 224px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-left: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100; padding: 22px 14px;
+}
+.toc-title {
+  font-size: 0.68em; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #aaa; margin-bottom: 10px;
+}
+.toc-list { list-style: none; }
+.toc-list li { margin-bottom: 3px; }
+.toc-list li a {
+  display: block; padding: 3px 8px; font-size: 0.77em; color: #666;
+  text-decoration: none; border-left: 2px solid transparent;
+  line-height: 1.4; word-break: break-all;
+  transition: color 0.15s, border-color 0.15s;
+}
+.toc-list li a:hover { color: #C7553A; }
+.toc-list li a.active { color: #C7553A; border-left-color: #C7553A; font-weight: 600; }
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  color: #1A1A1A; line-height: 1.4;
+  margin-top: 1.8em; margin-bottom: 0.55em;
+}
+h1 { font-size: 2.1em; margin-top: 0; padding-bottom: 0.35em; border-bottom: 2px solid #C7553A; }
+h2 { font-size: 1.55em; padding-bottom: 0.28em; border-bottom: 1px solid #E8E2D8; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1.08em; }
+h5 { font-size: 1em; }
+h6 { font-size: 0.95em; color: #666; }
+p { margin-bottom: 1em; }
+strong { color: #1A1A1A; font-weight: 700; }
+em { font-style: italic; }
+del { text-decoration: line-through; color: #999; }
+/* Links */
+a { color: #4A7C9B; text-decoration: none; }
+a:hover { text-decoration: underline; color: #3a6c8b; }
+/* Code */
+code {
+  font-family: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Courier New", monospace;
+  font-size: 0.875em; background: #F5F2ED; padding: 0.15em 0.38em;
+  border-radius: 3px; border: 1px solid #E0D9CF; word-break: break-all;
+}
+pre {
+  background: #F5F2ED; padding: 18px 22px; border-radius: 8px;
+  overflow-x: auto; margin: 1.4em 0; border: 1px solid #E0D9CF; line-height: 1.6;
+}
+pre code { background: none; padding: 0; border: none; border-radius: 0; font-size: 0.84em; word-break: normal; }
+.hljs { background: #F5F2ED !important; }
+/* Blockquote */
+blockquote {
+  margin: 1.4em 0; padding: 14px 20px;
+  border-left: 4px solid #C7553A;
+  background: linear-gradient(to right, #FFF9F5, #FEFCF8);
+  border-radius: 0 6px 6px 0;
+}
+blockquote p { margin: 0; color: #555; font-style: italic; }
+/* Lists */
+ul, ol { padding-left: 1.8em; margin-bottom: 1em; }
+li { margin-bottom: 0.38em; }
+li p { margin: 0; }
+/* Tables */
+.table-wrap { overflow-x: auto; margin: 1.4em 0; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+th, td { padding: 9px 13px; border: 1px solid #E8E2D8; text-align: left; vertical-align: top; }
+th { background: #F5F2ED; font-weight: 600; color: #1A1A1A; white-space: nowrap; }
+tr:nth-child(even) td { background: #FDFAF5; }
+/* HR */
+hr { border: none; border-top: 1px solid #E8E2D8; margin: 2.2em 0; }
+/* Images */
+img { max-width: 100%; height: auto; border-radius: 4px; display: block; margin: 1em auto; }
+/* Mermaid */
+.mermaid {
+  margin: 1.6em 0; padding: 20px;
+  background: #FDFAF5; border: 1px solid #E8E2D8; border-radius: 8px;
+  text-align: center; overflow-x: auto;
+}
+/* Chapter nav */
+.chapter-nav {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 4em; padding-top: 1.8em; border-top: 2px solid #E8E2D8; gap: 12px;
+}
+.chapter-nav a {
+  display: inline-flex; align-items: center; padding: 10px 16px;
+  background: #F5F2ED; border: 1px solid #E8E2D8; border-radius: 6px;
+  color: #4A7C9B; font-size: 0.85em; text-decoration: none; max-width: 46%;
+  word-break: break-all; line-height: 1.4;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.chapter-nav a:hover { background: #EDE7DD; border-color: #C7553A; color: #C7553A; text-decoration: none; }
+.chapter-nav span { flex: 1; }
+/* Back to top */
+#back-to-top {
+  position: fixed; bottom: 28px; right: 240px;
+  width: 42px; height: 42px; background: #C7553A; color: #fff;
+  border: none; border-radius: 50%; cursor: pointer;
+  font-size: 18px; font-weight: bold; display: none;
+  align-items: center; justify-content: center; z-index: 500;
+  box-shadow: 0 2px 12px rgba(199,85,58,0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+#back-to-top.visible { display: flex; }
+#back-to-top:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(199,85,58,0.5); }
+/* Index page */
+.index-hero {
+  text-align: center; padding: 44px 0 52px;
+  border-bottom: 1px solid #E8E2D8; margin-bottom: 52px;
+}
+.index-hero h1 { font-size: 2.6em; border: none; margin-bottom: 14px; padding: 0; }
+.index-hero .subtitle { font-size: 1.08em; color: #666; font-style: italic; margin: 0; }
+.index-intro { margin-bottom: 48px; }
+.index-intro p { font-size: 1.05em; margin-bottom: 1.2em; }
+.index-toc { margin-bottom: 48px; }
+.chapter-list { padding-left: 0; list-style: none; }
+.chapter-list li {
+  margin-bottom: 10px; padding: 13px 20px;
+  background: #F8F4EE; border-radius: 8px; border: 1px solid #E8E2D8;
+  transition: background 0.15s, border-color 0.15s;
+}
+.chapter-list li:hover { background: #EDE7DD; border-color: #C7553A; }
+.chapter-list li a { color: #1A1A1A; font-size: 1em; font-weight: 500; text-decoration: none; }
+.chapter-list li a:hover { color: #C7553A; text-decoration: none; }
+.index-audience { margin-bottom: 48px; }
+.index-audience ul { padding-left: 0; list-style: none; }
+.index-audience li { padding: 10px 0; border-bottom: 1px solid #EEE9E0; font-size: 0.95em; }
+/* Responsive */
+@media (max-width: 1200px) {
+  #toc-right { display: none; }
+  #main { margin-right: 0; }
+  #back-to-top { right: 24px; }
+}
+@media (max-width: 900px) { #main { padding: 32px 28px 60px; } }
+@media (max-width: 768px) {
+  #sidebar { display: none; }
+  #main { margin-left: 0; padding: 24px 18px 60px; }
+  h1 { font-size: 1.75em; }
+  h2 { font-size: 1.35em; }
+}
+@media print {
+  #sidebar, #toc-right, #progress-bar, #back-to-top, .chapter-nav { display: none !important; }
+  #main { margin: 0; padding: 0; max-width: 100%; }
+}
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div id="layout">
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">📖 Angular 源码深度解析</div>
+      <div class="sidebar-subtitle">深入 Angular 17+ 运行时、编译器与响应式系统的源码之旅</div>
+    </div>
+    <div class="sidebar-nav">
+      <a href="index.html">📚 目录首页</a>
+<a href="ch01.html">第1章：宏观架构——Angular 的世界观</a>
+<a href="ch02.html">第2章：从零启动——bootstrapApplication 的旅程</a>
+<a href="ch03.html">第3章：依赖注入——框架的神经系统</a>
+<a href="ch04.html">第4章：模板编译器——从 HTML 到指令序列</a>
+<a href="ch05.html">第5章：Ivy 渲染引擎——LView 的生命</a>
+<a href="ch06.html">第6章：变更检测——Angular 如何知道界面需要更新</a>
+<a href="ch07.html">第7章：Signals——细粒度响应式的实现</a>
+<a href="ch08.html">第8章：组件模型——从装饰器到运行时对象</a>
+<a href="ch09.html">第9章：路由系统——URL 与组件树的映射</a>
+<a href="ch10.html" class="active">第10章：服务端渲染与水合——让 Angular 应用「秒开」</a>
+
+    </div>
+  </nav>
+  <main id="main">
+    <h1 id="h-第10章-服务端渲染与水合-让-angular-应用-秒开">第10章：服务端渲染与水合——让 Angular 应用「秒开」</h1>
+<p>用户打开一个 Angular SPA，在网络稍差的环境下，屏幕上出现的是空白——先是几百毫秒的 HTML 解析等待，然后是 JavaScript 下载、解析、执行，最后才是框架启动、数据加载、视图渲染。这一连串操作叠加下来，白屏时间轻易超过 2 秒。对用户来说，这 2 秒是焦虑与放弃的临界点；对搜索引擎爬虫来说，一张空白的 <code>&lt;div id=&quot;root&quot;&gt;</code> 也几乎毫无价值。</p>
+<p>服务端渲染（Server-Side Rendering，SSR）提供了一条出路：在服务器上预先运行 Angular，生成完整的 HTML 字符串，让浏览器在首字节到达后就能立即呈现可见内容。但这只解决了可见性问题——Angular 仍然需要在客户端重新启动，接管页面的交互逻辑。这个&quot;接管&quot;的过程叫<strong>水合（Hydration）</strong>。</p>
+<p>早期水合的做法非常粗暴：Angular 直接销毁服务端 HTML，从头构建 DOM 树——等于把服务端的工作推翻重来，用户依然会看到页面内容短暂消失再出现。从 v16 起，Angular 引入了基于 DOM 复用的水合机制：不再推翻重建，而是让客户端识别服务端遗留的每一个 DOM 节点，将其直接纳入组件树管理——这才是真正的&quot;秒开&quot;。</p>
+<p>本章将沿着两条线——从 HTTP 请求到 HTML 字符串的服务端路径，以及从静态 HTML 到交互就绪的客户端水合路径——深入 <code>packages/platform-server/</code> 和 <code>packages/core/src/hydration/</code> 的源码，揭开 Angular SSR 的完整运作机制。</p>
+<p>📝 <strong>在阅读本章之前，建议在本地搭建一个启用了 SSR 的 Angular 项目</strong>（<code>ng new --ssr</code>），用浏览器 DevTools 观察：<code>&lt;body&gt;</code> 的第一个子节点是否是 `<code>、根组件上是否有 </code>ngh<code> 属性、页面源码中是否有 </code>&lt;script type=&quot;application/json&quot;&gt;` 标签。有了这些直观感受，后续的源码分析会更容易落地。</p>
+<hr>
+<blockquote><p>⚠️ <strong>版本说明</strong>：本章源码引用基于 Angular main 分支（约 v19.x）。增量水合（<code>withIncrementalHydration</code>）在 v19 进入稳定版。函数签名和行号可能随版本演进，建议以函数名在当前版本中搜索定位。</p></blockquote>
+<h2 id="h-10-1-ssr-概览-双轨渲染架构">§10.1 SSR 概览：双轨渲染架构</h2>
+<p>在浏览器中，Angular 的渲染对象是原生 DOM；在服务端，Node.js 中没有原生 DOM。Angular SSR 的解决方案是引入 <strong>Domino</strong>——一个纯 JavaScript 实现的 DOM 仿真库，让同一套 Angular 代码能在 Node.js 环境里&quot;以为自己在操作浏览器 DOM&quot;。</p>
+<p>可以把 SSR 想象成一场完整的&quot;彩排录像&quot;：服务端让 Angular 把整台戏完整演一遍，将演出结果录制成 HTML 字符串发给用户。浏览器收到录像后，无需等待现场搭台，直接放映给用户看（FCP 极快）；与此同时，真正的演员（Angular 框架）赶来现场，对口型接管表演——这就是水合。</p>
+<div class="mermaid">flowchart LR
+    subgraph server[&quot;服务端（Node.js + Domino）&quot;]
+        S1[&quot;HTTP 请求&quot;] --&gt; S2[&quot;renderApplication()&quot;]
+        S2 --&gt; S3[&quot;bootstrapApplication&lt;br/&gt;Domino DOM&quot;]
+        S3 --&gt; S4[&quot;whenStable()&quot;]
+        S4 --&gt; S5[&quot;annotateForHydration()&lt;br/&gt;写入 ngh 属性&quot;]
+        S5 --&gt; S6[&quot;TransferState 序列化&lt;br/&gt;→ script 标签&quot;]
+        S6 --&gt; S7[&quot;renderToString()&lt;br/&gt;→ HTML 字符串&quot;]
+    end
+
+    subgraph browser[&quot;浏览器端（原生 DOM）&quot;]
+        B1[&quot;接收 HTML&lt;br/&gt;FCP 极快&quot;] --&gt; B2[&quot;Angular Bundle 加载&quot;]
+        B2 --&gt; B3[&quot;bootstrapApplication&lt;br/&gt;原生 DOM&quot;]
+        B3 --&gt; B4[&quot;读取 ngh 属性&lt;br/&gt;+ TransferState&quot;]
+        B4 --&gt; B5[&quot;locateOrCreate&lt;br/&gt;认领 DOM 节点&quot;]
+        B5 --&gt; B6[&quot;绑定事件监听器&quot;]
+        B6 --&gt; B7[&quot;水合完成&lt;br/&gt;应用就绪&quot;]
+    end
+
+    S7 --&gt;|&quot;HTTP 响应&quot;| B1</div>
+<p>两侧的 Angular 代码几乎完全相同，核心差异如下：</p>
+<div class="table-wrap"><table><thead><tr><th>维度</th><th>服务端</th><th>浏览器端</th></tr></thead><tbody><tr><td>DOM 实现</td><td>Domino（纯 JS 仿真）</td><td>原生浏览器 DOM</td></tr><tr><td>渲染目的</td><td>生成 HTML 字符串</td><td>更新真实 DOM</td></tr><tr><td>生命周期</td><td>渲染后销毁平台</td><td>持续运行</td></tr><tr><td><code>ngServerMode</code></td><td><code>true</code></td><td><code>undefined</code></td></tr><tr><td>水合标注</td><td>写入 <code>ngh</code> 属性</td><td>读取 <code>ngh</code> 属性</td></tr></tbody></table></div>
+<p>🔗 这里调用的 <code>bootstrapApplication()</code> 启动链路与第2章完全一致——服务端启动 Angular 的方式和客户端无异，差别只是注入的平台级 provider 不同。</p>
+<p><strong><code>ngServerMode</code> 的传播效应</strong>：这个全局布尔值不只是一个简单开关，它在源码中被十数个位置检查，影响从平台提供者注册到 HttpClient 缓存策略的各种行为。例如：<code>TransferState</code> 工厂函数用它判断是否需要从 DOM 读取初始状态；HttpClient 的缓存拦截器用它判断是否需要将响应写入 TransferState；部分动画和浏览器 API 调用在 <code>ngServerMode = true</code> 时被静默跳过，避免 Domino 环境下的不兼容错误。</p>
+<p><strong><code>RenderMode</code> 与混合渲染</strong>：v19 引入了 <code>RenderMode</code> 枚举，允许为不同路由指定渲染策略（<code>Server</code>、<code>Client</code>、<code>Prerender</code>）。设置 <code>RenderMode.Client</code> 的路由会在宿主元素上添加 <code>ngcm</code> 属性，客户端水合时检测到该属性后跳过水合、回退到纯客户端渲染——为特定页面（如用户仪表盘）提供了精细控制粒度。</p>
+<h2 id="h-10-2-服务端渲染流程-renderapplication">§10.2 服务端渲染流程：<code>renderApplication()</code></h2>
+<p>入口函数位于 <code>packages/platform-server/src/utils.ts</code>，整个服务端渲染分为四个阶段：</p>
+<pre><code class="language-typescript">// packages/platform-server/src/utils.ts（约 L260）
+export async function renderApplication(
+  bootstrap: (context: BootstrapContext) =&gt; Promise&lt;ApplicationRef&gt;,
+  options: {document?: string | Document; url?: string; platformProviders?: Provider[]},
+): Promise&lt;string&gt; {
+  const platformRef = createServerPlatform(options);        // ① 创建服务端平台
+  const applicationRef = await bootstrap({platformRef});    // ② 启动应用
+  await applicationRef.whenStable();                        // ③ 等待应用稳定
+  return await renderInternal(platformRef, applicationRef); // ④ 序列化输出
+}</code></pre>
+<p><strong>阶段①：创建服务端平台</strong>。<code>createServerPlatform()</code> 注册 <code>INITIAL_CONFIG</code>（含初始 HTML 文档字符串和请求 URL），初始化 Domino Document，提供 <code>PlatformState</code> 服务持有 Domino 的 <code>Document</code> 实例。</p>
+<p><strong>阶段②：启动应用</strong>。与浏览器端走完全相同的初始化链路（DI 容器、组件树、变更检测），只是所有 DOM 操作落在 Domino 上，对上层代码完全透明。</p>
+<p><strong>阶段③：等待稳定</strong>。<code>whenStable()</code> 等待所有 <code>PendingTask</code>、HTTP 请求、Zone.js 宏任务完成。这是&quot;数据直出&quot;的关键——服务端等 API 数据就绪后再序列化，确保 HTML 中包含完整内容而非加载骨架。</p>
+<p>值得注意的是：对于使用 Zoneless + Signals 架构的应用，<code>whenStable()</code> 依赖的是 <code>PendingTasksService</code> 而非 Zone.js 宏任务追踪。<code>resource()</code> API 在内部会注册 <code>PendingTask</code>，确保数据加载完成前 <code>whenStable()</code> 不会提前返回。</p>
+<p><strong>阶段④：<code>renderInternal()</code> 序列化</strong>，这是水合标注写入的时机：</p>
+<pre><code class="language-typescript">// packages/platform-server/src/utils.ts（约 L95）
+async function renderInternal(platformRef, applicationRef): Promise&lt;string&gt; {
+  prepareForHydration(platformState, applicationRef);
+  // prepareForHydration 做了三件事：
+  // 1. 在 &lt;body&gt; 首位插入 （完整性校验标记）
+  // 2. 调用 annotateForHydration(appRef, doc)，给所有组件写 ngh 属性
+  // 3. 若有需要重放的事件，注入 JSAction Bootstrap 脚本
+  appendServerContextInfo(applicationRef); // 写入 ng-server-context 属性
+  // 触发 BEFORE_APP_SERIALIZED 多播回调（TransferState 序列化在此执行）
+  return platformState.renderToString();   // Domino DOM → HTML 字符串
+}</code></pre>
+<p>`<code> 这个注释节点（</code>SSR_CONTENT_INTEGRITY_MARKER<code>）是一道安全阀：CDN 有时会压缩 HTML、删除注释节点，这会让水合算法完全失效。客户端启动时，</code>verifySsrContentsIntegrity()` 检查该标记是否存在——一旦缺失就放弃水合，降级为完整的客户端渲染，而非静默失败。</p>
+<h2 id="h-10-3-dom-标注机制-ngh-属性的秘密">§10.3 DOM 标注机制：<code>ngh</code> 属性的秘密</h2>
+<p>想象导演在彩排结束后，给每位演员的剧本标上场景编号——现场演员对口型接管时，能精确知道每句台词对应哪个布景位置。Angular 的 DOM 标注机制做的正是这件事：在服务端序列化阶段，为每个组件的宿主元素写入一个 <code>ngh</code> 属性，作为指向 <code>TransferState</code> 中序列化数据的索引。</p>
+<p>标注入口是 <code>annotateForHydration()</code>（<code>packages/core/src/hydration/annotate.ts</code>，L:243），它遍历所有根 LView，对每个组件调用 <code>annotateHostElementForHydration()</code>：</p>
+<pre><code class="language-typescript">// packages/core/src/hydration/annotate.ts（约 L806）
+function annotateHostElementForHydration(element, lView, parentDeferBlockId, context) {
+  // 两类组件自动跳过水合标注：
+  if (hasI18n(lView) &amp;&amp; !isI18nHydrationSupportEnabled()
+      || componentUsesShadowDomEncapsulation(lView)) {
+    renderer.setAttribute(element, SKIP_HYDRATION_ATTR_NAME, '');
+    return null;
+  }
+  const ngh = serializeLView(lView, parentDeferBlockId, context);
+  // 去重：相同结构的视图共用同一索引（*ngFor 列表项可极大节省体积）
+  const index = context.serializedViewCollection.add(ngh);
+  renderer.setAttribute(element, NGH_ATTR_NAME, index.toString()); // ngh=&quot;3&quot;
+  return index;
+}</code></pre>
+<p><code>serializedViewCollection.add()</code> 通过对 <code>SerializedView</code> 做 <code>JSON.stringify</code> 后比较实现去重——相同的视图描述只存一份，仅记录一个 <code>multiplier</code>（重复次数）。对于 <code>*ngFor</code> 生成的列表，这个优化可以显著减小 <code>TransferState</code> 的体积。</p>
+<p><code>serializeLView()</code> 遍历 <code>TView</code> 中所有 <code>TNode</code>，为每类节点生成不同描述：</p>
+<div class="table-wrap"><table><thead><tr><th>节点类型</th><th>序列化方式</th><th>字段</th></tr></thead><tbody><tr><td><code>Element</code></td><td>无（DOM 树可隐式导航）</td><td>—</td></tr><tr><td><code>ElementContainer</code>（<code>&lt;ng-container&gt;</code>）</td><td>记录子节点数</td><td><code>c</code></td></tr><tr><td><code>Container</code>（<code>*ngFor</code> 等）</td><td>序列化所有嵌入视图</td><td><code>c</code></td></tr><tr><td><code>Projection</code>（投影节点）</td><td>显式路径字符串</td><td><code>n</code></td></tr><tr><td>文本节点</td><td>处理空/相邻文本</td><td>注释标记</td></tr></tbody></table></div>
+<p><strong>路径压缩算法</strong>：当节点无法隐式导航时（如投影打乱了 DOM 顺序），使用压缩路径字符串表示位置。路径由 <code>f</code>（<code>firstChild</code>）和 <code>n</code>（<code>nextSibling</code>）组合，例如 <code>&quot;fn&quot;</code> 表示&quot;取 firstChild 再取 nextSibling&quot;，<code>&quot;fnfn&quot;</code> 表示两次这样的操作。这比完整 XPath 更紧凑，比序号索引更稳健。</p>
+<p>⚠️ <strong>文本节点陷阱</strong>：浏览器会合并相邻文本节点或丢失空文本节点，导致水合时 DOM 结构与服务端序列化不一致。Angular 用两个特殊注释标记绕过这个问题：`<code>（空文本节点占位符）和 </code>`（文本节点分隔符）。</p>
+<p>序列化完成后，所有数据嵌入 HTML 的一个 <code>&lt;script&gt;</code> 标签：</p>
+<pre><code class="language-html">&lt;script id=&quot;my-app-state&quot; type=&quot;application/json&quot;&gt;
+{&quot;__nghData__&quot;:[{&quot;c&quot;:{&quot;0&quot;:3},&quot;t&quot;:{&quot;1&quot;:&quot;t0&quot;}},{&quot;n&quot;:{&quot;5&quot;:&quot;fn&quot;}}],
+ &quot;__nghDeferData__&quot;:{&quot;d0&quot;:{&quot;s&quot;:2,&quot;r&quot;:5,&quot;t&quot;:[1,{&quot;trigger&quot;:3}]}}}
+&lt;/script&gt;</code></pre>
+<p>字段缩写（<code>interfaces.ts</code>）：<code>c</code>=<code>ELEMENT_CONTAINERS</code>，<code>t</code>=<code>TEMPLATES</code>，<code>n</code>=<code>NODES</code>，<code>r</code>=<code>NUM_ROOT_NODES</code>，<code>x</code>=<code>MULTIPLIER</code>，<code>s</code>=<code>DEFER_BLOCK_STATE</code>，<code>i</code>=<code>TEMPLATE_ID</code>，<code>di</code>=<code>DEFER_BLOCK_ID</code>，<code>l</code>=<code>I18N_DATA</code>。</p>
+<p><code>SerializedView</code> 的完整接口定义揭示了序列化的全貌：</p>
+<pre><code class="language-typescript">// packages/core/src/hydration/interfaces.ts
+interface SerializedView {
+  [ELEMENT_CONTAINERS]?: {[index: number]: number};  // 'c' - ng-container 子节点数
+  [TEMPLATES]?: Record&lt;number, string&gt;;               // 't' - 模板指令索引 → SSR ID
+  [CONTAINERS]?: Record&lt;number, SerializedContainerView[]&gt;; // 'c' - ViewContainer
+  [NODES]?: Record&lt;number, string&gt;;                   // 'n' - 节点导航路径
+  [DISCONNECTED_NODES]?: number[];                    // 'd' - 断连节点索引
+  [I18N_DATA]?: Record&lt;number, number[]&gt;;             // 'l' - i18n ICU 活跃 case
+  [DEFER_BLOCK_ID]?: string;                          // 'di' - defer 块 ID
+}
+
+interface SerializedContainerView extends SerializedView {
+  [TEMPLATE_ID]: string;    // 'i' - 模板 SSR ID（如 &quot;t3&quot;）
+  [NUM_ROOT_NODES]: number; // 'r' - 视图根节点数
+  [MULTIPLIER]?: number;    // 'x' - 重复次数（*ngFor 去重优化）
+}</code></pre>
+<p>客户端运行时对应的是 <code>DehydratedView</code>——它在 <code>SerializedView</code> 的静态描述基础上，附加了真实 DOM 引用作为导航起点：</p>
+<pre><code class="language-typescript">// packages/core/src/hydration/interfaces.ts
+interface DehydratedView {
+  data: Readonly&lt;SerializedView&gt;; // 来自 TransferState 的静态描述（只读）
+  firstChild: RNode | null;       // DOM 中该视图的第一个节点（水合导航起点）
+  segmentHeads?: {[index: number]: RNode | null}; // ViewContainer 各段起始节点
+  disconnectedNodes?: Set&lt;number&gt; | null;          // 断连节点集合（快速查找）
+  i18nNodes?: Map&lt;number, RNode | null&gt;;           // i18n 节点索引映射
+}</code></pre>
+<p><code>SerializedView</code> 是服务端写、客户端读的静态描述；<code>DehydratedView</code> 是客户端水合过程中的&quot;导航仪&quot;——随着节点逐一被认领，<code>firstChild</code> 等指针会随之推进，直到整个视图水合完毕。</p>
+<h2 id="h-10-4-水合算法-如何-认领-服务端-dom">§10.4 水合算法：如何&quot;认领&quot;服务端 DOM</h2>
+<p>水合的核心设计极为精巧：通过<strong>函数指针替换</strong>，在不改变渲染指令调用方式的前提下，切换 DOM 操作的行为——从&quot;创建节点&quot;变为&quot;定位并复用节点&quot;。演员们不重新搭台，而是直接走进已有的舞台，在彩排录像对应的位置就位。</p>
+<h3 id="h-启用水合运行时">启用水合运行时</h3>
+<p><code>withDomHydration()</code> 最终调用 <code>enableHydrationRuntimeSupport()</code>（<code>packages/core/src/hydration/api.ts</code>，约 L95）：</p>
+<pre><code class="language-typescript">// packages/core/src/hydration/api.ts（约 L95）
+function enableHydrationRuntimeSupport() {
+  if (!isHydrationSupportEnabled) {
+    isHydrationSupportEnabled = true;
+    enableRetrieveHydrationInfoImpl();            // 启用 ngh 属性读取
+    enableLocateOrCreateElementNodeImpl();        // 元素节点：创建 → 定位
+    enableLocateOrCreateTextNodeImpl();           // 文本节点同上
+    enableLocateOrCreateElementContainerNodeImpl();
+    enableLocateOrCreateContainerAnchorImpl();
+    enableLocateOrCreateContainerRefImpl();
+    enableFindMatchingDehydratedViewImpl();
+    enableApplyRootElementTransformImpl();
+  }
+}</code></pre>
+<p>这些 <code>enable*</code> 函数将全局函数指针从&quot;创建模式&quot;切换为&quot;水合模式&quot;。如果应用没有调用 <code>provideClientHydration()</code>，整套水合代码被摇树移除——引入 SSR 功能不带来任何额外客户端包体积。</p>
+<h3 id="h-水合入口-读取-ngh-属性">水合入口：读取 <code>ngh</code> 属性</h3>
+<p>组件初始化时，<code>retrieveHydrationInfoImpl()</code> 读取宿主元素的 <code>ngh</code> 属性，从 <code>TransferState</code> 中取出对应的 <code>SerializedView</code>，构造 <code>DehydratedView</code> 并存入 <code>LView[HYDRATION]</code>（槽位 6）：</p>
+<pre><code class="language-typescript">// packages/core/src/hydration/utils.ts
+export function retrieveHydrationInfoImpl(rNode, injector, isRootView = false) {
+  const nghAttrValue = rNode.getAttribute(NGH_ATTR_NAME); // 读 &quot;3&quot;
+  const transferState = injector.get(TransferState);
+  const nghData = transferState.get(NGH_DATA_KEY, []);
+  const data = nghData[Number(nghAttrValue)];             // 取 nghData[3]
+  const dehydratedView: DehydratedView = {
+    data,                          // 静态描述（只读，来自服务端序列化）
+    firstChild: rNode.firstChild,  // DOM 第一个子节点（水合导航起点）
+  };
+  rNode.removeAttribute(NGH_ATTR_NAME); // 消费完毕，清除属性
+  return dehydratedView;               // 存入 LView[HYDRATION]
+}</code></pre>
+<p><code>DehydratedView</code> 就是演员手中的台词本：<code>data</code> 是服务端记录的场景信息，<code>firstChild</code> 是现场布景的起点。</p>
+<h3 id="h-节点认领-locateorcreateelementnodeimpl">节点认领：<code>locateOrCreateElementNodeImpl()</code></h3>
+<pre><code class="language-typescript">// packages/core/src/render3/instructions/element.ts（约 L329）
+function locateOrCreateElementNodeImpl(tView, lView, tNode, name, index): RElement {
+  const isNodeCreationMode = !canHydrateNode(lView, tNode);
+  lastNodeWasCreated(isNodeCreationMode);
+
+  if (isNodeCreationMode) {
+    return createElementNode(lView[RENDERER], name, getNamespace()); // 创建模式
+  }
+  // 水合模式：从现有 DOM 定位节点，createElement() 从未被调用
+  const hydrationInfo = lView[HYDRATION]!;
+  const native = locateNextRNode&lt;RElement&gt;(hydrationInfo, tView, lView, tNode)!;
+  ngDevMode &amp;&amp; validateMatchingNode(native, Node.ELEMENT_NODE, name, lView, tNode);
+  ngDevMode &amp;&amp; markRNodeAsClaimedByHydration(native); // 标记已认领（仅开发模式）
+  return native; // 直接返回已存在的 DOM 节点引用
+}</code></pre>
+<p>水合模式下，<code>locateNextRNode()</code> 使用四层降级策略来定位目标节点：</p>
+<div class="mermaid">flowchart TD
+    A[&quot;locateNextRNode()&quot;] --&gt; B{&quot;i18nNodes Map&lt;br/&gt;有记录?&quot;}
+    B --&gt;|是| C[&quot;从 i18nNodes Map&lt;br/&gt;直接取节点&quot;]
+    B --&gt;|否| D{&quot;NODES 字段&lt;br/&gt;有显式路径?&quot;}
+    D --&gt;|是| E[&quot;解压路径字符串&lt;br/&gt;按 f/n 组合导航&quot;]
+    D --&gt;|否| F{&quot;是 TView&lt;br/&gt;firstChild 对应节点?&quot;}
+    F --&gt;|是| G[&quot;取 DehydratedView&lt;br/&gt;.firstChild&quot;]
+    F --&gt;|否| H[&quot;相对导航：基于前一&lt;br/&gt;兄弟节点或父节点定位&quot;]
+    C --&gt; Z[&quot;返回现有 DOM&lt;br/&gt;节点引用（不创建）&quot;]
+    E --&gt; Z
+    G --&gt; Z
+    H --&gt; Z</div>
+<p>这四层策略覆盖了所有复杂模板结构：i18n、投影、普通元素树、<code>ng-container</code>。</p>
+<p><strong>水合后清理</strong>：应用稳定时（<code>appRef.whenStable()</code>），<code>cleanupDehydratedViews()</code> 遍历所有 <code>LContainer</code>，删除服务端产生但客户端条件渲染不需要的&quot;孤儿&quot;DOM 节点——它们是条件分支不满足时服务端渲染的内容。</p>
+<p><strong>事件监听器绑定</strong>：水合阶段认领 DOM 节点后，渲染引擎继续执行 <code>ɵɵlistener</code> 渲染指令，将 Angular 的事件处理函数绑定到已有 DOM 节点上。这是水合的最后一步，也是让&quot;录像&quot;变为&quot;直播&quot;的关键动作——DOM 已就位，现在装上&quot;电路&quot;（事件处理），组件就真正活了。</p>
+<p>🔗 <code>LView[HYDRATION]</code> 槽位 6 的存在，以及这里涉及的 <code>TView</code>/<code>LView</code> 数据结构，在第5章有完整的剖析。</p>
+<h2 id="h-10-5-transferstate-数据的跨环境旅行">§10.5 TransferState：数据的跨环境旅行</h2>
+<p>TransferState（<code>packages/core/src/transfer_state.ts</code>）是横跨服务端和浏览器端的状态传输桥梁——把它想象成彩排时准备好的道具清单，随剧本一起移交给正式演出的现场演员。它同时承载两类数据：水合必要的 DOM 结构描述（<code>__nghData__</code>），以及任意业务数据（如 API 响应）。</p>
+<p><strong>服务端序列化</strong>（由 <code>BEFORE_APP_SERIALIZED</code> 令牌触发）：</p>
+<pre><code class="language-typescript">// packages/platform-server/src/transfer_state.ts
+function serializeTransferStateFactory() {
+  return () =&gt; {
+    const content = transferStore.toJson(); // 触发所有 onSerialize 回调
+    if (transferStore.isEmpty) return;
+    const script = doc.createElement('script');
+    script.id = appId + '-state';            // 如 &quot;my-app-state&quot;
+    script.setAttribute('type', 'application/json');
+    script.textContent = content;            // JSON（&lt; 转义为 \u003C 防 XSS）
+    doc.body.appendChild(script);
+  };
+}</code></pre>
+<p><strong>客户端反序列化</strong>：<code>TransferState</code> 工厂函数在浏览器端自动从 <code>&lt;script id=&quot;my-app-state&quot; type=&quot;application/json&quot;&gt;</code> 读取并解析——业务代码无需感知环境差异。</p>
+<pre><code class="language-typescript">// packages/core/src/transfer_state.ts，TransferState 工厂
+factory: () =&gt; {
+  const transferState = new TransferState();
+  if (!ngServerMode) {
+    // 浏览器端：从 DOM 中的 script 标签读取数据
+    transferState.store = retrieveTransferredState(inject(DOCUMENT), inject(APP_ID));
+  }
+  return transferState;
+}</code></pre>
+<p>💡 <strong>HttpClient 与 TransferState 的自动协同</strong>：当应用配置了 <code>provideHttpClient(withFetch())</code> 和 SSR 时，Angular 的 <code>HttpTransferCacheInterceptor</code> 会在服务端将 HTTP 响应自动写入 TransferState，客户端直接从缓存读取，不再重复发起相同请求。对于 Signal-based 的数据加载（如 <code>toSignal(httpClient.get('/api/users'))</code>），这个机制完全透明——Signal 的初始值就是服务端已拿到的数据。</p>
+<p>如果你需要手动传递某个 Signal 的状态，可以在服务端通过 <code>onSerialize</code> 回调写入，客户端通过 <code>get()</code> 读取：</p>
+<pre><code class="language-typescript">// 手动将 Signal 状态通过 TransferState 传递
+const DATA_KEY = makeStateKey&lt;User[]&gt;('users');
+
+// 服务端（或服务类中，运行于两端）
+if (isPlatformServer(this.platformId)) {
+  this.transferState.onSerialize(DATA_KEY, () =&gt; this.users());
+}
+// 客户端：直接读取，覆盖 signal 初始值
+const serverUsers = this.transferState.get(DATA_KEY, null);
+if (serverUsers) this.users.set(serverUsers);</code></pre>
+<p><strong>Signals 在 SSR 中</strong>：signal 在服务端正常工作（<code>signal.set</code>、<code>computed</code> 均可执行）。SSR 渲染时 Angular 读取 signal 当前值写入 DOM；水合阶段直接认领 DOM 节点，不重新执行读取。signal 的数据恢复依赖 TransferState（通过 HttpClient 自动传递，或手动注册 <code>onSerialize</code> 回调）。</p>
+<h2 id="h-10-6-ngskiphydration-优雅地放弃">§10.6 <code>ngSkipHydration</code>：优雅地放弃</h2>
+<p>并非所有组件都适合水合。第三方组件库可能在内部直接操作 DOM，其渲染结果与 Angular 的 TView/LView 描述不符；使用随机 ID 或时间戳的动态内容每次渲染结果都不同，水合时会触发节点不匹配错误（<code>NG0500</code>）。</p>
+<p><code>ngSkipHydration</code> 属性允许将某个组件及其子树整体排除在水合之外——就像在房间门上贴了&quot;此处翻新&quot;标牌，另行处理：</p>
+<pre><code class="language-html">
+&lt;third-party-chart ngSkipHydration /&gt;</code></pre>
+<p><strong>服务端</strong>：<code>annotateHostElementForHydration()</code> 跳过序列化，不写 <code>ngh</code> 属性，仅保留 <code>ngSkipHydration</code> 属性在宿主元素上。</p>
+<p><strong>客户端</strong>：<code>locateOrCreateElementNodeImpl()</code> 检测到该属性后进入跳过路径：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/instructions/element.ts 及 skip_hydration.ts
+if (hasSkipHydrationAttrOnTNode(tNode) || hasSkipHydrationAttrOnRElement(native)) {
+  if (isComponentHost(tNode)) {
+    enterSkipHydrationBlock(tNode); // 设置 TNodeFlags.inSkipHydrationBlock
+    clearElementContents(native);   // 清空 SSR HTML 内容（避免与新建 DOM 重叠）
+    // 后续渲染指令回到&quot;创建模式&quot;，重新构建该组件子树
+  }
+}</code></pre>
+<p><strong>作用域传播</strong>：<code>isInSkipHydrationBlock()</code> 通过遍历 TNode 的祖先链传播跳过标志，确保被跳过的组件的所有子组件也都不尝试水合。</p>
+<p>两类组件会被<strong>自动标记跳过</strong>：使用 <code>ViewEncapsulation.ShadowDom</code> 的组件（Domino 不支持 Shadow DOM），以及包含 i18n 且 <code>isI18nHydrationSupportEnabled()</code> 返回 <code>false</code> 的组件（即未调用 <code>withI18nSupport()</code> 时）——启用了 i18n 水合支持的组件将正常水合，不会自动跳过。</p>
+<p>💡 <code>ngSkipHydration</code> 应当是最后手段，不是第一选择。过度使用会让 SSR 的 FCP 提升效果打折——被跳过的组件区域在水合时会清空后重建，期间可能出现内容抖动。如果某个区域有较多组件需要跳过，优先考虑通过 <code>RenderMode.Client</code> 让整个路由走纯客户端渲染，比逐一添加 <code>ngSkipHydration</code> 更清晰。</p>
+<h2 id="h-10-7-增量水合与-defer">§10.7 增量水合与 <code>@defer</code></h2>
+<p>全量水合的局限在于：即使视口之外的组件，Angular 也要在启动时完整水合整棵组件树，白白消耗主线程时间。增量水合（Incremental Hydration，v19 稳定）改变了这一策略：<code>@defer</code> 块在 SSR 时以完整内容渲染（保障 SEO 可抓取），但被标记为&quot;脱水状态&quot;，客户端按触发条件（视口进入、空闲时、用户交互）按需激活。</p>
+<pre><code class="language-typescript">// main.ts 或 app.config.ts
+bootstrapApplication(AppComponent, {
+  providers: [
+    provideClientHydration(
+      withIncrementalHydration() // 内含 withEventReplay()（必须）
+    )
+  ]
+});</code></pre>
+<p>💡 <strong>普通水合与增量水合的事件重放配置有所不同</strong>，请勿混淆：</p>
+<pre><code class="language-typescript">// packages/core/src/hydration/api.ts の使い方
+// 普通水合 + 事件重放：需要显式添加 withEventReplay()
+provideClientHydration(withEventReplay())
+
+// 增量水合（自动包含事件重放，不需要再添加 withEventReplay()）
+provideClientHydration(withIncrementalHydration())
+// ❌ 错误：provideClientHydration(withIncrementalHydration(), withEventReplay())</code></pre>
+<p><code>withIncrementalHydration()</code> 在内部已调用 <code>withEventReplay()</code>——若再重复添加，事件监听器会被注册两次，造成事件重放的重复执行。</p>
+<h3 id="h-服务端-defer-块脱水序列化">服务端：defer 块脱水序列化</h3>
+<p>SSR 时，每个 <code>@defer</code> 块以当前状态渲染，但宿主注释节点被标注为 `<code>，块的元数据写入 </code>__nghDeferData__`：</p>
+<pre><code class="language-typescript">// packages/core/src/hydration/annotate.ts（serializeDeferBlock）
+comment.textContent = `ngh=${deferBlockId}`;   // 
+context.deferBlocks.set(deferBlockId, {
+  [DEFER_BLOCK_STATE]: currentState,   // 渲染状态（主/占位符/加载中/错误）
+  [NUM_ROOT_NODES]: rootNodeCount,     // 块根节点数
+  [DEFER_HYDRATE_TRIGGERS]: triggers,  // idle/viewport/interaction/timer
+  [DEFER_PARENT_BLOCK_ID]: parentId,   // 嵌套块的父块 ID
+});</code></pre>
+<h3 id="h-客户端-注册-触发与水合">客户端：注册、触发与水合</h3>
+<p>应用启动（<code>APP_BOOTSTRAP_LISTENER</code>）时，Angular 扫描 DOM 中所有 `<code> 注释节点，根据 </code>__nghDeferData__<code> 为每个块设置触发器监听器（</code>IntersectionObserver<code>、</code>requestIdleCallback` 等）。触发水合时，流程从顶层祖先块向下递归：</p>
+<div class="mermaid">flowchart TD
+    A[&quot;用户触发&lt;br/&gt;（视口/交互/空闲）&quot;] --&gt; B[&quot;识别块 ID：'d3'&quot;]
+    B --&gt; C[&quot;getParentBlockHydrationQueue&lt;br/&gt;→ 祖先链：d0 → d1 → d3&quot;]
+    C --&gt; D[&quot;hydrateBlock('d0')&quot;]
+    D --&gt; E[&quot;triggerResourceLoading()&lt;br/&gt;→ 动态 import() 加载依赖&quot;]
+    E --&gt; F[&quot;renderDeferBlockState()&lt;br/&gt;重新渲染块（水合模式）&quot;]
+    F --&gt; G[&quot;DehydratedBlockRegistry&lt;br/&gt;.cleanup(['d0'])&quot;]
+    G --&gt; H[&quot;hydrateBlock('d1')&lt;br/&gt;→ hydrateBlock('d3')&quot;]
+    H --&gt; I{&quot;因事件触发?&quot;}
+    I --&gt;|是| J[&quot;重放积压事件队列&quot;]
+    I --&gt;|否| K[&quot;增量水合完成&quot;]
+    J --&gt; K</div>
+<p><code>DehydratedBlockRegistry</code>（<code>packages/core/src/defer/registry.ts</code>）管理所有待水合块的状态，<code>awaitParentBlock()</code> 确保嵌套块按父子顺序水合——子块必须等待父块水合完成，才能接管父块渲染出来的真实 DOM 节点。</p>
+<pre><code class="language-typescript">// packages/core/src/defer/registry.ts
+class DehydratedBlockRegistry {
+  private registry = new Map&lt;string, DehydratedDeferBlock&gt;(); // blockId → 块信息
+  hydrating = new Map&lt;string, PromiseWithResolvers&lt;void&gt;&gt;();   // 正在水合的块
+  awaitingCallbacks = new Map&lt;string, Function[]&gt;();           // 等待父块的回调队列
+
+  add(blockId: string, info: DehydratedDeferBlock): void;
+  get(blockId: string): DehydratedDeferBlock | null;
+  cleanup(hydratedBlocks: string[]): void;  // 水合完成后移除注册、清理 JSAction 监听
+  awaitParentBlock(topmostParentId: string, callback: Function): void;
+}</code></pre>
+<p>水合完成后，<code>cleanup()</code> 从注册表中移除已激活的块，同时解绑 JSAction 全局监听器（避免内存泄漏），将触发器控制权移交给 Angular 的常规事件系统。</p>
+<p>🔗 增量水合与第9章的懒加载路由形成互补：<code>loadComponent</code> 控制页面级组件的按需加载，<code>@defer</code> 控制单个路由内部组件的按需激活，两者可以叠加使用以实现最细粒度的代码分割。</p>
+<pre><code class="language-typescript">// app.routes.ts — 路由级懒加载 + 组件内增量水合的组合
+export const routes: Routes = [{
+  path: 'dashboard',
+  loadComponent: () =&gt;
+    import('./dashboard/dashboard.component').then(m =&gt; m.DashboardComponent),
+}];</code></pre>
+<pre><code class="language-html">
+
+
+@defer (on viewport; hydrate on viewport) {
+  &lt;analytics-chart [data]=&quot;metrics()&quot; /&gt;
+} @placeholder {
+  &lt;div class=&quot;chart-skeleton&quot; style=&quot;height: 300px&quot; /&gt;
+}</code></pre>
+<p><code>loadComponent</code> 控制的是页面级按需加载——导航到 <code>/dashboard</code> 时才下载该路由的 JavaScript；<code>@defer</code> 的 <code>hydrate on viewport</code> 确保图表组件只在进入视口时才被水合激活。两种机制叠加，前者减少初始包体积，后者减少水合时的主线程占用，共同实现最细粒度的代码分割。</p>
+<h2 id="h-10-8-事件重放-交互不丢失">§10.8 事件重放：交互不丢失</h2>
+<p>SSR 页面在浏览器展示后，Angular Bundle 仍在下载和解析，水合可能需要数百毫秒。这段时间内用户已经能看到页面，他们会点击按钮、填写表单——如果这些事件丢失，用户会以为操作无效而重复点击，体验彻底崩溃。</p>
+<p><strong>事件重放</strong>（Event Replay）机制通过三个阶段解决这个问题：</p>
+<div class="mermaid">sequenceDiagram
+    participant U as 用户
+    participant S as SSR HTML
+    participant J as JSAction 脚本
+    participant A as Angular
+
+    S-&gt;&gt;J: 页面加载时立即执行
+    J-&gt;&gt;J: 在 document.body&lt;br/&gt;注册全局事件监听器
+    U-&gt;&gt;J: 点击（Angular 尚未就绪）
+    J-&gt;&gt;J: 事件入队&lt;br/&gt;window._ejsas[appId]
+    Note over U,A: Angular Bundle 加载中...
+    A-&gt;&gt;A: bootstrapApplication() + 水合
+    A-&gt;&gt;A: whenStable()
+    A-&gt;&gt;J: initEventReplay()
+    J-&gt;&gt;A: 读取积压事件队列
+    A-&gt;&gt;A: replayEarlyEventInfos()&lt;br/&gt;按原始顺序重放
+    A-&gt;&gt;U: 事件处理函数正常执行</div>
+<p>服务端在 HTML 中注入 JSAction Bootstrap 脚本（Google 内部事件框架）：</p>
+<pre><code class="language-html">&lt;script type=&quot;text/javascript&quot; id=&quot;ng-event-dispatch-contract&quot;&gt;
+  /* JSAction 事件捕获库内联代码 */
+&lt;/script&gt;
+&lt;script&gt;
+  window.__jsaction_bootstrap(document.body, &quot;my-app&quot;, [&quot;click&quot;, &quot;input&quot;], []);
+&lt;/script&gt;</code></pre>
+<p>水合完成后，<code>initEventReplay()</code> 从 <code>window._ejsas[appId]</code> 读取积压事件并重放：</p>
+<pre><code class="language-typescript">// packages/core/src/hydration/event_replay.ts
+const initEventReplay = (eventDelegation, injector) =&gt; {
+  const earlyJsactionData = window._ejsas[appId];
+  const eventContract = new EventContract(
+    new EventContractContainer(earlyJsactionData.c)
+  );
+  // 读取所有积压事件，按原始顺序重放
+  eventContract.replayEarlyEventInfos(
+    getAppScopedQueuedEventInfos(appId)
+  );
+  clearAppScopedEarlyEventContract(appId); // 清空队列，避免重复执行
+};</code></pre>
+<p><strong>增量水合中的特殊情况</strong>：如果用户点击的正好是一个未水合的 <code>@defer</code> 块，<code>invokeRegisteredReplayListeners()</code> 会先触发块水合，事件进入队列，水合完成后按顺序重放。事件处理函数感知不到任何延迟，用户操作必然生效。</p>
+<p>🔍 <strong>JSAction 的工程背景</strong>：Angular 选用 Google 内部的 JSAction 框架（而非自研方案），这是 Angular 与 Google 基础设施深度融合的体现。JSAction 最初是 Google Search 前端处理&quot;交互前点击&quot;的基础设施，核心优势是体积极小（可内联到 HTML）、无依赖、在任何 JS 框架之前运行。v17 将其引入 Angular 生态。收到事件重放的组件完全感知不到差异——<code>Event</code> 对象的 <code>type</code>、<code>target</code>、<code>currentTarget</code> 与原始事件完全一致。</p>
+<h2 id="h-10-9-设计思考">§10.9 设计思考</h2>
+<h3 id="h-为什么不重新渲染">为什么不重新渲染？</h3>
+<p>Angular SSR 早期版本正是重新渲染的：客户端收到 SSR HTML，Angular 启动后清空 innerHTML，重新构建 DOM 树。实现简单，代价是：用户看到内容短暂消失再出现（闪烁），服务端工作完全浪费。DOM 复用水合的实现复杂度远高于重新渲染，代码量多出数千行。Angular 团队选择承担这份复杂性，换来的是：可见内容不闪烁、布局不抖动、Core Web Vitals 持续优良。</p>
+<h3 id="h-函数指针替换的设计哲学">函数指针替换的设计哲学</h3>
+<p>水合代码通过函数指针机制与核心渲染引擎完全解耦：<code>ɵɵelementStart</code> 渲染指令始终调用同一个函数变量（<code>_locateOrCreateElementNode</code>），水合功能的启用只是切换该变量指向的实现。这个设计有两个深层好处：</p>
+<ul><li><strong>零成本抽象</strong>：不使用水合时，相关代码被摇树移除，不影响客户端包体积</li><li><strong>可组合性</strong>：增量水合、i18n 水合、事件重放是独立选项，彼此不耦合，按需叠加</li></ul>
+<p>🔍 这与第6章分析的 Signals 集成方式如出一辙——Angular 在多处使用函数指针 + 条件启用的模式，将可选功能与核心路径彻底分离。</p>
+<h3 id="h-性能权衡-水合的代价与收益">性能权衡：水合的代价与收益</h3>
+<p>DOM 复用水合并非没有代价：水合阶段 Angular 需要遍历整棵组件树、读取 TransferState、执行节点认领，这本身会消耗主线程时间（通常在 50~200ms 之间，取决于组件树复杂度）。对于交互极少的纯展示页面，有时直接 CSR 甚至比 SSR + 水合的总体 TTI 更低。工程师需要根据实际 Core Web Vitals 数据来决策，而非一刀切地引入 SSR。</p>
+<h3 id="h-双重渲染检查">双重渲染检查</h3>
+<p><code>ngDevMode</code> 下，<code>validateMatchingNode()</code> 对每个水合节点验证服务端 DOM 节点与客户端期望的节点类型、标签名完全一致。这个检查在生产构建中完全剥离。遇到 <code>NG0500</code>（节点不匹配）错误，通常是第三方库在构造函数中操作了 DOM，或服务端/客户端的时区、语言环境不同导致渲染结果差异。<code>ngSkipHydration</code> 是急救方案，根本解法是消除这种环境差异。</p>
+<p>以下是 <code>NG0500</code> 最常见的四类根因及诊断方法：</p>
+<ol><li><strong>第三方组件在 <code>constructor</code>/<code>ngOnInit</code> 中直接操作 DOM</strong>：服务端 Domino 与浏览器 DOM 操作结果不一致，渲染节点数量或顺序可能有差异。排查方法：在组件 <code>constructor</code> 添加断点，查看是否有 <code>document.querySelector</code> 等调用。解决：改用 <code>afterNextRender()</code> 将 DOM 操作推迟到浏览器水合后执行，或对该组件添加 <code>ngSkipHydration</code>。</li></ol>
+<ol><li><strong>动态内容（随机值、时间戳）</strong>：如 <code>Math.random()</code> 或 <code>new Date().toLocaleDateString()</code>（受时区影响），服务端与客户端的输出字符串不同。诊断：检查模板中是否有 <code>Date</code>/<code>Math.random</code> 等非确定性调用。解决：通过 <code>TransferState</code> 将服务端生成的值传给客户端，确保两端渲染结果完全一致。</li></ol>
+<ol><li><strong>i18n 动态内容（ICU 表达式）</strong>：多语言复数/选择表达式在 SSR 与 CSR 的处理路径不同，未启用 <code>withI18nSupport()</code> 时相关组件会被自动跳过水合（触发 <code>ngSkipHydration</code>），可能影响 SEO 可抓取性。解决：添加 <code>withI18nSupport()</code> 启用 i18n 水合支持，或接受对相关组件的 <code>ngSkipHydration</code> 标注。</li></ol>
+<ol><li><strong>CDN/代理层修改了 HTML</strong>：部分 CDN 会压缩或删除 HTML 注释（包括 `<code> 完整性标记），导致 </code>NG0501<code>（而非 </code>NG0500<code>）。诊断方法：用 </code>curl` 对比直连服务器与经 CDN 的 HTML 响应，确认注释节点是否被保留。解决：在 CDN 配置中禁用 HTML 注释压缩，或使用不删除注释的压缩选项。</li></ol>
+<h3 id="h-从-csr-到-ssr-的迁移成本">从 CSR 到 SSR 的迁移成本</h3>
+<p>Angular SSR 的一个工程挑战是，现有应用中可能充斥着对 <code>window</code>、<code>document</code>、<code>navigator</code> 的直接引用——这些 API 在 Domino 环境中或缺失或行为不同。Angular 提供了 <code>isPlatformBrowser()</code> 和 <code>PLATFORM_ID</code> 令牌来做环境判断，但更优雅的方案是通过 DI 注入 <code>DOCUMENT</code> 令牌（服务端返回 Domino Document，浏览器端返回原生 Document），将环境差异封装在框架层，业务代码保持统一。</p>
+<h2 id="h-从剧本到巡演-全书知识体系的回顾">从剧本到巡演：全书知识体系的回顾</h2>
+<p>第1章展开了整座剧院的鸟瞰图：二十余个 package 分三层叠落，编译时与运行时各司其职，monorepo 将所有角色统一在同一剧本之下。那是一张蓝图，让我们在进入任何一个细节之前，先知道自己身处何处，以及这座建筑为什么非得这样搭才稳。</p>
+<p>第2章拉开了帷幕。<code>bootstrapApplication()</code> 的一声令下，平台创建、根注入器初始化、根组件首次渲染——这一系列动作链的每一环都环环相扣，没有一步是多余的，也没有一步可以省略。</p>
+<p>第3章进入道具部门。依赖注入系统维护着两棵并行的注入器树：模块注入器链向上溯源，节点注入器随组件树生长。每一个 <code>inject()</code> 调用都是一次精确的寻访，沿树向上，找到就停。框架以这套机制将&quot;谁提供&quot;与&quot;谁消费&quot;彻底解耦，让每个角色只需关心自己需要什么，不必知道它从何而来。</p>
+<p>第4章翻译了剧本。模板编译器将 HTML 字符串变为一串渲染指令序列——<code>ɵɵelement</code>、<code>ɵɵproperty</code>、<code>ɵɵlistener</code>。人写的是声明式模板，机器执行的是命令式函数调用。这道翻译发生在构建时，运行时不再保留任何模板字符串，也不再需要任何解析开销。</p>
+<p>第5章搭建了舞台。LView 是运行时快照——每个组件实例的真实状态；TView 是蓝图——同一组件类的所有实例共享的静态描述。两者一动一静，以最经济的内存布局支撑起整棵渲染树，第10章的水合算法正是在这两块数据结构之上运作的。</p>
+<p>第6章描绘了导演巡场。变更检测从根组件出发，沿组件树深度优先走遍每个节点，检查绑定值是否改变，决定是否更新 DOM。调度器控制时机，<code>OnPush</code> 策略控制粒度，这是框架在正确性与性能之间反复权衡后画出的那条线。</p>
+<p>第7章带来了精准传呼系统。Signals 以生产者—消费者图替代了 Zone.js 的全局广播，<code>computed</code> 只在依赖变化时重算，<code>effect</code> 只在真正读过的 signal 改变时触发。从粗粒度的&quot;什么都可能变&quot;到细粒度的&quot;这个确实变了&quot;，是框架响应式模型的一次根本性升级，也是 Zoneless 架构的理论基础。</p>
+<p>第8章描摹了演员档案。<code>ComponentDef</code>（<code>ɵcmp</code>）是组件完整的运行时身份证：模板函数、属性绑定、输入输出、生命周期钩子、封装策略——全部以静态字段编码，供渲染引擎在启动时直接读取，无需反射、无需运行时解析。这是 AOT 编译哲学在数据结构层面的体现。</p>
+<p>第9章编排了场景调度。路由器是一台状态机，<code>NavigationStart</code> 到 <code>NavigationEnd</code> 之间经历守卫检查、数据预加载、组件懒加载、视图切换。每一次 URL 变化都是一次完整的换幕，而换幕的代价被精心控制在最小范围——只加载当前场景真正需要的代码。</p>
+<p>第10章则带剧团走上了巡回演出。服务端先演完整场，将成果录制进 HTML；客户端收到录像，不推翻、不重建，只是悄悄走进现场，认领每一块布景，装上事件电路，让&quot;录像&quot;在不知不觉间变成了&quot;直播&quot;。水合的本质不是从零开始，而是接过接力棒，继续往前跑。</p>
+<p>十章下来，变化的是场景，不变的是一个贯穿始终的设计哲学：把复杂性留在框架内部，把简洁性暴露给使用者；把可选功能藏在函数指针后面，把核心路径打磨到极简。Angular 从未试图掩盖它的复杂，但它用层层抽象，让每一层的复杂性都只在它应该存在的地方存在。</p>
+<h2 id="h-小结">小结</h2>
+<p>本章是全书的终章，也是所有前序内容汇聚的地方。SSR 依赖第2章的应用启动机制在服务端运行，水合认领 DOM 时操作的是第5章的 LView/TView 数据结构，增量水合触发的变更检测更新走的是第6章的调度路径，Signal-based 数据恢复借助第7章的响应式原语。把这些拼在一起，你就拥有了 Angular 全栈渲染的完整图景。</p>
+<p>本章梳理了 Angular SSR 和水合的完整机制：</p>
+<ul><li><strong>服务端</strong>：<code>renderApplication()</code> 在 Domino DOM 上运行完整 Angular 应用，等待稳定后通过 <code>ngh</code> 属性和 TransferState 将 DOM 结构信息嵌入 HTML</li><li><strong>客户端水合</strong>：函数指针替换使渲染指令进入&quot;定位模式&quot;，<code>locateNextRNode()</code> 用四层策略认领服务端 DOM 节点，Angular 组件树直接与现有 DOM 绑定，不创建任何新节点</li><li><strong>TransferState</strong>：同时承载水合元数据（<code>__nghData__</code>）和业务数据，HttpClient 自动利用它避免重复请求，对 Signal-based 数据加载透明</li><li><strong>ngSkipHydration</strong>：为第三方组件和动态内容提供逃生门，自动应用于 ShadowDom 和 i18n 组件（未启用 <code>withI18nSupport()</code> 时）</li><li><strong>增量水合</strong>：<code>@defer</code> 块以脱水状态存在，按触发条件按需激活，与懒加载路由互补实现最细粒度代码分割</li><li><strong>事件重放</strong>：JSAction 在水合完成前捕获用户交互，水合后精确重放，保证零事件丢失</li></ul>
+<p>⚠️ <strong>常见生产问题速查</strong>：遇到 <code>NG0500</code>（水合节点不匹配）检查服务端/客户端渲染差异（时区、随机值、第三方库 DOM 操作）；遇到 <code>NG0501</code>（找不到水合标记 `<code>）检查 CDN 是否删除了 HTML 注释；遇到水合后事件无响应，确认是否启用了 </code>withEventReplay()`（增量水合模式下默认包含，普通水合模式下需单独添加）。</p>
+<p>至此，全书十章的旅程告一段落。从第1章的宏观架构到第10章的全栈渲染，我们始终沿着&quot;源码是最好的文档&quot;这条线索，一层一层拨开 Angular 框架的面纱。框架还在演进，但理解了这些核心机制，你就拥有了持续学习的地基。</p>
+<h2 id="h-思考题">思考题</h2>
+<p><strong>Q1</strong>：打开 <code>packages/core/src/hydration/node_lookup_utils.ts</code>，观察 <code>locateNextRNode()</code> 的四层定位策略。当 Angular 模板使用 <code>ng-content</code> 投影内容时，被投影的节点为什么必须走&quot;显式路径&quot;（<code>NODES</code> 字段），而不能用隐式的相邻节点导航？（提示：思考投影是否改变了节点在 DOM 树中的物理位置，以及 <code>TView</code> 中节点的逻辑顺序与 DOM 树中节点的物理顺序是否一致。）</p>
+<p><strong>Q2</strong>：你的应用中有一个 <code>&lt;date-display&gt;</code> 组件，它在模板里直接调用 <code>new Date().toLocaleDateString()</code> 显示当前日期。服务端在北京运行（UTC+8），一位纽约用户（UTC-5）访问。水合时会发生什么？<code>ngDevMode</code> 下会抛出什么错误？应该如何修复这类&quot;环境依赖&quot;问题？</p>
+<p><strong>Q3（实战）</strong>：在 Zoneless + Signals 架构的应用中，你用 <code>resource()</code> API 加载用户列表，并通过 <code>provideHttpClient(withFetch())</code> 启用了 SSR 缓存。请追踪一次完整的 SSR + 水合过程：这个 <code>resource()</code> 的 Signal 状态（<code>isLoading</code>、<code>value</code>）在服务端经历了哪些变化？水合时经历了哪些变化？哪个具体机制让客户端 <code>resource()</code> 直接拿到了服务端已加载的数据，而没有再次发起 HTTP 请求？</p>
+<h2 id="h-下一步学习路径">下一步学习路径</h2>
+<p>掌握了 Angular SSR 与水合的源码机制之后，以下六个方向值得深入探索：</p>
+<ol><li><strong>生产环境 SSR 运维</strong>：围绕 Node.js 服务部署与容器化（Docker/Kubernetes），重点关注优雅降级策略——当服务端渲染超时或出错时如何平滑回退到纯客户端渲染（CSR Fallback），以及追踪 TTFB、渲染成功率、错误率等关键监控指标。</li></ol>
+<ol><li><strong>Core Web Vitals 深度优化</strong>：使用 PageSpeed Insights 和 Chrome UX Report（CrUX）追踪真实用户的 LCP、CLS、INP 数据，量化 SSR + 水合带来的改善幅度，找出仍在拖累指标的慢组件并针对性优化。</li></ol>
+<ol><li><strong>增量水合的高级场景</strong>：探索 <code>@defer (hydrate on interaction)</code> 与复杂表单、大型图表组件结合时的精细分片策略——在保证 SEO 可抓取的前提下，将首屏水合工作量压缩到极致。</li></ol>
+<ol><li><strong>Zoneless + Signals 完整迁移</strong>：追踪从 Zone.js 应用迁移到 <code>provideExperimentalZonelessChangeDetection()</code> 的完整路径，理解哪些副作用代码依赖 Zone.js 的自动包裹、如何逐步替换为 Signals 驱动的显式更新。</li></ol>
+<ol><li><strong>Angular DevTools 调试</strong>：利用 Angular DevTools 的 Profiler 分析水合性能瓶颈，结合 Node.js 调试器在 SSR 阶段断点追踪 <code>renderApplication()</code> 各阶段耗时，定位慢组件或阻塞稳定的异步任务。</li></ol>
+<ol><li><strong>参与 Angular 开源社区</strong>：订阅 Angular RFC（<a href="https://github.com/angular/angular/discussions">github.com/angular/angular/discussions</a>），关注 <code>packages/core/src/hydration/</code> 的变更日志，尝试向该目录提交你的第一个 PR——修复一个 TODO 注释，或补充一个边界测试用例。</li></ol>
+    <div class="chapter-nav"><a href="ch09.html">← 上一章：第9章：路由系统——URL 与组件树的映射</a><span></span></div>
+  </main>
+  
+<aside id="toc-right">
+  <div class="toc-title">本章目录</div>
+  <ul class="toc-list"><li><a href="#h-10-1-ssr-概览-双轨渲染架构">§10.1 SSR 概览：双轨渲染架构</a></li>
+<li><a href="#h-10-2-服务端渲染流程-renderapplication">§10.2 服务端渲染流程：`renderApplication()`</a></li>
+<li><a href="#h-10-3-dom-标注机制-ngh-属性的秘密">§10.3 DOM 标注机制：`ngh` 属性的秘密</a></li>
+<li><a href="#h-10-4-水合算法-如何-认领-服务端-dom">§10.4 水合算法：如何&quot;认领&quot;服务端 DOM</a></li>
+<li><a href="#h-10-5-transferstate-数据的跨环境旅行">§10.5 TransferState：数据的跨环境旅行</a></li>
+<li><a href="#h-10-6-ngskiphydration-优雅地放弃">§10.6 `ngSkipHydration`：优雅地放弃</a></li>
+<li><a href="#h-10-7-增量水合与-defer">§10.7 增量水合与 `@defer`</a></li>
+<li><a href="#h-10-8-事件重放-交互不丢失">§10.8 事件重放：交互不丢失</a></li>
+<li><a href="#h-10-9-设计思考">§10.9 设计思考</a></li>
+<li><a href="#h-从剧本到巡演-全书知识体系的回顾">从剧本到巡演：全书知识体系的回顾</a></li>
+<li><a href="#h-小结">小结</a></li>
+<li><a href="#h-思考题">思考题</a></li>
+<li><a href="#h-下一步学习路径">下一步学习路径</a></li></ul>
+</aside>
+</div>
+<button id="back-to-top" title="返回顶部">↑</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+<script>
+(function () {
+  'use strict';
+  function updateProgress() {
+    var el = document.getElementById('progress-bar');
+    if (!el) return;
+    var st = window.pageYOffset || document.documentElement.scrollTop;
+    var dh = document.documentElement.scrollHeight - window.innerHeight;
+    el.style.width = (dh > 0 ? Math.min(100, st / dh * 100) : 0) + '%';
+  }
+  function updateBackToTop() {
+    var btn = document.getElementById('back-to-top');
+    if (!btn) return;
+    btn.classList.toggle('visible', (window.pageYOffset || document.documentElement.scrollTop) > 300);
+  }
+  function updateTocActive() {
+    var hs = Array.from(document.querySelectorAll('#main h2[id]'));
+    var ls = Array.from(document.querySelectorAll('#toc-right .toc-list a'));
+    if (!hs.length || !ls.length) return;
+    var active = -1;
+    hs.forEach(function (h, i) { if (h.getBoundingClientRect().top <= 120) active = i; });
+    ls.forEach(function (a, i) { a.classList.toggle('active', i === active); });
+  }
+  window.addEventListener('scroll', function () {
+    updateProgress(); updateBackToTop(); updateTocActive();
+  }, { passive: true });
+  var btn = document.getElementById('back-to-top');
+  if (btn) btn.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof hljs !== 'undefined') hljs.highlightAll();
+    updateProgress(); updateTocActive();
+  });
+})();
+</script>
+</body>
+</html>

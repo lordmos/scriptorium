@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第2章：从零启动——bootstrapApplication 的旅程 | Angular 源码深度解析</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: #FEFCF8;
+  color: #2C2C2C;
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.85;
+}
+/* Progress bar */
+#progress-bar {
+  position: fixed; top: 0; left: 0; width: 0%; height: 3px;
+  background: #C7553A; z-index: 2000; transition: width 0.08s linear;
+}
+/* Layout */
+#layout { display: flex; min-height: 100vh; }
+/* Left sidebar */
+#sidebar {
+  position: fixed; top: 3px; left: 0;
+  width: 260px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-right: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100;
+}
+.sidebar-header { padding: 22px 18px 14px; border-bottom: 1px solid #E8E2D8; }
+.sidebar-title {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  font-size: 1em; font-weight: 700; color: #1A1A1A; line-height: 1.4; margin-bottom: 5px;
+}
+.sidebar-subtitle { font-size: 0.7em; color: #999; line-height: 1.4; }
+.sidebar-nav { padding: 10px 8px 24px; }
+.sidebar-nav a {
+  display: block; padding: 6px 12px; border-radius: 5px;
+  color: #444; font-size: 0.82em; text-decoration: none;
+  line-height: 1.45; margin-bottom: 2px; word-break: break-all;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar-nav a:hover { background: #EDE7DD; color: #1A1A1A; }
+.sidebar-nav a.active { background: #E8DDD0; color: #C7553A; font-weight: 600; }
+/* Main content */
+#main { margin-left: 260px; margin-right: 224px; padding: 48px 52px 80px; min-height: 100vh; }
+/* Right TOC */
+#toc-right {
+  position: fixed; top: 3px; right: 0;
+  width: 224px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-left: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100; padding: 22px 14px;
+}
+.toc-title {
+  font-size: 0.68em; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #aaa; margin-bottom: 10px;
+}
+.toc-list { list-style: none; }
+.toc-list li { margin-bottom: 3px; }
+.toc-list li a {
+  display: block; padding: 3px 8px; font-size: 0.77em; color: #666;
+  text-decoration: none; border-left: 2px solid transparent;
+  line-height: 1.4; word-break: break-all;
+  transition: color 0.15s, border-color 0.15s;
+}
+.toc-list li a:hover { color: #C7553A; }
+.toc-list li a.active { color: #C7553A; border-left-color: #C7553A; font-weight: 600; }
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  color: #1A1A1A; line-height: 1.4;
+  margin-top: 1.8em; margin-bottom: 0.55em;
+}
+h1 { font-size: 2.1em; margin-top: 0; padding-bottom: 0.35em; border-bottom: 2px solid #C7553A; }
+h2 { font-size: 1.55em; padding-bottom: 0.28em; border-bottom: 1px solid #E8E2D8; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1.08em; }
+h5 { font-size: 1em; }
+h6 { font-size: 0.95em; color: #666; }
+p { margin-bottom: 1em; }
+strong { color: #1A1A1A; font-weight: 700; }
+em { font-style: italic; }
+del { text-decoration: line-through; color: #999; }
+/* Links */
+a { color: #4A7C9B; text-decoration: none; }
+a:hover { text-decoration: underline; color: #3a6c8b; }
+/* Code */
+code {
+  font-family: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Courier New", monospace;
+  font-size: 0.875em; background: #F5F2ED; padding: 0.15em 0.38em;
+  border-radius: 3px; border: 1px solid #E0D9CF; word-break: break-all;
+}
+pre {
+  background: #F5F2ED; padding: 18px 22px; border-radius: 8px;
+  overflow-x: auto; margin: 1.4em 0; border: 1px solid #E0D9CF; line-height: 1.6;
+}
+pre code { background: none; padding: 0; border: none; border-radius: 0; font-size: 0.84em; word-break: normal; }
+.hljs { background: #F5F2ED !important; }
+/* Blockquote */
+blockquote {
+  margin: 1.4em 0; padding: 14px 20px;
+  border-left: 4px solid #C7553A;
+  background: linear-gradient(to right, #FFF9F5, #FEFCF8);
+  border-radius: 0 6px 6px 0;
+}
+blockquote p { margin: 0; color: #555; font-style: italic; }
+/* Lists */
+ul, ol { padding-left: 1.8em; margin-bottom: 1em; }
+li { margin-bottom: 0.38em; }
+li p { margin: 0; }
+/* Tables */
+.table-wrap { overflow-x: auto; margin: 1.4em 0; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+th, td { padding: 9px 13px; border: 1px solid #E8E2D8; text-align: left; vertical-align: top; }
+th { background: #F5F2ED; font-weight: 600; color: #1A1A1A; white-space: nowrap; }
+tr:nth-child(even) td { background: #FDFAF5; }
+/* HR */
+hr { border: none; border-top: 1px solid #E8E2D8; margin: 2.2em 0; }
+/* Images */
+img { max-width: 100%; height: auto; border-radius: 4px; display: block; margin: 1em auto; }
+/* Mermaid */
+.mermaid {
+  margin: 1.6em 0; padding: 20px;
+  background: #FDFAF5; border: 1px solid #E8E2D8; border-radius: 8px;
+  text-align: center; overflow-x: auto;
+}
+/* Chapter nav */
+.chapter-nav {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 4em; padding-top: 1.8em; border-top: 2px solid #E8E2D8; gap: 12px;
+}
+.chapter-nav a {
+  display: inline-flex; align-items: center; padding: 10px 16px;
+  background: #F5F2ED; border: 1px solid #E8E2D8; border-radius: 6px;
+  color: #4A7C9B; font-size: 0.85em; text-decoration: none; max-width: 46%;
+  word-break: break-all; line-height: 1.4;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.chapter-nav a:hover { background: #EDE7DD; border-color: #C7553A; color: #C7553A; text-decoration: none; }
+.chapter-nav span { flex: 1; }
+/* Back to top */
+#back-to-top {
+  position: fixed; bottom: 28px; right: 240px;
+  width: 42px; height: 42px; background: #C7553A; color: #fff;
+  border: none; border-radius: 50%; cursor: pointer;
+  font-size: 18px; font-weight: bold; display: none;
+  align-items: center; justify-content: center; z-index: 500;
+  box-shadow: 0 2px 12px rgba(199,85,58,0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+#back-to-top.visible { display: flex; }
+#back-to-top:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(199,85,58,0.5); }
+/* Index page */
+.index-hero {
+  text-align: center; padding: 44px 0 52px;
+  border-bottom: 1px solid #E8E2D8; margin-bottom: 52px;
+}
+.index-hero h1 { font-size: 2.6em; border: none; margin-bottom: 14px; padding: 0; }
+.index-hero .subtitle { font-size: 1.08em; color: #666; font-style: italic; margin: 0; }
+.index-intro { margin-bottom: 48px; }
+.index-intro p { font-size: 1.05em; margin-bottom: 1.2em; }
+.index-toc { margin-bottom: 48px; }
+.chapter-list { padding-left: 0; list-style: none; }
+.chapter-list li {
+  margin-bottom: 10px; padding: 13px 20px;
+  background: #F8F4EE; border-radius: 8px; border: 1px solid #E8E2D8;
+  transition: background 0.15s, border-color 0.15s;
+}
+.chapter-list li:hover { background: #EDE7DD; border-color: #C7553A; }
+.chapter-list li a { color: #1A1A1A; font-size: 1em; font-weight: 500; text-decoration: none; }
+.chapter-list li a:hover { color: #C7553A; text-decoration: none; }
+.index-audience { margin-bottom: 48px; }
+.index-audience ul { padding-left: 0; list-style: none; }
+.index-audience li { padding: 10px 0; border-bottom: 1px solid #EEE9E0; font-size: 0.95em; }
+/* Responsive */
+@media (max-width: 1200px) {
+  #toc-right { display: none; }
+  #main { margin-right: 0; }
+  #back-to-top { right: 24px; }
+}
+@media (max-width: 900px) { #main { padding: 32px 28px 60px; } }
+@media (max-width: 768px) {
+  #sidebar { display: none; }
+  #main { margin-left: 0; padding: 24px 18px 60px; }
+  h1 { font-size: 1.75em; }
+  h2 { font-size: 1.35em; }
+}
+@media print {
+  #sidebar, #toc-right, #progress-bar, #back-to-top, .chapter-nav { display: none !important; }
+  #main { margin: 0; padding: 0; max-width: 100%; }
+}
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div id="layout">
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">📖 Angular 源码深度解析</div>
+      <div class="sidebar-subtitle">深入 Angular 17+ 运行时、编译器与响应式系统的源码之旅</div>
+    </div>
+    <div class="sidebar-nav">
+      <a href="index.html">📚 目录首页</a>
+<a href="ch01.html">第1章：宏观架构——Angular 的世界观</a>
+<a href="ch02.html" class="active">第2章：从零启动——bootstrapApplication 的旅程</a>
+<a href="ch03.html">第3章：依赖注入——框架的神经系统</a>
+<a href="ch04.html">第4章：模板编译器——从 HTML 到指令序列</a>
+<a href="ch05.html">第5章：Ivy 渲染引擎——LView 的生命</a>
+<a href="ch06.html">第6章：变更检测——Angular 如何知道界面需要更新</a>
+<a href="ch07.html">第7章：Signals——细粒度响应式的实现</a>
+<a href="ch08.html">第8章：组件模型——从装饰器到运行时对象</a>
+<a href="ch09.html">第9章：路由系统——URL 与组件树的映射</a>
+<a href="ch10.html">第10章：服务端渲染与水合——让 Angular 应用「秒开」</a>
+
+    </div>
+  </nav>
+  <main id="main">
+    <h1 id="h-第2章-从零启动-bootstrapapplication-的旅程">第2章：从零启动——bootstrapApplication 的旅程</h1>
+<p>你在 <code>main.ts</code> 里敲下这一行：</p>
+<pre><code class="language-typescript">// main.ts
+bootstrapApplication(AppComponent);</code></pre>
+<p>保存文件，浏览器标签页刷新，熟悉的界面出现了。这个过程看似普通——它每天都在发生，在全球无数个 Angular 项目的开发环境里。但如果我们把这几十毫秒放大来看，会发现 Angular 在其中完成了一套精心设计的初始化序列：创建平台单例、组装注入器、运行初始化函数、挂载根组件、触发第一帧渲染。</p>
+<p>这中间每一步都有充分的设计理由。这一章，我们跟随这段旅程，看看一行代码背后的完整故事。</p>
+<h2 id="h-调用链全景">调用链全景</h2>
+<p>在深入细节之前，先建立全局视图。<code>bootstrapApplication</code> 的调用链跨越了三个不同的源文件，最终抵达 <code>ApplicationRef.tick()</code> 完成第一帧渲染：</p>
+<div class="mermaid">sequenceDiagram
+    participant main as &quot;main.ts&quot;
+    participant browser as &quot;platform-browser&lt;br/&gt;browser.ts&quot;
+    participant create as &quot;create_application.ts&quot;
+    participant bootstrap as &quot;bootstrap.ts&quot;
+    participant ngZone as &quot;NgZone&quot;
+    participant appInit as &quot;ApplicationInitStatus&quot;
+    participant appRef as &quot;ApplicationRef&quot;
+
+    main-&gt;&gt;browser: bootstrapApplication(AppComponent, config)
+    browser-&gt;&gt;create: internalCreateApplication(...)
+    create-&gt;&gt;create: &quot;① 创建/重用 PlatformRef&quot;
+    create-&gt;&gt;create: &quot;② 组装 appProviders&quot;
+    create-&gt;&gt;create: &quot;③ 创建 R3Injector&quot;
+    create-&gt;&gt;bootstrap: bootstrap({ r3Injector, rootComponent })
+    bootstrap-&gt;&gt;ngZone: ngZone.run(async () =&gt; {...})
+    ngZone-&gt;&gt;ngZone: resolveInjectorInitializers()
+    ngZone-&gt;&gt;appInit: runInitializers()
+    appInit--&gt;&gt;ngZone: &quot;await donePromise（等待 APP_INITIALIZER）&quot;
+    ngZone-&gt;&gt;appRef: bootstrap(AppComponent)
+    appRef-&gt;&gt;appRef: &quot;ComponentFactory.create()&quot;
+    appRef-&gt;&gt;appRef: attachView(compRef.hostView)
+    appRef-&gt;&gt;appRef: &quot;tick() ✨ 第一帧渲染&quot;
+    bootstrap--&gt;&gt;main: &quot;Promise&lt;ApplicationRef&gt;&quot;</div>
+<p>这条链路上有五个值得深讲的节点，我们逐一拆解。</p>
+<h3 id="h-节点一-入口薄层-bootstrapapplication">节点一：入口薄层——<code>bootstrapApplication</code></h3>
+<p><code>bootstrapApplication</code> 的公开实现非常简洁，它只是一个薄薄的适配层：</p>
+<pre><code class="language-typescript">// packages/platform-browser/src/browser.ts（第125-140行）
+export async function bootstrapApplication(
+  rootComponent: Type&lt;unknown&gt;,
+  options?: ApplicationConfig,
+  context?: BootstrapContext,
+): Promise&lt;ApplicationRef&gt; {
+  // 将用户配置与浏览器平台内置 providers 合并
+  return internalCreateApplication({
+    rootComponent,
+    appProviders: [...(options?.providers ?? [])],
+    platformProviders: BROWSER_MODULE_PROVIDERS,
+  });
+}</code></pre>
+<p><code>BROWSER_MODULE_PROVIDERS</code> 包含了一批浏览器平台必需的 provider，如 <code>DomRendererFactory2</code>（负责操作 DOM 的渲染工厂）和一批浏览器特有的服务。这些 provider 对用户透明，但没有它们，Angular 就无法在浏览器环境中正常运行。值得注意的是，<code>bootstrapApplication</code> 本身返回的是 <code>Promise&lt;ApplicationRef&gt;</code>——整个启动过程是异步的，这让 <code>APP_INITIALIZER</code> 中的异步初始化成为可能。</p>
+<h3 id="h-节点二-三步建立应用容器">节点二：三步建立应用容器</h3>
+<p><code>internalCreateApplication</code> 完成了应用启动最关键的基础工作——建立注入器体系：</p>
+<pre><code class="language-typescript">// packages/core/src/application/create_application.ts（第38-91行）
+export function internalCreateApplication(config: {
+  rootComponent?: Type&lt;unknown&gt;;
+  appProviders?: Array&lt;Provider | EnvironmentProviders&gt;;
+  platformProviders?: Array&lt;Provider | EnvironmentProviders&gt;;
+}): Promise&lt;ApplicationRef&gt; {
+  // ① 获取或创建平台级单例（整个浏览器 tab 共享）
+  const platformInjector = createOrReusePlatformInjector(
+    config.platformProviders as StaticProvider[],
+  );
+
+  // ② 在平台注入器之上，创建应用级 EnvironmentInjector
+  //    用户提供的所有 providers 都注册在这一层
+  const injector = createEnvironmentInjector(
+    config.appProviders ?? [],
+    platformInjector as EnvironmentInjector,
+  ) as R3Injector;
+
+  // ③ 使用这个注入器启动应用
+  return bootstrap({ r3Injector: injector, rootComponent: config.rootComponent });
+}</code></pre>
+<p><code>PlatformRef</code> 是整个注入器层级的根，生命周期比任何 Angular 应用都长。即使调用 <code>applicationRef.destroy()</code> 销毁了应用，<code>PlatformRef</code> 仍然存在，可以用来启动新的应用实例。这个设计主要服务于微前端场景——在同一个页面上运行多个 Angular 应用时，它们共用同一个平台层，避免重复初始化。</p>
+<p>在 <code>PlatformRef</code> 之上，<code>createEnvironmentInjector</code> 创建了应用级 <code>R3Injector</code>。你在 <code>app.config.ts</code> 里提供的所有 provider（<code>provideRouter</code>、<code>provideHttpClient</code> 等），以及框架内置的 <code>ApplicationRef</code>、<code>ApplicationInitStatus</code>、<code>NgZone</code> 等服务，都注册在这一层。</p>
+<p>🔗 注入器的两层结构（<code>EnvironmentInjector</code> 与 <code>NodeInjector</code>）以及 token 的解析算法，将在第3章详细展开。</p>
+<h3 id="h-节点三-ngzone-的包裹">节点三：NgZone 的包裹</h3>
+<p>最终的启动逻辑在 <code>bootstrap()</code> 函数中执行，所有后续工作都在 <code>ngZone.run()</code> 的包裹下运行：</p>
+<pre><code class="language-typescript">// packages/core/src/platform/bootstrap.ts（第75-181行）
+async function bootstrap(options: {
+  r3Injector: R3Injector;
+  rootComponent?: Type&lt;unknown&gt;;
+}): Promise&lt;ApplicationRef&gt; {
+  const { r3Injector, rootComponent } = options;
+  const ngZone = r3Injector.get(NgZone);
+
+  return ngZone.run(async () =&gt; {
+    // 触发通过 ENVIRONMENT_INITIALIZER 注册的同步初始化函数
+    r3Injector.resolveInjectorInitializers();
+
+    const appRef = r3Injector.get(ApplicationRef);
+    const initStatus = r3Injector.get(ApplicationInitStatus);
+
+    // 运行 APP_INITIALIZER，等待所有异步初始化器完成
+    initStatus.runInitializers();
+    await initStatus.donePromise;  // ← 白屏时间的来源
+
+    setLocaleId(r3Injector.get(LOCALE_ID, DEFAULT_LOCALE_ID));
+
+    if (rootComponent !== undefined) {
+      appRef.bootstrap(rootComponent);  // 挂载根组件，触发第一次 tick()
+    }
+    return appRef;
+  });
+}</code></pre>
+<p><code>ngZone.run()</code> 保证所有代码在 Angular Zone 内执行，让 Zone.js 能够追踪这期间发起的异步操作。在 Zoneless 模式下，<code>NgZone</code> 被替换为 <code>NoopNgZone</code>（一个直接调用传入函数的占位实现），接口一致，行为不同。这个替换发生在应用启动阶段的依赖注入配置中，由 <code>provideExperimentalZonelessChangeDetection()</code> 在注入器层面完成切换。</p>
+<p>💡 <strong>提示</strong>：<code>resolveInjectorInitializers()</code> 触发的是通过 <code>ENVIRONMENT_INITIALIZER</code> token 注册的初始化函数——这是模块级初始化的底层机制，与 <code>APP_INITIALIZER</code> 不同，它<strong>不支持异步</strong>，不会阻塞 UI 挂载，主要用于注入器首次使用时执行某些同步副作用。</p>
+<p>理解了完整的调用链，我们深入最核心的参与者：<code>ApplicationRef</code>。</p>
+<h2 id="h-applicationref-应用的心脏">ApplicationRef——应用的心脏</h2>
+<p>如果把 Angular 应用比作一个生命体，<code>ApplicationRef</code> 就是它的心脏：它维持着应用的&quot;生命体征&quot;（视图管理），决定何时跳动（<code>tick()</code> 的调度触发），以及每次跳动要完成什么工作（脏标志位系统）。</p>
+<p><code>ApplicationRef.tick()</code> 是这颗心脏的每一次跳动——它驱动整个变更检测流程。但在 Angular 的实现中，<code>tick()</code> 并不是一个简单的&quot;检查所有组件&quot;，而是一套精确的分级机制。</p>
+<h3 id="h-脏标志位系统-精确控制每次心跳">脏标志位系统：精确控制每次心跳</h3>
+<p><code>ApplicationRef</code> 用一组位掩码（bitmask）记录&quot;这次心跳需要做什么工作&quot;，这是整个变更检测系统的核心调度数据结构：</p>
+<pre><code class="language-typescript">// packages/core/src/application/application_ref.ts
+export const enum ApplicationRefDirtyFlags {
+  None              = 0b00000000,  // 无需操作，应用处于稳定状态
+  ViewTreeGlobal    = 0b00000001,  // Zone.js 触发，需扫描整棵视图树
+  ViewTreeTraversal = 0b00000010,  // 需遍历子树（如 Signals 依赖的下游节点）
+  ViewTreeCheck     = 0b00000100,  // 有被 markForCheck() 精确标记的视图
+  ViewTreeAny = ViewTreeGlobal | ViewTreeTraversal | ViewTreeCheck,  // 任意视图树变更（0b0000111）
+  AfterRender       = 0b00001000,  // 有 afterRender / afterNextRender 钩子
+  RootEffects       = 0b00010000,  // 有 Signals effect 待执行
+}</code></pre>
+<p>每个标志对应一类不同来源的变更请求：</p>
+<ul><li><strong><code>ViewTreeGlobal</code></strong>：粗粒度变更——Zone.js 触发的全树扫描，等同于&quot;告知所有视图都需要检查&quot;</li><li><strong><code>ViewTreeTraversal</code></strong>：中粒度遍历——某条视图分支需要向下遍历，常由 Signals 依赖图变化驱动；<strong>区别于 <code>ViewTreeCheck</code></strong>：<code>ViewTreeCheck</code> 是&quot;某组件调用了 <code>markForCheck()</code>，精确标记到叶节点&quot;；<code>ViewTreeTraversal</code> 则是&quot;某个祖先节点的依赖发生变化，需要向下遍历寻找真正的脏节点&quot;（详见第6章视图树遍历算法）</li><li><strong><code>ViewTreeCheck</code></strong>：精确变更——某个组件显式调用了 <code>markForCheck()</code>，只遍历被标记的分支</li><li><strong><code>ViewTreeAny</code></strong>：上述三种视图树标志的组合掩码，源码中用于一次性判断&quot;是否有任何视图树工作需要处理&quot;</li><li><strong><code>AfterRender</code></strong>：由 <code>afterRender()</code> / <code>afterNextRender()</code> API 产生，在每帧渲染结束后执行</li><li><strong><code>RootEffects</code></strong>：由 Signals 系统的 <code>effect()</code> 驱动，在变更检测前优先执行，确保 signal 副作用不影响检测结果（<code>effect()</code> 是 Signals API，第7章详述；此处只需理解&quot;某些副作用在变更检测之前优先执行&quot;即可）</li></ul>
+<p>位掩码的好处在于：多个标志可以在一次位运算中同时设置和读取。一次 Zone.js 全局触发时，<code>dirtyFlags</code> 可能同时包含 <code>ViewTreeGlobal | AfterRender</code>；一次 signal 更新可能同时产生 <code>RootEffects | ViewTreeCheck</code>。</p>
+<p>🔍 <strong><code>ViewTreeGlobal</code> 与 OnPush 策略的关系</strong>：<code>ViewTreeCheck</code> 对应&quot;被 <code>markForCheck()</code> 显式标记的视图&quot;，变更检测遍历时会跳过未标记的 OnPush 子树。但 <code>ViewTreeGlobal</code> 会绕过这个保护——Zone.js 触发的全树扫描下，OnPush 优化效果大打折扣。这是第6章变更检测性能优化的一个核心知识点。</p>
+<h3 id="h-tick-与-synchronize-稳定的双重保证"><code>tick()</code> 与 <code>synchronize()</code>：稳定的双重保证</h3>
+<p><code>tick()</code> 的实现看起来简单，内部却有精巧的稳定性机制：</p>
+<pre><code class="language-typescript">// packages/core/src/application/application_ref.ts
+export class ApplicationRef {
+  tick(): void {
+    this.synchronize();
+  }
+
+  private synchronize(): void {
+    // 执行一轮完整的同步
+    this.synchronizeOnce();
+    // 检测过程中可能产生新的变更（如 effect 触发了 signal 更新）
+    // 循环执行，直到应用进入稳定状态
+    while (this.dirtyFlags !== ApplicationRefDirtyFlags.None) {
+      this.synchronizeOnce();
+    }
+  }
+}</code></pre>
+<p><code>synchronize()</code> 中的 <code>while</code> 循环是一个&quot;最终一致性&quot;保证。设想这个场景：一个 <code>effect()</code> 在执行时更新了某个 signal，这个 signal 变化会新增 <code>ViewTreeCheck</code> 标志。如果只执行一次 <code>synchronizeOnce()</code>，这个新产生的变更就会被遗漏，留到下一帧才更新，造成视觉撕裂。<code>while</code> 循环确保当前帧内的所有&quot;涟漪&quot;都被消化完毕。</p>
+<p><code>synchronizeOnce()</code> 按固定顺序处理三类工作：</p>
+<pre><code class="language-typescript">// packages/core/src/application/application_ref.ts（简化示意）
+private synchronizeOnce(): void {
+  // 步骤一：执行所有待处理的 Signals 根 effect（优先于检测执行）
+  if (this.dirtyFlags &amp; ApplicationRefDirtyFlags.RootEffects) {
+    this.dirtyFlags &amp;= ~ApplicationRefDirtyFlags.RootEffects;
+    this.rootEffectScheduler.flush();  // 冲刷根 effect 队列
+  }
+
+  // 步骤二：变更检测——按脏标志粒度遍历视图树
+  if (this.dirtyFlags &amp; ApplicationRefDirtyFlags.ViewTreeAny) {
+    this.dirtyFlags &amp;= ~ApplicationRefDirtyFlags.ViewTreeAny;
+    for (const view of this._views) {
+      detectChangesInternal(view, /* detectMode 由 dirtyFlags 决定 */);
+    }
+  }
+
+  // 步骤三：执行 afterRender 钩子（DOM 更新完成后才执行）
+  if (this.dirtyFlags &amp; ApplicationRefDirtyFlags.AfterRender) {
+    this.dirtyFlags &amp;= ~ApplicationRefDirtyFlags.AfterRender;
+    this.runAfterRender();
+  }
+}</code></pre>
+<p>⚠️ <strong>注意</strong>：Angular 对 <code>synchronize()</code> 的循环有内置的最大迭代次数保护。在开发模式下，如果你写出了&quot;A 变化导致 B 变化，B 变化又导致 A 变化&quot;的逻辑，Angular 会抛出 <code>ExpressionChangedAfterItHasBeenCheckedError</code>，帮助你在开发阶段尽早发现这类问题。</p>
+<h3 id="h-视图管理-_views-是遍历的根">视图管理：<code>_views</code> 是遍历的根</h3>
+<pre><code class="language-typescript">// packages/core/src/application/application_ref.ts
+export class ApplicationRef {
+  _views: InternalViewRef[] = [];   // 变更检测的起始点列表
+  components: ComponentRef&lt;any&gt;[] = [];  // 引导的根组件
+
+  // appRef.bootstrap(AppComponent) 调用后，根视图通过此方法注入
+  attachView(viewRef: ViewRef): void {
+    const view = (viewRef as InternalViewRef).internalView;
+    this._views.push(view);  // 加入变更检测遍历列表
+  }
+
+  detachView(viewRef: ViewRef): void {
+    const view = (viewRef as InternalViewRef).internalView;
+    remove(this._views, view);  // 从遍历列表移除，后续 tick() 不再检测此视图
+  }
+}</code></pre>
+<p><code>_views</code> 是 <code>tick()</code> 遍历的入口。<code>detectChangesInternal</code> 从这些根视图出发，按深度优先顺序遍历整棵视图子树，检查每个节点的绑定值是否发生变化。通常一个应用只有一个根视图（<code>AppComponent</code> 的宿主视图），但如果你通过 <code>ApplicationRef.attachView()</code> 手动附加了额外的 <code>ViewRef</code>（如动态创建的组件），它们也会出现在这个数组里。</p>
+<p>心脏的工作机制清楚了，下一个问题是：谁来告诉心脏&quot;该跳了&quot;？</p>
+<h2 id="h-两种心跳节拍-zone-js-与-zoneless">两种心跳节拍——Zone.js 与 Zoneless</h2>
+<p><code>tick()</code> 不会自动调用自己，它需要外部机制驱动。Angular 支持两种截然不同的心跳触发策略，代表着两种对&quot;如何感知变更&quot;的不同哲学。</p>
+<h3 id="h-zone-js-模式-剧场计时广播系统">Zone.js 模式：剧场计时广播系统</h3>
+<p>Zone.js 是 Angular 的传统心跳驱动机制。回到第1章建立的剧场比喻：Zone.js 是<strong>剧场的计时广播系统</strong>——每当后台有人喊&quot;好了！&quot;（异步操作完成），广播系统自动通知舞台监督（变更检测器）去巡场。</p>
+<p>Zone.js 的核心能力是 monkey-patch：在应用启动前，它替换掉浏览器原生的 <code>setTimeout</code>、<code>Promise.then</code>、<code>addEventListener</code> 等 API，将这些操作包裹进自己管理的&quot;Zone&quot;中，从而感知每一个异步操作的开始与结束。</p>
+<p>Angular 通过 <code>NgZone</code> 封装 Zone.js，并注册了两个关键钩子：</p>
+<pre><code class="language-typescript">// packages/core/src/zone/ng_zone.ts
+class NgZone {
+  private forkInnerZoneWithAngularBehavior(zone: ZoneType): void {
+    // fork() 创建一个子 Zone，继承父 Zone，但注入自定义钩子
+    zone._inner = zone._inner.fork({
+      name: 'angular',
+
+      // 钩子一：每当一个异步任务被执行时触发（setTimeout 回调、Promise.then 等）
+      onInvokeTask: (delegate, curr, target, task, applyThis, applyArgs) =&gt; {
+        try {
+          return delegate.invokeTask(target, task, applyThis, applyArgs);
+        } finally {
+          checkStable(zone);  // 任务结束后检查稳定性
+        }
+      },
+
+      // 钩子二：&quot;有任务/无任务&quot;状态切换时触发（任务队列变空或新增任务）
+      onHasTask: (delegate, curr, target, hasTaskState) =&gt; {
+        delegate.hasTask(target, hasTaskState);
+        checkStable(zone);  // 状态切换后检查稳定性
+      },
+    });
+  }
+}</code></pre>
+<p><code>checkStable</code> 在判断&quot;所有微任务队列已空且无待处理宏任务&quot;时，触发 <code>onMicrotaskEmpty</code> 事件，进而启动变更检测调度链：</p>
+<div class="mermaid">flowchart LR
+    A[&quot;异步操作完成&lt;br/&gt;setTimeout / Promise / XHR&quot;]
+    --&gt; B[&quot;Zone.js 钩子触发&lt;br/&gt;onHasTask&quot;]
+    --&gt; C[&quot;checkStable()&quot;]
+    --&gt; D[&quot;onMicrotaskEmpty.emit()&quot;]
+    --&gt; E[&quot;ChangeDetectionSchedulerImpl&lt;br/&gt;.notify(ViewTreeGlobal)&quot;]
+    --&gt; F[&quot;scheduleCallbackWithRafRace()&lt;br/&gt;rAF 对齐下一帧&quot;]
+    --&gt; G[&quot;ApplicationRef.tick()&quot;]</div>
+<p>这条链路的含义很明确：<strong>任何在 Angular Zone 内发生的异步操作——无论是你的 HTTP 请求、第三方库内部的定时器，还是用户点击事件的回调——完成后都会驱动一次变更检测。</strong> Zone.js 不需要你做任何配合，广播系统自动运作。</p>
+<p>💡 <strong><code>runOutsideAngular</code> 优化</strong>：Zone.js 模式下，如果你有一个高频的 <code>setInterval</code>（如动画帧、性能计数器），把它放进 <code>ngZone.runOutsideAngular()</code> 可以让它的回调运行在 Angular Zone 之外，完成后不触发变更检测，显著减少无意义的检测次数。</p>
+<h3 id="h-zoneless-模式-精准信号驱动">Zoneless 模式：精准信号驱动</h3>
+<p>Zoneless 模式（Angular v18+ 正式稳定）移除了 Zone.js，改用明确的&quot;举手示意&quot;机制。变更检测完全由 <code>ChangeDetectionSchedulerImpl</code> 统一调度——任何需要触发检测的操作，都必须显式通知它：</p>
+<pre><code class="language-typescript">// packages/core/src/change_detection/scheduling/zoneless_scheduling_impl.ts
+class ChangeDetectionSchedulerImpl implements ChangeDetectionScheduler {
+
+  notify(source: NotificationSource): void {
+    // 将通知来源映射为对应的脏标志，精确记录&quot;哪类变更发生了&quot;
+    this.appRef.dirtyFlags |= sourceToDirtyFlag(source);
+
+    if (this.shouldScheduleTick()) {
+      // 选择调度策略：微任务（测试/SSR）或 rAF 竞速（生产环境）
+      const schedFn = this.useMicrotaskScheduler
+        ? queueMicrotask
+        : scheduleCallbackWithRafRace;
+
+      // 调度函数在 Zone 外执行，避免在 Zone.js 共存场景中重复触发
+      this.cancelScheduledCallback = this.ngZone.runOutsideAngular(
+        () =&gt; schedFn(() =&gt; this.tick()),
+      );
+    }
+  }
+
+  private tick(): void {
+    // 只有 dirtyFlags 不为零时才真正执行 tick()
+    if (this.appRef.dirtyFlags !== ApplicationRefDirtyFlags.None) {
+      this.ngZone.run(() =&gt; this.appRef._tick());
+    }
+  }
+}</code></pre>
+<p>谁会调用 <code>notify()</code>？主要有四个来源：</p>
+<div class="mermaid">flowchart TD
+    A[&quot;ChangeDetectorRef&lt;br/&gt;.markForCheck()&quot;]
+    --&gt; E
+    B[&quot;signal.set() /&lt;br/&gt;signal.update()&quot;]
+    --&gt; E
+    C[&quot;Input 绑定更新&lt;br/&gt;（父组件传入新值）&quot;]
+    --&gt; E
+    D[&quot;手动 ApplicationRef&lt;br/&gt;.tick()&quot;]
+    --&gt; E
+    E[&quot;ChangeDetectionSchedulerImpl&lt;br/&gt;.notify(source)&quot;]
+    --&gt; F[&quot;dirtyFlags |= 对应标志&quot;]
+    --&gt; G{&quot;shouldScheduleTick()?&lt;br/&gt;是否已有待执行 tick?&quot;}
+    G --&gt;|&quot;是，调度&quot;| H[&quot;queueMicrotask / rAF&lt;br/&gt;注册下一次 tick()&quot;]
+    G --&gt;|&quot;否，去重&quot;| I[&quot;只更新 dirtyFlags，跳过调度&quot;]
+    H --&gt; J[&quot;ApplicationRef.tick()&quot;]</div>
+<p><code>shouldScheduleTick()</code> 的判断防止重复调度：如果已经有一个 <code>tick()</code> 在排队等待执行，新的通知只需更新 <code>dirtyFlags</code>，不需要再次注册调度。这是一个典型的&quot;去抖动&quot;设计。</p>
+<h3 id="h-两种模式的对比">两种模式的对比</h3>
+<div class="table-wrap"><table><thead><tr><th>维度</th><th>Zone.js 模式</th><th>Zoneless 模式</th></tr></thead><tbody><tr><td>外部依赖</td><td>Zone.js 库（约 10 KB gzip）</td><td>无额外依赖</td></tr><tr><td>变更触发方式</td><td>Zone 内任何异步操作后自动触发</td><td><code>markForCheck()</code> / signal 变化</td></tr><tr><td>默认检测粒度</td><td><code>ViewTreeGlobal</code>（全树扫描）</td><td><code>ViewTreeCheck</code>（精确到被标记视图）</td></tr><tr><td>稳定性判断机制</td><td><code>NgZone.isStable</code>（任务队列监控）</td><td><code>PendingTasksInternal</code>（显式计数器）</td></tr><tr><td>第三方库兼容性</td><td>自动兼容（monkey-patch 透明）</td><td>需显式适配或包裹 <code>markForCheck()</code></td></tr><tr><td>推荐使用场景</td><td>遗留项目迁移</td><td>新项目（v18+ 推荐）</td></tr></tbody></table></div>
+<p><strong>实战场景：高频 <code>setInterval</code> 的差异</strong></p>
+<div class="table-wrap"><table><thead><tr><th>场景</th><th>Zone.js 模式</th><th>Zoneless 模式</th></tr></thead><tbody><tr><td>1ms 游戏循环（高频 <code>setInterval</code>）</td><td>每次回调都触发全树扫描，<strong>必须</strong>用 <code>runOutsideAngular()</code> 规避，否则严重拖慢帧率</td><td>无影响——回调中不调用 <code>markForCheck()</code> 或更新 signal，变更检测不会被触发，开箱即用</td></tr></tbody></table></div>
+<p>心跳机制理解清楚了，但在第一次心跳之前，应用还有一道关卡要过。</p>
+<h2 id="h-app_initializer-启动前的准备工作">APP_INITIALIZER——启动前的准备工作</h2>
+<p>在 <code>bootstrap()</code> 函数的调用序列中，<code>appRef.bootstrap(rootComponent)</code> 之前有一行关键的等待：</p>
+<pre><code class="language-typescript">await initStatus.donePromise;</code></pre>
+<p>这是 <code>APP_INITIALIZER</code> 机制的核心体现——在根组件挂载之前，允许应用执行一批初始化工作。典型场景包括：从服务端加载运行时配置（API 地址、Feature Flag）、初始化国际化数据、预加载用户权限信息等。</p>
+<h3 id="h-初始化链的工作原理">初始化链的工作原理</h3>
+<pre><code class="language-typescript">// packages/core/src/application/application_init.ts
+@Injectable({ providedIn: 'root' })
+export class ApplicationInitStatus {
+  private resolve!: () =&gt; void;
+  done = false;
+  // bootstrap() 等待这个 Promise resolve 后才继续
+  readonly donePromise = new Promise&lt;void&gt;((res) =&gt; (this.resolve = res));
+
+  runInitializers(): void {
+    const promises: Promise&lt;any&gt;[] = [];
+
+    for (const appInits of this.appInits) {
+      // 在注入上下文中运行初始化函数（允许在函数体内使用 inject()）
+      const initResult = runInInjectionContext(this.injector, appInits);
+
+      if (isPromise(initResult)) {
+        promises.push(initResult);                    // async/await 返回 Promise
+      } else if (isObservable(initResult)) {
+        promises.push(firstValueFrom(initResult));    // RxJS Observable
+      }
+      // void 返回（同步初始化）直接忽略，不阻塞
+    }
+
+    // 所有初始化器并行执行（Promise.all），全部完成后通知 bootstrap 继续
+    this.initialized = Promise.all(promises).then(() =&gt; {
+      this.done = true;
+      this.resolve();
+    });
+  }
+}</code></pre>
+<p>注册初始化器的方式：</p>
+<pre><code class="language-typescript">// app.config.ts
+export const appConfig: ApplicationConfig = {
+  providers: [
+    {
+      provide: APP_INITIALIZER,
+      // 工厂函数返回的函数才是初始化器本身
+      useFactory: (configService: AppConfigService) =&gt;
+        () =&gt; configService.loadRemoteConfig(),
+      deps: [AppConfigService],
+      multi: true,  // 多个初始化器之间并行执行
+    },
+  ],
+};</code></pre>
+<p>多个 <code>APP_INITIALIZER</code>（<code>multi: true</code>）被收集进一个数组，通过 <code>Promise.all</code> 并行等待。三个初始化器同时发起时，总等待时间取决于最慢的那个，而非三者之和——这是一个对启动性能有利的设计。</p>
+<h3 id="h-异步初始化的代价">异步初始化的代价</h3>
+<div class="mermaid">flowchart LR
+    A[&quot;bootstrap() 开始&quot;]
+    --&gt; B[&quot;resolveInjectorInitializers()&quot;]
+    --&gt; C[&quot;runInitializers()&quot;]
+    --&gt; D{&quot;有 Promise&lt;br/&gt;初始化器?&quot;}
+    D --&gt;|&quot;是&quot;| E[&quot;⏳ await donePromise&lt;br/&gt;用户看到白屏&quot;]
+    E --&gt; F[&quot;appRef.bootstrap(AppComponent)&quot;]
+    D --&gt;|&quot;否，直接继续&quot;| F
+    F --&gt; G[&quot;tick() ✨&quot;]
+    G --&gt; H[&quot;首次渲染完成&quot;]</div>
+<p>这张图揭示了一个直接的现实：<strong><code>APP_INITIALIZER</code> 返回 Promise 的每一毫秒，都是用户面对空白页面的每一毫秒。</strong></p>
+<p>⚠️ <strong><code>APP_INITIALIZER</code> 的成本直接累加到 FCP（首次内容绘制）时间</strong>：</p>
+<div class="table-wrap"><table><thead><tr><th>情景</th><th>FCP 估算</th></tr></thead><tbody><tr><td>不加 <code>APP_INITIALIZER</code></td><td>≈ 200ms（正常 JS 解析 + 首帧渲染）</td></tr><tr><td>加 1 个 3 秒 API 请求的初始化器</td><td>≈ 3,200ms</td></tr><tr><td>加 2 个并行初始化器（3s + 2.5s）</td><td>≈ 3,200ms（<code>Promise.all</code> 取最慢，仍是 3s 级延迟）</td></tr></tbody></table></div>
+<p>在移动网络（3G）上，FCP 超过 3 秒时用户流失率显著上升（Web Vitals 核心指标）。</p>
+<p>⚠️ <strong>使用 <code>APP_INITIALIZER</code> 的三条原则</strong></p>
+<ol><li><strong>真正阻塞才使用</strong>：只有&quot;没有这个数据，应用根本无法正确渲染&quot;时才在此加载（如全局权限 token、主题颜色配置）；能做成路由级 Resolver 的，坚决不放这里</li><li><strong>设置超时降级</strong>：网络请求必须有超时保护，失败时使用默认值降级，而不是让应用卡在白屏</li><li><strong>能延迟就延迟</strong>：业务数据、用户偏好等完全可以在组件 <code>ngOnInit</code> 或路由 Resolver 中按需加载</li></ol>
+<pre><code class="language-typescript">// 带超时保护的初始化器示例
+{
+  provide: APP_INITIALIZER,
+  useFactory: (configService: AppConfigService) =&gt; () =&gt;
+    Promise.race([
+      configService.loadRemoteConfig(),
+      // 3 秒后自动使用默认配置，不阻塞启动
+      new Promise&lt;void&gt;((resolve) =&gt; setTimeout(resolve, 3000)),
+    ]),
+  deps: [AppConfigService],
+  multi: true,
+}</code></pre>
+<p>理解了启动流程和两种调度模式，我们可以从更宏观的角度，思考一个大版本迭代背后的设计决策。</p>
+<h2 id="h-设计思考-zone-js-的历史使命与终结">设计思考：Zone.js 的历史使命与终结</h2>
+<p>Zone.js 在 2014 年是一个极具创意的工程方案。Angular 团队当时面临一个真实问题：如何让框架感知到任意异步操作的完成？在 Signals 尚未诞生、RxJS 无缝集成尚在探索的年代，Zone.js 的&quot;全局拦截&quot;策略是一个优雅的答案——开发者不需要做任何事情，框架自动处理一切。</p>
+<p>然而，随着 Angular 使用规模扩大，Zone.js 的代价也越来越清晰。</p>
+<p><strong>根本性问题一：粒度失控</strong></p>
+<p>Zone.js 无法区分&quot;哪些异步操作会影响 UI&quot;。一个纯粹用于日志上报的 <code>setTimeout</code>、一个埋点统计的 <code>fetch</code>，都会触发完整的全树变更检测。开发者不得不反复学习 <code>runOutsideAngular</code>、<code>NgZone.runTask</code> 这些优化手段——本质上是在为框架设计缺陷打补丁。</p>
+<p><strong>根本性问题二：全局副作用</strong></p>
+<p>Zone.js 的 monkey-patch 是全局性的。它替换的是 <code>window.setTimeout</code>、全局 <code>Promise</code> 等对象，影响页面上所有代码，不只是 Angular 应用本身。在部分 Web 性能测试工具（如 Lighthouse 的特定检测项）、依赖原生 Promise 微任务顺序的第三方库中，Zone.js 会造成干扰，产生难以复现的 Bug。</p>
+<p><strong>根本性问题三：标准追赶压力</strong></p>
+<p>Web 平台每年都有新 API 出现。每次有新的异步机制（<code>ResizeObserver</code>、<code>scheduler.postTask</code>、<code>AbortController</code> 等）被引入，Angular 团队都需要评估是否为其添加 Zone.js patch。这是一项持续的维护负担，也是&quot;用外挂库解决框架问题&quot;这条路的天花板。</p>
+<p><strong>Signals 如何从根本上解决这些问题</strong></p>
+<p>Zoneless 模式本身只是&quot;不用 Zone.js&quot;，但它真正发挥威力，需要与 Signals 配合使用：</p>
+<ul><li>signal 的读写是<strong>同步且精确</strong>的：<code>signal.set()</code> 直接通知所有依赖它的视图，不需要等任何异步操作完成</li><li><code>computed</code> 是<strong>惰性求值</strong>的：它的值只在被读取时才重算，不存在&quot;无意义的中间状态&quot;</li><li>signal 的变更通知是<strong>精确追踪</strong>的：只有真正依赖了某个 signal 的视图，才会在它变化时被标记为脏</li></ul>
+<p>当状态由 Signals 管理时，变更检测自然变成&quot;精确的、按需的&quot;。用之前的比喻来说：Zone.js 模式是&quot;大楼里有任何访客按门铃，广播通知所有住户检查自己的门&quot;；Zoneless + Signals 模式是&quot;每套门铃都只连接自己对应的房间，只通知真正有访客的那一户&quot;。</p>
+<p>对于<strong>新项目</strong>，Angular 团队的推荐很明确：<strong>Zoneless + Signals 是 v18+ 的首选组合</strong>。对于<strong>遗留项目</strong>，Zone.js 模式仍然有效，Angular 会长期维护两种模式，迁移可以循序渐进。</p>
+<p>🔗 Signals 的依赖追踪实现（<code>ReactiveNode</code>、<code>Consumer</code>/<code>Producer</code> 图、<code>computed</code> 的惰性求值机制）将在第7章深入分析。<code>detectChangesInternal</code> 的视图树遍历算法，以及 OnPush 策略与脏标志位的完整交互，将在第6章展开。</p>
+<h2 id="h-小结">小结</h2>
+<p>我们追踪了 <code>bootstrapApplication(AppComponent)</code> 的完整旅程，覆盖了启动过程中每一个关键决策点：</p>
+<ul><li><strong>调用链</strong>：<code>bootstrapApplication</code> → <code>internalCreateApplication</code>（创建 PlatformRef + R3Injector）→ <code>bootstrap()</code>（NgZone 包裹 → <code>APP_INITIALIZER</code> 等待 → <code>appRef.bootstrap</code> → <code>tick()</code>）→ 第一帧渲染</li><li><strong>ApplicationRef</strong>：脏标志位系统（<code>ApplicationRefDirtyFlags</code>）是变更检测的精确调度开关；<code>synchronize()</code> 的 <code>while</code> 循环确保应用在每次 <code>tick()</code> 后最终达到稳定状态；<code>_views</code> 数组是所有变更检测的遍历起点</li><li><strong>Zone.js 心跳</strong>：monkey-patch 全局异步 API，任何异步操作完成后自动触发 <code>ViewTreeGlobal</code> 全树扫描；便利但粒度粗，存在过度检测的隐患</li><li><strong>Zoneless 心跳</strong>：<code>ChangeDetectionSchedulerImpl.notify()</code> 接收精确的变更通知，只设置对应的脏标志位，按需调度 <code>tick()</code>；与 Signals 配合是 v18+ 的推荐模式</li><li><strong>APP_INITIALIZER</strong>：在根组件挂载前运行初始化链；每个返回 Promise 的初始化器都直接延长 FCP 时间，使用需要权衡必要性</li></ul>
+<p>两种调度模式并无绝对优劣：<strong>Zone.js</strong> 提供开箱即用的便利，适合遗留项目和快速原型；<strong>Zoneless + Signals</strong> 提供更精确的控制与更小的包体（约少 10 KB gzip），是 v18+ 新项目的首选。这一选择直接影响第6章变更检测性能策略的适用范围——Zoneless 模式下 <code>OnPush</code> 的优化收益会放大，而许多 Zone.js 时代的 <code>runOutsideAngular</code> 补丁将不再必要。</p>
+<p>🔗 下一章，我们进入 Angular 的依赖注入系统——正是它在本章的启动流程中默默组装了 <code>PlatformRef</code>、<code>R3Injector</code>、<code>ApplicationRef</code>，让它们以正确的顺序出现在正确的位置。</p>
+    <div class="chapter-nav"><a href="ch01.html">← 上一章：第1章：宏观架构——Angular 的世界观</a><a href="ch03.html">下一章：第3章：依赖注入——框架的神经系统 →</a></div>
+  </main>
+  
+<aside id="toc-right">
+  <div class="toc-title">本章目录</div>
+  <ul class="toc-list"><li><a href="#h-调用链全景">调用链全景</a></li>
+<li><a href="#h-applicationref-应用的心脏">ApplicationRef——应用的心脏</a></li>
+<li><a href="#h-两种心跳节拍-zone-js-与-zoneless">两种心跳节拍——Zone.js 与 Zoneless</a></li>
+<li><a href="#h-app_initializer-启动前的准备工作">APP_INITIALIZER——启动前的准备工作</a></li>
+<li><a href="#h-设计思考-zone-js-的历史使命与终结">设计思考：Zone.js 的历史使命与终结</a></li>
+<li><a href="#h-小结">小结</a></li></ul>
+</aside>
+</div>
+<button id="back-to-top" title="返回顶部">↑</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+<script>
+(function () {
+  'use strict';
+  function updateProgress() {
+    var el = document.getElementById('progress-bar');
+    if (!el) return;
+    var st = window.pageYOffset || document.documentElement.scrollTop;
+    var dh = document.documentElement.scrollHeight - window.innerHeight;
+    el.style.width = (dh > 0 ? Math.min(100, st / dh * 100) : 0) + '%';
+  }
+  function updateBackToTop() {
+    var btn = document.getElementById('back-to-top');
+    if (!btn) return;
+    btn.classList.toggle('visible', (window.pageYOffset || document.documentElement.scrollTop) > 300);
+  }
+  function updateTocActive() {
+    var hs = Array.from(document.querySelectorAll('#main h2[id]'));
+    var ls = Array.from(document.querySelectorAll('#toc-right .toc-list a'));
+    if (!hs.length || !ls.length) return;
+    var active = -1;
+    hs.forEach(function (h, i) { if (h.getBoundingClientRect().top <= 120) active = i; });
+    ls.forEach(function (a, i) { a.classList.toggle('active', i === active); });
+  }
+  window.addEventListener('scroll', function () {
+    updateProgress(); updateBackToTop(); updateTocActive();
+  }, { passive: true });
+  var btn = document.getElementById('back-to-top');
+  if (btn) btn.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof hljs !== 'undefined') hljs.highlightAll();
+    updateProgress(); updateTocActive();
+  });
+})();
+</script>
+</body>
+</html>

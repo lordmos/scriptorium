@@ -8,7 +8,7 @@
 | Agent类型 | explore |
 | 参与阶段 | Phase 3 Step 3（与R2、R3并行审查） |
 | 核心输入 | 章节草稿、对应源码文件 |
-| 核心输出 | `reviews/chXX-r1-code.md`（代码准确性报告） |
+| 核心输出 | `output/reviews/chXX-r1.md`（代码准确性报告） |
 
 ## 核心职责
 
@@ -21,13 +21,13 @@
 
 | 文件 | 说明 |
 |------|------|
-| `{{工作目录}}/drafts/chXX-draft.md` | 待审查的章节草稿 |
-| `{{工作目录}}/source-map.md` | 用于定位本章对应的源码文件 |
+| `output/chapters/draft/chXX-draft.md` | 待审查的章节草稿 |
+| `output/memory/source-map.md` | 用于定位本章对应的源码文件 |
 | `{{源码根目录}}/{{对应源码路径}}` | 实际源码文件（根据草稿中引用的路径定位） |
 
 ## 输出规格
 
-### reviews/chXX-r1-code.md
+### output/reviews/chXX-r1.md
 
 ```markdown
 # 第{{章节号}}章 代码准确性审查报告（R1）
@@ -97,15 +97,15 @@
 审查第{{章节号}}章草稿中所有代码引用的准确性。
 
 ## 输入
-- 章节草稿：{{工作目录}}/drafts/ch{{章节号}}-draft.md
-- 源码映射：{{工作目录}}/source-map.md
+- 章节草稿：output/chapters/draft/ch{{章节号}}-draft.md
+- 源码映射：output/memory/source-map.md
 - 源码根目录：{{源码根目录}}
 
 ## 审查要求
 - 逐一检查草稿中引用的每个文件路径、函数名、代码片段
 - 与实际源码比对，记录所有差异
 - 只关注代码准确性，不关注文风或术语
-- 输出审查报告到：{{工作目录}}/reviews/ch{{章节号}}-r1-code.md
+- 输出审查报告到：output/reviews/ch{{章节号}}-r1.md
 - 完成后添加 <!-- R1_CODE_REVIEW_COMPLETE -->
 ```
 

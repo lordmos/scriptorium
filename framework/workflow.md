@@ -41,36 +41,36 @@
 ```
 Step 1.1  架构师(#1) 分析{{源码仓库}}源码
           ├── 读取: {{源码根目录}}
-          ├── 输出: outline-draft.md（大纲草案）
-          └── 输出: source-map.md（源码→章节映射）
+          ├── 输出: output/memory/outline.md（大纲草案）
+          └── 输出: output/memory/source-map.md（源码→章节映射）
 
 Step 1.2  读者代言人(#2) 审核大纲
-          ├── 读取: outline-draft.md
-          ├── 输出: outline-reader-feedback.md
+          ├── 读取: output/memory/outline.md
+          ├── 输出: output/reviews/outline-reader-feedback.md
           └── 关注: 学习曲线、前置知识、章节顺序合理性
 
 Step 1.3  内容审查员(R3) 审核大纲
-          ├── 读取: outline-draft.md
-          ├── 输出: outline-r3-review.md
+          ├── 读取: output/memory/outline.md
+          ├── 输出: output/reviews/outline-r3-review.md
           └── 关注: {{敏感性检查项}}
 
 Step 1.4  用户审核定稿
           ├── 读取: 所有反馈文件
           ├── 人工决策: 接受/修改/驳回
-          └── 输出: outline-final.md（最终大纲）
+          └── 输出: output/memory/outline.md（最终大纲）
 ```
 
 ### 产出清单
 
 | 文件 | 说明 | 类型 |
 |------|------|------|
-| `outline-final.md` | 最终定稿大纲 | 静态 |
-| `source-map.md` | 源码文件→章节映射关系 | 静态 |
+| `output/memory/outline.md` | 最终定稿大纲 | 静态 |
+| `output/memory/source-map.md` | 源码文件→章节映射关系 | 静态 |
 
 ### Phase 1 交接清单
 
-- [ ] outline-final.md 已创建且经用户确认
-- [ ] source-map.md 已创建，覆盖所有关键源码文件
+- [ ] output/memory/outline.md 已创建且经用户确认
+- [ ] output/memory/source-map.md 已创建，覆盖所有关键源码文件
 - [ ] 章节数量、顺序、范围已最终确定
 - [ ] {{敏感性检查项}}已通过R3审核
 
@@ -87,27 +87,27 @@ Step 1.4  用户审核定稿
 ### 执行步骤
 
 ```
-Step 2.1  主编排(#0) 基于 outline-final.md 创建所有共享文件
-          ├── 输出: meta/glossary.md          — 术语表（初始版本）
-          ├── 输出: meta/style-guide.md       — 写作风格指南
-          ├── 输出: meta/metaphor-registry.md — 比喻注册表
-          ├── 输出: meta/chapter-summaries.md — 章节摘要（空模板）
-          └── 输出: meta/cross-references.md  — 交叉引用表（空模板）
+Step 2.1  主编排(#0) 基于 output/memory/outline.md 创建所有共享文件
+          ├── 输出: output/memory/glossary.md          — 术语表（初始版本）
+          ├── 输出: output/memory/style-guide.md       — 写作风格指南
+          ├── 输出: output/memory/metaphor-registry.md — 比喻注册表
+          ├── 输出: output/memory/chapter-summaries.md — 章节摘要（空模板）
+          └── 输出: output/memory/cross-references.md  — 交叉引用表（空模板）
 ```
 
 ### 产出清单
 
 | 文件 | 说明 | 类型 |
 |------|------|------|
-| `meta/glossary.md` | 全书术语表 | 追加 |
-| `meta/style-guide.md` | 写作风格指南 | 静态 |
-| `meta/metaphor-registry.md` | 比喻/类比注册表 | 追加 |
-| `meta/chapter-summaries.md` | 各章摘要（逐章追加） | 追加 |
-| `meta/cross-references.md` | 章节间交叉引用 | 追加 |
+| `output/memory/glossary.md` | 全书术语表 | 追加 |
+| `output/memory/style-guide.md` | 写作风格指南 | 静态 |
+| `output/memory/metaphor-registry.md` | 比喻/类比注册表 | 追加 |
+| `output/memory/chapter-summaries.md` | 各章摘要（逐章追加） | 追加 |
+| `output/memory/cross-references.md` | 章节间交叉引用 | 追加 |
 
 ### Phase 2 交接清单
 
-- [ ] meta/ 目录下所有5个文件已创建
+- [ ] output/memory/ 目录下所有5个文件已创建
 - [ ] glossary.md 包含大纲中已识别的核心术语
 - [ ] style-guide.md 包含{{写作风格要求}}
 - [ ] chapter-summaries.md 已创建空模板（每章一个占位段落）
@@ -129,9 +129,9 @@ Step 2.1  主编排(#0) 基于 outline-final.md 创建所有共享文件
 │ └──────┘      └──────┘      └──────────┘        └──────────┘    │
 │    │             │           ┌──┤├──┐            ┌──┤├──┐        │
 │    ▼             ▼           ▼  ▼  ▼            ▼  ▼  ▼         │
-│ research/     drafts/      R1  R2  R3          RS  RE  RH       │
+│ output/research/     output/chapters/draft/      R1  R2  R3          RS  RE  RH       │
 │ chXX-         chXX-        ↓   ↓   ↓           ↓   ↓   ↓       │
-│ research.md   draft.md     reviews/           reader-feedback/   │
+│ research.md   draft.md     output/reviews/           output/reviews/   │
 │                            chXX-review.md     chXX-panel.md      │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -140,12 +140,12 @@ Step 2.1  主编排(#0) 基于 outline-final.md 创建所有共享文件
 
 ```
 输入:
-  📖 source-map.md          — 定位本章对应的源码文件
-  📖 outline-final.md       — 本章的大纲要求
+  📖 output/memory/source-map.md          — 定位本章对应的源码文件
+  📖 output/memory/outline.md       — 本章的大纲要求
   📖 {{源码文件列表}}        — 实际源码文件
 
 输出:
-  ✏️ research/chXX-research.md — 源码分析报告
+  ✏️ output/research/chXX-report.md — 源码分析报告
 
 完成标记: <!-- RESEARCH_COMPLETE -->
 ```
@@ -154,14 +154,14 @@ Step 2.1  主编排(#0) 基于 outline-final.md 创建所有共享文件
 
 ```
 输入:
-  📖 research/chXX-research.md — 本章研究报告
-  📖 meta/style-guide.md       — 写作风格指南
-  📖 meta/chapter-summaries.md — 前序章节摘要
-  📖 meta/glossary.md          — 已有术语表
-  📖 meta/metaphor-registry.md — 已用比喻表
+  📖 output/research/chXX-report.md — 本章研究报告
+  📖 output/memory/style-guide.md       — 写作风格指南
+  📖 output/memory/chapter-summaries.md — 前序章节摘要
+  📖 output/memory/glossary.md          — 已有术语表
+  📖 output/memory/metaphor-registry.md — 已用比喻表
 
 输出:
-  ✏️ drafts/chXX-draft.md — 章节初稿
+  ✏️ output/chapters/draft/chXX-draft.md — 章节初稿
 
 完成标记: <!-- DRAFT_COMPLETE -->
 字数要求: {{每章目标字数}}字 ± 20%
@@ -173,22 +173,22 @@ Step 2.1  主编排(#0) 基于 outline-final.md 创建所有共享文件
 三个Reviewer并行执行，详见 review-architecture.md
 
 R1 源码审查:
-  📖 drafts/chXX-draft.md + 源码文件
-  ✏️ reviews/chXX-r1-code.md
+  📖 output/chapters/draft/chXX-draft.md + 源码文件
+  ✏️ output/reviews/chXX-r1.md
   完成标记: <!-- R1_CODE_REVIEW_COMPLETE -->
 
 R2 一致性审查:
-  📖 drafts/chXX-draft.md + 长记忆文件
-  ✏️ reviews/chXX-r2-consistency.md
+  📖 output/chapters/draft/chXX-draft.md + 长记忆文件
+  ✏️ output/reviews/chXX-r2.md
   完成标记: <!-- R2_CONSISTENCY_REVIEW_COMPLETE -->
 
 R3 内容审查:
-  📖 drafts/chXX-draft.md + style-guide
-  ✏️ reviews/chXX-r3-content.md
+  📖 output/chapters/draft/chXX-draft.md + style-guide
+  ✏️ output/reviews/chXX-r3.md
   完成标记: <!-- R3_CONTENT_REVIEW_COMPLETE -->
 
 → 三审完成后，主编排合并为:
-  ✏️ reviews/chXX-review.md
+  ✏️ output/reviews/chXX-review.md
   完成标记: <!-- REVIEW_COMPLETE -->
 ```
 
@@ -201,8 +201,8 @@ RS {{读者画像_学生}}: 评估学习曲线
 RE {{读者画像_工程师}}: 评估实用价值
 RH {{读者画像_高手}}: 评估技术深度
 
-输入: drafts/chXX-draft.md + reviews/chXX-review.md
-输出: reader-feedback/chXX-panel.md
+输入: output/chapters/draft/chXX-draft.md + output/reviews/chXX-review.md
+输出: output/reviews/chXX-panel.md
 完成标记: <!-- READER_PANEL_COMPLETE -->
 ```
 
@@ -211,10 +211,10 @@ RH {{读者画像_高手}}: 评估技术深度
 每章完成Step 4后，主编排执行:
 
 ```
-1. meta/chapter-summaries.md ← 追加本章摘要（200-300字）
-2. meta/glossary.md          ← 追加本章新增术语
-3. meta/metaphor-registry.md ← 追加本章新增比喻/类比
-4. meta/cross-references.md  ← 追加本章的交叉引用点
+1. output/memory/chapter-summaries.md ← 追加本章摘要（200-300字）
+2. output/memory/glossary.md          ← 追加本章新增术语
+3. output/memory/metaphor-registry.md ← 追加本章新增比喻/类比
+4. output/memory/cross-references.md  ← 追加本章的交叉引用点
 ```
 
 ### 并行策略
@@ -225,11 +225,11 @@ RH {{读者画像_高手}}: 评估技术深度
 
 ### Phase 3 交接清单
 
-- [ ] 所有{{章节数}}章的 research/ 文件完成且有RESEARCH_COMPLETE标记
-- [ ] 所有{{章节数}}章的 drafts/ 文件完成且有DRAFT_COMPLETE标记
-- [ ] 所有{{章节数}}章的 reviews/ 合并文件完成且有REVIEW_COMPLETE标记
-- [ ] 所有{{章节数}}章的 reader-feedback/ 文件完成且有READER_PANEL_COMPLETE标记
-- [ ] meta/ 下的追加文件已更新至最新
+- [ ] 所有{{章节数}}章的 output/research/ 文件完成且有RESEARCH_COMPLETE标记
+- [ ] 所有{{章节数}}章的 output/chapters/draft/ 文件完成且有DRAFT_COMPLETE标记
+- [ ] 所有{{章节数}}章的 output/reviews/ 合并文件完成且有REVIEW_COMPLETE标记
+- [ ] 所有{{章节数}}章的 output/reviews/ 文件完成且有READER_PANEL_COMPLETE标记
+- [ ] output/memory/ 下的追加文件已更新至最新
 - [ ] checkpoint.md 状态矩阵全部为✅
 
 ---
@@ -251,15 +251,15 @@ RH {{读者画像_高手}}: 评估技术深度
 Step 4.1  全书通读与统稿
           ├── 逐章检查行文连贯性
           ├── 统一过渡段落
-          └── 输出: chapters/chXX.md（最终定稿版本，每章一个）
+          └── 输出: output/chapters/final/chXX-final.md（最终定稿版本，每章一个）
 
 Step 4.2  交叉引用验证
-          ├── 读取: meta/cross-references.md
+          ├── 读取: output/memory/cross-references.md
           ├── 验证所有"参见第X章"引用的正确性
           └── 修正错误引用
 
 Step 4.3  术语一致性最终检查
-          ├── 读取: meta/glossary.md
+          ├── 读取: output/memory/glossary.md
           ├── 全书搜索术语使用是否一致
           └── 修正不一致处
 
@@ -298,9 +298,9 @@ Step 4.4  敏感性全面排查
 
 ```
 Step 5.1  Markdown → HTML 转换
-          ├── 读取: chapters/*.md
+          ├── 读取: output/chapters/final/*.md
           ├── 应用HTML模板
-          └── 输出: publish/chXX.html
+          └── 输出: output/publish/chXX.html
 
 Step 5.2  代码块高亮
           ├── 对所有代码块应用语法高亮
@@ -311,12 +311,12 @@ Step 5.3  图表转换
           └── 嵌入HTML页面
 
 Step 5.4  导航系统
-          ├── 生成目录页: publish/index.html
+          ├── 生成目录页: output/publish/index.html
           ├── 章节间前后导航链接
           └── 侧边栏目录
 
 Step 5.5  样式美化
-          ├── 应用CSS样式: publish/style.css
+          ├── 应用CSS样式: output/publish/style.css
           ├── 响应式布局
           └── 代码块样式、引用样式、表格样式
 ```
@@ -325,10 +325,10 @@ Step 5.5  样式美化
 
 | 文件 | 说明 |
 |------|------|
-| `publish/index.html` | 目录首页 |
-| `publish/ch01.html` ~ `publish/ch{{章节数}}.html` | 各章HTML |
-| `publish/style.css` | 全书样式表 |
-| `publish/assets/` | 图表、图片等静态资源 |
+| `output/publish/index.html` | 目录首页 |
+| `output/publish/ch01.html` ~ `output/publish/ch{{章节数}}.html` | 各章HTML |
+| `output/publish/style.css` | 全书样式表 |
+| `output/publish/assets/` | 图表、图片等静态资源 |
 
 ### Phase 5 交接清单
 
@@ -348,9 +348,9 @@ Step 5.5  样式美化
 触发条件: R1/R2/R3任一给出 ❌（严重问题）
 
 处理流程:
-  1. 主编排读取 reviews/chXX-review.md 中的❌项
+  1. 主编排读取 output/reviews/chXX-review.md 中的❌项
   2. 将❌项连同原draft一起发送给作家(#4)
-  3. 作家输出修订版: drafts/chXX-draft-v2.md
+  3. 作家输出修订版: output/chapters/draft/chXX-draft-v2.md
   4. 重新触发对应的审查（仅重审给出❌的reviewer）
   5. 如果再次不通过，升级为人工干预
 
@@ -427,10 +427,10 @@ _FINAL              _COMPLETE
 
 ```bash
 # 检测单个文件的完成标记
-grep -l "RESEARCH_COMPLETE" research/ch*.md
+grep -l "RESEARCH_COMPLETE" output/research/ch*.md
 
 # 检测所有章节的写作完成状态
-for f in drafts/ch*-draft.md; do
+for f in output/chapters/draft/ch*-draft.md; do
   if grep -q "DRAFT_COMPLETE" "$f"; then
     echo "✅ $f"
   else
@@ -448,11 +448,11 @@ done
 
 | Phase | 交接前必须确认 | 确认方式 |
 |-------|---------------|---------|
-| 1→2 | outline-final.md存在且经用户确认 | 文件存在 + 用户口头确认 |
-| 2→3 | meta/下5个文件全部创建 | 文件存在检查 |
+| 1→2 | output/memory/outline.md存在且经用户确认 | 文件存在 + 用户口头确认 |
+| 2→3 | output/memory/下5个文件全部创建 | 文件存在检查 |
 | 3→4 | 所有章节4步流水线完成 | checkpoint.md全✅ |
 | 4→5 | chapters/下所有章节定稿 + 审计报告无❌ | 文件存在 + 标记检测 |
-| 5→发布 | publish/下所有HTML + 导航可用 | 文件存在 + 浏览器验证 |
+| 5→发布 | output/publish/下所有HTML + 导航可用 | 文件存在 + 浏览器验证 |
 
 ---
 

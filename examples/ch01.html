@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第1章：宏观架构——Angular 的世界观 | Angular 源码深度解析</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: #FEFCF8;
+  color: #2C2C2C;
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.85;
+}
+/* Progress bar */
+#progress-bar {
+  position: fixed; top: 0; left: 0; width: 0%; height: 3px;
+  background: #C7553A; z-index: 2000; transition: width 0.08s linear;
+}
+/* Layout */
+#layout { display: flex; min-height: 100vh; }
+/* Left sidebar */
+#sidebar {
+  position: fixed; top: 3px; left: 0;
+  width: 260px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-right: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100;
+}
+.sidebar-header { padding: 22px 18px 14px; border-bottom: 1px solid #E8E2D8; }
+.sidebar-title {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  font-size: 1em; font-weight: 700; color: #1A1A1A; line-height: 1.4; margin-bottom: 5px;
+}
+.sidebar-subtitle { font-size: 0.7em; color: #999; line-height: 1.4; }
+.sidebar-nav { padding: 10px 8px 24px; }
+.sidebar-nav a {
+  display: block; padding: 6px 12px; border-radius: 5px;
+  color: #444; font-size: 0.82em; text-decoration: none;
+  line-height: 1.45; margin-bottom: 2px; word-break: break-all;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar-nav a:hover { background: #EDE7DD; color: #1A1A1A; }
+.sidebar-nav a.active { background: #E8DDD0; color: #C7553A; font-weight: 600; }
+/* Main content */
+#main { margin-left: 260px; margin-right: 224px; padding: 48px 52px 80px; min-height: 100vh; }
+/* Right TOC */
+#toc-right {
+  position: fixed; top: 3px; right: 0;
+  width: 224px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-left: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100; padding: 22px 14px;
+}
+.toc-title {
+  font-size: 0.68em; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #aaa; margin-bottom: 10px;
+}
+.toc-list { list-style: none; }
+.toc-list li { margin-bottom: 3px; }
+.toc-list li a {
+  display: block; padding: 3px 8px; font-size: 0.77em; color: #666;
+  text-decoration: none; border-left: 2px solid transparent;
+  line-height: 1.4; word-break: break-all;
+  transition: color 0.15s, border-color 0.15s;
+}
+.toc-list li a:hover { color: #C7553A; }
+.toc-list li a.active { color: #C7553A; border-left-color: #C7553A; font-weight: 600; }
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  color: #1A1A1A; line-height: 1.4;
+  margin-top: 1.8em; margin-bottom: 0.55em;
+}
+h1 { font-size: 2.1em; margin-top: 0; padding-bottom: 0.35em; border-bottom: 2px solid #C7553A; }
+h2 { font-size: 1.55em; padding-bottom: 0.28em; border-bottom: 1px solid #E8E2D8; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1.08em; }
+h5 { font-size: 1em; }
+h6 { font-size: 0.95em; color: #666; }
+p { margin-bottom: 1em; }
+strong { color: #1A1A1A; font-weight: 700; }
+em { font-style: italic; }
+del { text-decoration: line-through; color: #999; }
+/* Links */
+a { color: #4A7C9B; text-decoration: none; }
+a:hover { text-decoration: underline; color: #3a6c8b; }
+/* Code */
+code {
+  font-family: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Courier New", monospace;
+  font-size: 0.875em; background: #F5F2ED; padding: 0.15em 0.38em;
+  border-radius: 3px; border: 1px solid #E0D9CF; word-break: break-all;
+}
+pre {
+  background: #F5F2ED; padding: 18px 22px; border-radius: 8px;
+  overflow-x: auto; margin: 1.4em 0; border: 1px solid #E0D9CF; line-height: 1.6;
+}
+pre code { background: none; padding: 0; border: none; border-radius: 0; font-size: 0.84em; word-break: normal; }
+.hljs { background: #F5F2ED !important; }
+/* Blockquote */
+blockquote {
+  margin: 1.4em 0; padding: 14px 20px;
+  border-left: 4px solid #C7553A;
+  background: linear-gradient(to right, #FFF9F5, #FEFCF8);
+  border-radius: 0 6px 6px 0;
+}
+blockquote p { margin: 0; color: #555; font-style: italic; }
+/* Lists */
+ul, ol { padding-left: 1.8em; margin-bottom: 1em; }
+li { margin-bottom: 0.38em; }
+li p { margin: 0; }
+/* Tables */
+.table-wrap { overflow-x: auto; margin: 1.4em 0; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+th, td { padding: 9px 13px; border: 1px solid #E8E2D8; text-align: left; vertical-align: top; }
+th { background: #F5F2ED; font-weight: 600; color: #1A1A1A; white-space: nowrap; }
+tr:nth-child(even) td { background: #FDFAF5; }
+/* HR */
+hr { border: none; border-top: 1px solid #E8E2D8; margin: 2.2em 0; }
+/* Images */
+img { max-width: 100%; height: auto; border-radius: 4px; display: block; margin: 1em auto; }
+/* Mermaid */
+.mermaid {
+  margin: 1.6em 0; padding: 20px;
+  background: #FDFAF5; border: 1px solid #E8E2D8; border-radius: 8px;
+  text-align: center; overflow-x: auto;
+}
+/* Chapter nav */
+.chapter-nav {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 4em; padding-top: 1.8em; border-top: 2px solid #E8E2D8; gap: 12px;
+}
+.chapter-nav a {
+  display: inline-flex; align-items: center; padding: 10px 16px;
+  background: #F5F2ED; border: 1px solid #E8E2D8; border-radius: 6px;
+  color: #4A7C9B; font-size: 0.85em; text-decoration: none; max-width: 46%;
+  word-break: break-all; line-height: 1.4;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.chapter-nav a:hover { background: #EDE7DD; border-color: #C7553A; color: #C7553A; text-decoration: none; }
+.chapter-nav span { flex: 1; }
+/* Back to top */
+#back-to-top {
+  position: fixed; bottom: 28px; right: 240px;
+  width: 42px; height: 42px; background: #C7553A; color: #fff;
+  border: none; border-radius: 50%; cursor: pointer;
+  font-size: 18px; font-weight: bold; display: none;
+  align-items: center; justify-content: center; z-index: 500;
+  box-shadow: 0 2px 12px rgba(199,85,58,0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+#back-to-top.visible { display: flex; }
+#back-to-top:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(199,85,58,0.5); }
+/* Index page */
+.index-hero {
+  text-align: center; padding: 44px 0 52px;
+  border-bottom: 1px solid #E8E2D8; margin-bottom: 52px;
+}
+.index-hero h1 { font-size: 2.6em; border: none; margin-bottom: 14px; padding: 0; }
+.index-hero .subtitle { font-size: 1.08em; color: #666; font-style: italic; margin: 0; }
+.index-intro { margin-bottom: 48px; }
+.index-intro p { font-size: 1.05em; margin-bottom: 1.2em; }
+.index-toc { margin-bottom: 48px; }
+.chapter-list { padding-left: 0; list-style: none; }
+.chapter-list li {
+  margin-bottom: 10px; padding: 13px 20px;
+  background: #F8F4EE; border-radius: 8px; border: 1px solid #E8E2D8;
+  transition: background 0.15s, border-color 0.15s;
+}
+.chapter-list li:hover { background: #EDE7DD; border-color: #C7553A; }
+.chapter-list li a { color: #1A1A1A; font-size: 1em; font-weight: 500; text-decoration: none; }
+.chapter-list li a:hover { color: #C7553A; text-decoration: none; }
+.index-audience { margin-bottom: 48px; }
+.index-audience ul { padding-left: 0; list-style: none; }
+.index-audience li { padding: 10px 0; border-bottom: 1px solid #EEE9E0; font-size: 0.95em; }
+/* Responsive */
+@media (max-width: 1200px) {
+  #toc-right { display: none; }
+  #main { margin-right: 0; }
+  #back-to-top { right: 24px; }
+}
+@media (max-width: 900px) { #main { padding: 32px 28px 60px; } }
+@media (max-width: 768px) {
+  #sidebar { display: none; }
+  #main { margin-left: 0; padding: 24px 18px 60px; }
+  h1 { font-size: 1.75em; }
+  h2 { font-size: 1.35em; }
+}
+@media print {
+  #sidebar, #toc-right, #progress-bar, #back-to-top, .chapter-nav { display: none !important; }
+  #main { margin: 0; padding: 0; max-width: 100%; }
+}
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div id="layout">
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">📖 Angular 源码深度解析</div>
+      <div class="sidebar-subtitle">深入 Angular 17+ 运行时、编译器与响应式系统的源码之旅</div>
+    </div>
+    <div class="sidebar-nav">
+      <a href="index.html">📚 目录首页</a>
+<a href="ch01.html" class="active">第1章：宏观架构——Angular 的世界观</a>
+<a href="ch02.html">第2章：从零启动——bootstrapApplication 的旅程</a>
+<a href="ch03.html">第3章：依赖注入——框架的神经系统</a>
+<a href="ch04.html">第4章：模板编译器——从 HTML 到指令序列</a>
+<a href="ch05.html">第5章：Ivy 渲染引擎——LView 的生命</a>
+<a href="ch06.html">第6章：变更检测——Angular 如何知道界面需要更新</a>
+<a href="ch07.html">第7章：Signals——细粒度响应式的实现</a>
+<a href="ch08.html">第8章：组件模型——从装饰器到运行时对象</a>
+<a href="ch09.html">第9章：路由系统——URL 与组件树的映射</a>
+<a href="ch10.html">第10章：服务端渲染与水合——让 Angular 应用「秒开」</a>
+
+    </div>
+  </nav>
+  <main id="main">
+    <h1 id="h-第1章-宏观架构-angular-的世界观">第1章：宏观架构——Angular 的世界观</h1>
+<p>当你在编辑器里敲下这几行代码，按下保存键：</p>
+<pre><code class="language-typescript">@Component({
+  selector: 'app-hello',
+  template: `&lt;h1&gt;你好，{{ name }}&lt;/h1&gt;`
+})
+export class HelloComponent {
+  name = 'Angular';
+}</code></pre>
+<p>你可能以为只是声明了一个简单的组件。实际上，这几行字符在构建阶段和运行时各触发了一段复杂的协作链：编译器把模板翻译成一串 JavaScript 函数调用；运行时引擎用这串调用创建真实的 DOM 节点；DI 系统在整个过程中静静等待，准备向任何需要依赖的地方递送服务实例；变更检测机制则持续监视着 <code>name</code> 的值，一旦它改变就精准地更新那个 <code>&lt;h1&gt;</code> 里的文本。</p>
+<p>这背后牵涉的，不是一个 package，而是整整一个精心分层的 monorepo——Angular 的源码世界。</p>
+<p>读完本章，你应该能够回答两个问题：当你写下 <code>@Component(...)</code> 时，哪些 package 在参与工作？Angular 为什么要设计成这种分层结构，而不是&quot;一个大 <code>angular.js</code>&quot;？</p>
+<hr>
+<h2 id="h-一个仓库-二十个包-monorepo-的全景图">一个仓库，二十个包——monorepo 的全景图</h2>
+<p>Angular 的所有源码（包括框架核心、路由、表单、动画、SSR、语言服务……）都住在同一个 Git 仓库：<a href="https://github.com/angular/angular">github.com/angular/angular</a>。这就是 monorepo（单体仓库）策略——多个独立发布的 npm 包统一在一个代码仓库里管理。</p>
+<p><code>packages/</code> 目录是整个仓库的心脏。打开它，你会看到 20 多个子目录，每个对应一个独立的 npm 包。按职责划分，它们大致分为三层：</p>
+<h3 id="h-核心层-框架的基础设施">核心层：框架的基础设施</h3>
+<div class="table-wrap"><table><thead><tr><th>Package</th><th>npm 包名</th><th>职责</th></tr></thead><tbody><tr><td><code>core</code></td><td><code>@angular/core</code></td><td>框架核心：render3 引擎、依赖注入（Dependency Injection，DI）、变更检测、组件生命周期</td></tr><tr><td><code>compiler</code></td><td><code>@angular/compiler</code></td><td>模板编译器：HTML 模板 → JavaScript 渲染指令序列</td></tr><tr><td><code>compiler-cli</code></td><td><code>@angular/compiler-cli</code></td><td>AOT 编译 CLI 插件（ngtsc），嵌入 TypeScript 编译流水线</td></tr></tbody></table></div>
+<p>这三个包之间的关系，是理解 Angular 架构的第一把钥匙——后面的章节会不断回到这里。</p>
+<p>💡 <strong>为什么 Angular 需要自有编译器</strong>：React 的 JSX 转换由 Babel/swc 这样的通用工具完成，不需要框架专属的编译器包。Angular 选择自有编译器，是因为模板中的 <code>[property]</code> 绑定、<code>(event)</code> 事件处理、DI 装饰器等语义超出了通用工具的理解范围。自有编译器的代价是更重的工具链，收益是类型安全的模板检查、精准的 IDE 语言服务，以及针对 Angular 语义的高效代码生成。</p>
+<h3 id="h-平台层-适配不同运行环境">平台层：适配不同运行环境</h3>
+<div class="table-wrap"><table><thead><tr><th>Package</th><th>npm 包名</th><th>职责</th></tr></thead><tbody><tr><td><code>platform-browser</code></td><td><code>@angular/platform-browser</code></td><td>浏览器平台：DOM 渲染器、<code>bootstrapApplication</code> 入口</td></tr><tr><td><code>platform-browser-dynamic</code></td><td><code>@angular/platform-browser-dynamic</code></td><td>JIT 路径的浏览器平台（开发调试场景）</td></tr><tr><td><code>platform-server</code></td><td><code>@angular/platform-server</code></td><td>服务端渲染（SSR）平台：Node.js 环境下运行 Angular</td></tr><tr><td><code>ssr</code></td><td><code>@angular/ssr</code></td><td>SSR 工具包：服务端渲染的高层封装</td></tr></tbody></table></div>
+<p>Angular 把&quot;框架核心&quot;与&quot;运行平台&quot;彻底分离。<code>@angular/core</code> 本身不知道自己运行在浏览器还是 Node.js——它只描述行为；平台包负责告诉它具体如何操作 DOM（或虚拟 DOM）。</p>
+<h3 id="h-功能层-开箱即用的特性">功能层：开箱即用的特性</h3>
+<div class="table-wrap"><table><thead><tr><th>Package</th><th>npm 包名</th><th>职责</th></tr></thead><tbody><tr><td><code>router</code></td><td><code>@angular/router</code></td><td>路由系统：URL 解析、路由守卫、懒加载</td></tr><tr><td><code>forms</code></td><td><code>@angular/forms</code></td><td>表单：响应式表单与模板驱动表单</td></tr><tr><td><code>common</code></td><td><code>@angular/common</code></td><td>通用 pipe 与 directive（<code>NgIf</code>、<code>NgFor</code>、<code>AsyncPipe</code> 等）</td></tr><tr><td><code>animations</code></td><td><code>@angular/animations</code></td><td>动画引擎</td></tr><tr><td><code>elements</code></td><td><code>@angular/elements</code></td><td>Angular 组件 → Web Components</td></tr><tr><td><code>service-worker</code></td><td><code>@angular/service-worker</code></td><td>PWA Service Worker 支持</td></tr><tr><td><code>localize</code></td><td><code>@angular/localize</code></td><td>i18n 国际化</td></tr></tbody></table></div>
+<p>功能层的每个包都仅依赖 <code>@angular/core</code>，彼此之间几乎没有依赖关系。这种辐射状拓扑（而非链式依赖）确保了各功能的独立性——你可以只安装你需要的包，不用的包不会进入应用的包体积，摇树优化（tree-shaking）可以精准地将其移除。</p>
+<p>除了这三层之外，还有一类特殊的&quot;隐形包&quot;：<code>packages/core/primitives/</code> 下的子目录（<code>signals/</code>、<code>di/</code>、<code>event-dispatch/</code> 等）。它们<strong>不独立发布为 npm 包</strong>，而是直接编译进 <code>@angular/core</code> 中。以后当我们深入 Signals 系统（第7章），就会在 <code>packages/core/primitives/signals/</code> 里找到那些响应式原语的真身。</p>
+<p>下图展示了这些核心包之间的依赖关系：</p>
+<div class="mermaid">graph LR
+  CLI[&quot;@angular/compiler-cli&lt;br/&gt;(ngtsc, AOT 编译入口)&quot;]
+  C[&quot;@angular/compiler&lt;br/&gt;(模板编译 API)&quot;]
+  CORE[&quot;@angular/core&lt;br/&gt;(render3 / DI / 变更检测)&quot;]
+  PB[&quot;@angular/platform-browser&quot;]
+  R[&quot;@angular/router&quot;]
+  F[&quot;@angular/forms&quot;]
+  CMN[&quot;@angular/common&quot;]
+  SIG[&quot;primitives/signals&lt;br/&gt;(内部，不独立发布)&quot;]
+
+  CLI --&gt; C
+  CLI --&gt; CORE
+  C --&gt; CORE
+  PB --&gt; CORE
+  R --&gt; CORE
+  F --&gt; CORE
+  CMN --&gt; CORE
+  CORE --&gt; SIG
+
+  style SIG fill:#f5f5f5,stroke:#aaa,stroke-dasharray: 5 5</div>
+<p>💡 <strong>关于 Bazel</strong>：Angular monorepo 内部使用 Google 的 Bazel 构建系统（而非 npm workspace）管理这二十多个包的构建、测试和依赖。每个目录下都有一个 <code>BUILD.bazel</code> 文件描述该目录的构建目标。对应用开发者来说，Bazel 完全透明——你只需要 <code>npm install @angular/core</code>，深入理解 Bazel 对阅读本书并非必要。</p>
+<p>💡 <strong>monorepo 的工程代价</strong>：将所有 package 放在同一仓库，对 Angular 团队有显著的工程优势：一个 Pull Request 可以同时修改 <code>@angular/core</code> 和 <code>@angular/router</code>，不需要跨仓库协调版本；Bazel 通过文件内容哈希精确追踪变更，只重建受影响的包，CI 速度极快。代价也是真实的：克隆仓库需要下载整个 Angular 代码库，本地运行完整构建需要配置 Bazel 环境，门槛不低——但这不影响你阅读本书的任何章节。</p>
+<hr>
+<h2 id="h-编译时与运行时的分离">编译时与运行时的分离</h2>
+<p>三个核心包中，最值得注意的是 <code>compiler-cli</code>、<code>compiler</code>、<code>core</code> 之间的分工。这个分工，是读懂后续所有章节的基础。</p>
+<h3 id="h-两条时间线">两条时间线</h3>
+<p>Angular 的工作横跨两个完全不同的时间点：</p>
+<p><strong>构建阶段</strong>（你在开发机上运行 <code>ng build</code> 时）：</p>
+<ul><li><code>@angular/compiler-cli</code>（又名 <strong>ngtsc</strong>）作为 TypeScript 编译器插件被加载</li><li>它扫描你的代码，找到所有 <code>@Component</code>、<code>@Directive</code>、<code>@Injectable</code> 装饰器</li><li>调用 <code>@angular/compiler</code> 的模板编译 API，将每个组件的 HTML 模板转换为一段 JavaScript 渲染指令序列</li><li>在每个类上添加静态字段 <code>ɵcmp</code>（<code>ComponentDef</code>，组件运行时定义）等</li><li>最终输出的 <code>.js</code> 文件里，已经<strong>没有模板字符串</strong>，只有编译好的 JavaScript</li></ul>
+<p><strong>运行阶段</strong>（用户打开浏览器时）：</p>
+<ul><li>浏览器加载编译后的 <code>.js</code> 文件</li><li><code>@angular/core</code> 中的 render3 引擎读取各组件的 <code>ɵcmp</code> 字段</li><li>按照其中记录的模板函数（<code>ComponentDef.template</code>）执行渲染指令（instruction），创建 DOM</li><li>依赖注入（Dependency Injection，DI）、变更检测、生命周期钩子在应用运行期间持续工作</li></ul>
+<p>这就是 AOT（Ahead-of-Time，预编译）的本质：<strong>把&quot;解析模板&quot;这件事从运行时提前到构建时</strong>。</p>
+<div class="mermaid">flowchart LR
+  subgraph BUILD[&quot;构建阶段（开发机）&quot;]
+    direction TB
+    TS[&quot;你的 TypeScript&lt;br/&gt;+ HTML 模板&quot;]
+    NGTSC[&quot;compiler-cli&lt;br/&gt;(ngtsc)&quot;]
+    COMPILER[&quot;@angular/compiler&lt;br/&gt;模板编译 API&quot;]
+    JS[&quot;编译后的 .js&lt;br/&gt;（含 ɵcmp 定义）&quot;]
+    TS --&gt; NGTSC --&gt; COMPILER --&gt; JS
+  end
+  subgraph RUNTIME[&quot;运行阶段（浏览器）&quot;]
+    direction TB
+    CORE[&quot;@angular/core&lt;br/&gt;render3 引擎&quot;]
+    DOM[&quot;DOM 树&quot;]
+    CORE --&gt; DOM
+  end
+  JS --&gt; CORE
+  style BUILD fill:#e8f4fd,stroke:#2196F3
+  style RUNTIME fill:#e8f5e9,stroke:#4CAF50</div>
+<h3 id="h-运行时不需要-compiler">运行时不需要 compiler</h3>
+<p>这里有一个<strong>关键设计原则</strong>：<code>@angular/compiler</code> 这个包在生产应用中<strong>不应该被打包进去</strong>。</p>
+<p>AOT 编译后，所有模板翻译工作已在构建阶段完成。运行时的 <code>@angular/core</code> 只需读取已翻译好的 <code>ComponentDef</code>，完全不需要再调用 <code>@angular/compiler</code> 的任何 API。如果你发现生产包里包含了 <code>@angular/compiler</code>，那几乎一定是某处代码触发了 JIT 路径（运行时编译，Just-in-Time compilation），是一个需要修复的配置问题。</p>
+<p><code>@angular/core</code> 里确实有一个叫 <code>compiler-facade</code> 的轻量桥接层（<code>packages/core/src/compiler/compiler_facade.ts</code>），允许少量必须在运行时编译的场景（如 <code>TestBed</code>）动态引入 compiler，但它只是一个接口约定，不含 compiler 的实际实现。</p>
+<p>这个设计让功能层的包（<code>router</code>、<code>forms</code> 等）在运行时只依赖 <code>@angular/core</code>，避免了无谓的包体积膨胀。</p>
+<hr>
+<h2 id="h-ivy-革命-从全局编译到局部编译">Ivy 革命——从全局编译到局部编译</h2>
+<p>理解了编译时与运行时的分离，下一个问题是：Angular v9 之前的 View Engine 引擎也有编译器，为什么还要推倒重来搞 Ivy？</p>
+<h3 id="h-view-engine-的症结">View Engine 的症结</h3>
+<p>View Engine 时代（Angular v2—v8），模板编译产物高度依赖 NgModule 的全局命名空间。编译一个组件时，编译器需要知道&quot;这个组件所在的 NgModule 里声明了哪些指令（directive）和 pipe 可供使用&quot;。这导致了几个连锁问题：</p>
+<ul><li><strong>无法独立编译</strong>：编译组件 A 之前必须先知道它所在模块的完整依赖图，不能把一个组件单独送进编译器出来就能用</li><li><strong>无法摇树优化</strong>：引入某个 NgModule，它里面所有声明的组件、指令（directive）、pipe 都会被打包——即使你的模板只用了其中一个</li><li><strong>包体积居高不下</strong>：全局编译的特性使得未使用的代码路径难以被静态分析工具识别和移除</li></ul>
+<div class="mermaid">flowchart TD
+  subgraph VE[&quot;View Engine：全局编译&quot;]
+    CA[&quot;组件 A&quot;]
+    CB[&quot;组件 B&quot;]
+    CC[&quot;组件 C&quot;]
+    NM[&quot;NgModule&lt;br/&gt;全局命名空间&lt;br/&gt;所有声明都在这里&quot;]
+    CA --&gt; NM
+    CB --&gt; NM
+    CC --&gt; NM
+    NM --&gt; RUNTIME_VE[&quot;运行时&lt;br/&gt;（需要全局上下文）&quot;]
+  end
+  subgraph IVY[&quot;Ivy：局部编译&quot;]
+    DA[&quot;组件 A&lt;br/&gt;ɵcmp 自给自足&quot;]
+    DB[&quot;组件 B&lt;br/&gt;ɵcmp 自给自足&quot;]
+    DC[&quot;组件 C&lt;br/&gt;ɵcmp 自给自足&quot;]
+    DA --&gt; RUNTIME_IVY[&quot;运行时&quot;]
+    DB --&gt; RUNTIME_IVY
+    DC --&gt; RUNTIME_IVY
+  end
+  style VE fill:#fff3e0,stroke:#FF9800
+  style IVY fill:#e8f5e9,stroke:#4CAF50</div>
+<h3 id="h-局部编译原则-locality-principle">局部编译原则（Locality Principle）</h3>
+<p>Ivy 的根本改变是引入了<strong>局部编译原则（Locality Principle）</strong>：每个组件/指令（directive）/pipe 的编译产物必须是自给自足的，不依赖任何外部的全局状态。</p>
+<p>编译一个组件，只需要看这个组件本身的源文件，加上它 <code>imports</code> 数组中直接列出的依赖——不需要知道任何 NgModule 上下文。编译产物中的 <code>ɵcmp</code>（<code>ComponentDef</code>）包含了运行时所需的一切信息。</p>
+<p>这个原则的直接后果是：</p>
+<ul><li><strong>可独立编译</strong>：每个组件可以单独编译、单独缓存，增量重编译速度大幅提升</li><li><strong>精准摇树优化</strong>：组件的依赖关系被精确编码在 <code>ɵcmp.dependencies</code> 字段里，只有真正使用到的组件才会被打包</li><li><strong>standalone 成为可能</strong>：没有全局命名空间的依赖，NgModule 就不再是必须的</li></ul>
+<p>这个设计是有意识的权衡。局部编译放弃了编译器的&quot;全知视角&quot;——某些需要跨组件信息的分析（如精确的未使用代码检测）无法在单组件编译时完成，留到打包工具（Webpack/esbuild）的链接（linking）阶段处理，这也是 Angular 构建仍然需要打包工具的原因之一。换来的是组件级别的独立编译缓存和精准摇树优化，对大型项目的增量构建速度和产物体积意义重大。</p>
+<h3 id="h-componentdef-cmp-是什么">ComponentDef：ɵcmp 是什么</h3>
+<p>编译器为每个组件类生成的 <code>ɵcmp</code> 字段，其类型就是 <code>ComponentDef&lt;T&gt;</code>。这个对象贯穿本书所有章节，是理解 Angular 运行时的核心数据结构（第5章 LView 解剖时，我们会与它逐字段打交道）：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/interfaces/definition.ts（节选）
+export interface ComponentDef&lt;T&gt; extends DirectiveDef&lt;T&gt; {
+  readonly template: ComponentTemplate&lt;T&gt;;           // 编译后的模板函数（核心！）
+  readonly dependencies: ReadonlyArray&lt;...&gt;;         // 直接依赖列表（局部编译的关键）
+  readonly standalone: boolean;                      // 是否为 standalone 组件
+  // ... 更多字段见下表 ...
+}</code></pre>
+<p>其余关键字段：</p>
+<div class="table-wrap"><table><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody><tr><td><code>type</code></td><td><code>Type&lt;T&gt;</code></td><td>组件类引用（如 <code>HelloComponent</code>）</td></tr><tr><td><code>selectors</code></td><td><code>CssSelectorList</code></td><td>CSS 选择器（如 <code>[app-hello]</code>）</td></tr><tr><td><code>decls</code></td><td><code>number</code></td><td>视图中节点数量（决定 LView 大小）</td></tr><tr><td><code>vars</code></td><td><code>number</code></td><td>绑定变量数量（<code>{{ name }}</code> 算一个）</td></tr><tr><td><code>inputs</code></td><td>`Record&lt;string, [minifiedName: string, flags: number, transform: InputTransformFunction \</td><td>null]&gt;`</td><td><code>@Input</code> 映射，含标志位与转换函数</td></tr><tr><td><code>outputs</code></td><td><code>Record&lt;string, string&gt;</code></td><td><code>@Output</code> 映射</td></tr><tr><td><code>tView</code></td><td>`TView \</td><td>null`</td><td>关联的静态视图元数据（框架运行时填充，在实例间共享）</td></tr></tbody></table></div>
+<p><code>ComponentDef.template</code> 字段就是编译后的模板函数——一段 JavaScript 函数，通过调用一系列 <code>ɵɵelementStart</code>、<code>ɵɵproperty</code>、<code>ɵɵtext</code> 等渲染指令（instruction）来描述如何创建和更新视图。我们在第5章会逐字解剖这个函数。</p>
+<h3 id="h-前缀的含义">ɵɵ 前缀的含义</h3>
+<p>你在源码中会看到大量 <code>ɵɵ</code> 前缀的函数。下面是编译器为 <code>&lt;h1&gt;你好，{{ name }}&lt;/h1&gt;</code> 生成的代码示例：</p>
+<pre><code class="language-typescript">// 编译器生成，非手写
+// 对应模板：&lt;h1&gt;你好，{{ name }}&lt;/h1&gt;
+function HelloComponent_Template(rf: RenderFlags, ctx: HelloComponent) {
+  if (rf &amp; RenderFlags.Create) {    // 创建阶段：构建 DOM 结构
+    ɵɵelementStart(0, 'h1');        // 创建 &lt;h1&gt; 节点，索引 0
+    ɵɵtext(1);                      // 创建文本节点，索引 1
+    ɵɵelementEnd();                 // 闭合 &lt;h1&gt;
+  }
+  if (rf &amp; RenderFlags.Update) {   // 更新阶段：响应数据变化
+    ɵɵadvance(1);                   // 移动指针到索引 1（文本节点）
+    ɵɵtextInterpolate1('你好，', ctx.name, ''); // 更新文本内容
+  }
+}</code></pre>
+<p>Angular 核心文档对这些函数的定位说得很清楚：</p>
+<blockquote><p>&quot;Ivy exports a number of functions prefixed with ɵɵ. These functions are part of API required for code generation by the Angular compiler. They are not meant for developer consumption.&quot;<br>
+——<code>packages/core/src/render3/CODE_GEN_API.md</code></p></blockquote>
+<p><code>ɵɵ</code> 双前缀是一个强信号：这是<strong>编译器生成代码专用的 API</strong>，框架可以随时修改其签名而不视为破坏性变更。单 <code>ɵ</code> 前缀则是框架内部 API，不属于公开稳定 API，但未必是编译器专用的。</p>
+<blockquote><p>🔗 <strong>交叉引用</strong>：第4章「模板编译器」会完整追踪模板如何一步步被翻译成这些 <code>ɵɵ</code> 函数调用；第5章「Ivy 渲染引擎」会详细解析 <code>ɵɵelementStart</code> 等函数内部如何操作 LView。</p></blockquote>
+<hr>
+<h2 id="h-standalone-的演进">Standalone 的演进</h2>
+<p>理解了局部编译原则，再回头看 standalone API 的出现就水到渠成了。</p>
+<h3 id="h-ngmodule-历史的产物">NgModule：历史的产物</h3>
+<p>在 Ivy 之前，NgModule 是 Angular 编译模型的必要组成部分——它为全局编译提供命名空间，告诉编译器&quot;哪些组件/指令（directive）/pipe 可以在哪个模板里使用&quot;。</p>
+<p>Ivy 的局部编译原则让每个组件的依赖关系直接编码在自身的 <code>ɵcmp.dependencies</code> 字段里。NgModule 作为&quot;编译上下文提供者&quot;的角色，理论上已经可以退场了。但一套被广泛使用了多年的 API，退场需要时间。</p>
+<p>从 NgModule 强制必须（v2—v13）到 standalone 开发者预览（v14，2022年），再到成为新项目默认模式（v17，2023年），直至 NgModule 进入维护模式（v19，2024年）——这条路走了整整八年，体现了 Angular 架构演进的一贯哲学：新特性尽可能复用现有基础设施，给生态充足的迁移时间。</p>
+<h3 id="h-standalone-的实现层面">standalone 的实现层面</h3>
+<p>standalone 在框架内部的实现出奇地简单——它只是 <code>ComponentDef</code> 上的一个布尔字段：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/def_getters.ts
+export function isStandalone(type: Type&lt;unknown&gt;): boolean {
+  // Try to get component def, directive def or pipe def
+  const def = getComponentDef(type) || getDirectiveDef(type) || getPipeDef(type);
+  // standalone is a simple boolean field on ComponentDef
+  return def !== null &amp;&amp; def.standalone;
+}</code></pre>
+<p>当你写 <code>@Component({ standalone: true })</code>，编译器在生成 <code>ɵcmp</code> 时会把 <code>standalone</code> 字段设为 <code>true</code>；框架运行时通过 <code>isStandalone()</code> 检查这个字段，决定是否需要走 NgModule 的解析逻辑。</p>
+<p>standalone 并不是一个全新的底层机制——它是编译器和运行时在现有 Ivy 架构上的一层判断分支。这也说明 Angular 的架构演进是渐进式的：新特性尽可能复用现有基础设施，而不是推倒重建。</p>
+<blockquote><p>⚠️ <strong>版本注意</strong>：v19 之前的项目在迁移到 standalone 时，NgModule 可以与 standalone 组件混用。<code>isStandalone()</code> 是判断运行时行为的关键函数，在第3章（DI 作用域）中我们会再次看到它的使用。</p></blockquote>
+<hr>
+<h2 id="h-全书路线图-走进这座剧院">全书路线图——走进这座剧院</h2>
+<p>我们已经勾勒出了 Angular 架构的轮廓。在进入每个模块的深度解析之前，让我们用一个统一的比喻来给全书建立共同的语言框架。</p>
+<p><strong>把 Angular 想象成一座剧院。</strong></p>
+<p>每当你的应用渲染一个页面，就是在上演一出戏。这座剧院里有几个不可或缺的角色：</p>
+<ul><li><strong>编译器（<code>@angular/compiler</code>）= 剧本作者</strong>：在演出开始之前（构建阶段），把声明式的剧本（HTML 模板）翻译成精确的舞台动作指令（渲染指令序列）。演出时观众永远看不到剧本，看到的只是演员按指令完成的动作。</li></ul>
+<ul><li><strong>render3 引擎（<code>@angular/core</code> 内部）= 台上的演员</strong>：拿到剧本作者提前写好的动作指令（<code>ɵɵelementStart</code>、<code>ɵɵproperty</code>……），在舞台上（DOM）忠实执行。每一帧渲染，都是在按动作指令演出。</li></ul>
+<ul><li><strong>依赖注入（DI）= 幕后的道具组</strong>：负责在演出过程中按需向演员递送道具（服务实例）。演员不需要关心道具从哪里来、怎么制作，报出道具名（token）就会有人按需送来。</li></ul>
+<ul><li><strong>变更检测 = 舞台监督</strong>：在每一幕演出结束后（每个事件处理完毕、每个异步操作完成后），舞台监督检查哪些道具被换过了（哪些数据绑定值变了），通知演员重新表演需要更新的那几个动作。</li></ul>
+<ul><li><strong>Zone.js = 计时广播系统</strong>：后台每当有人喊&quot;好了！&quot;（一个异步操作完成），广播系统自动通知舞台监督去做例行检查——这就是 Zone.js 触发变更检测的方式。Zoneless 模式则是关掉广播系统，由演员自己主动举手示意何时需要检查。</li></ul>
+<p>这个剧院比喻将贯穿全书十个章节：</p>
+<div class="mermaid">flowchart TD
+  CH1[&quot;第1章&lt;br/&gt;剧院全景图（本章）&quot;]
+  CH2[&quot;第2章&lt;br/&gt;开幕：bootstrapApplication&lt;br/&gt;剧院开门，演出开始&quot;]
+  CH3[&quot;第3章&lt;br/&gt;DI 道具组&lt;br/&gt;token 解析与层级查找&quot;]
+  CH4[&quot;第4章&lt;br/&gt;剧本翻译&lt;br/&gt;模板 → 渲染指令序列&quot;]
+  CH5[&quot;第5章&lt;br/&gt;舞台结构&lt;br/&gt;LView / TView 解剖&quot;]
+  CH6[&quot;第6章&lt;br/&gt;舞台监督的巡场&lt;br/&gt;变更检测算法&quot;]
+  CH7[&quot;第7章&lt;br/&gt;电子价签系统&lt;br/&gt;Signals 响应式&quot;]
+  CH8[&quot;第8章&lt;br/&gt;演员的自我修养&lt;br/&gt;ComponentDef 与生命周期&quot;]
+  CH9[&quot;第9章&lt;br/&gt;换场调度&lt;br/&gt;路由状态机&quot;]
+  CH10[&quot;第10章&lt;br/&gt;巡回演出&lt;br/&gt;SSR 与水合&quot;]
+
+  CH1 --&gt; CH2 --&gt; CH3
+  CH3 --&gt; CH4 --&gt; CH5
+  CH5 --&gt; CH6 --&gt; CH7
+  CH5 --&gt; CH8 --&gt; CH9
+  CH3 --&gt; CH10
+  CH5 --&gt; CH10
+  CH6 --&gt; CH10</div>
+<hr>
+<h2 id="h-小结">小结</h2>
+<p>回到本章开头的两个问题：</p>
+<p><strong>当你写下 <code>@Component(...)</code> 时，哪些 package 在参与工作？</strong></p>
+<p>两个阶段，两批参与者。构建阶段：<code>compiler-cli</code>（ngtsc）作为 TypeScript 编译器插件，调用 <code>compiler</code> 完成模板翻译，在每个组件类上挂载 <code>ɵcmp</code>（<code>ComponentDef</code>）字段。运行阶段：只有 <code>@angular/core</code>（render3 引擎 + DI + 变更检测）与对应的平台包（如 <code>platform-browser</code>）在工作——<code>compiler</code> 不在其中。这正是 AOT 编译的本质：把&quot;理解模板&quot;这件事从运行时提前到构建时。</p>
+<p><strong>Angular 为什么要设计成分层结构，而不是&quot;一个大 <code>angular.js</code>&quot;？</strong></p>
+<p>三个理由相互加强：① <strong>独立性</strong>——核心层、平台层、功能层彼此解耦，更换运行平台（浏览器/SSR）不影响业务代码；② <strong>精准摇树优化</strong>——局部编译原则（Locality Principle）使每个组件的依赖精确可知，未使用的代码可被安全移除；③ <strong>演进灵活性</strong>——standalone API 在现有 Ivy 基础设施上平滑推进，NgModule 的退场走了八年却没有破坏任何现有应用。</p>
+<p>本章涉及的核心数据结构 <code>ComponentDef</code>（<code>ɵcmp</code>）将在后续章节反复出现：第4章解析模板如何编译成它的 <code>template</code> 函数；第5章解剖它与 LView 的关系；第8章逐字段分析它对生命周期的影响。</p>
+<blockquote><p>📝 <strong>练习</strong>：在你的 Angular 应用中，打开浏览器 DevTools 控制台，输入 <code>YourComponent.ɵcmp</code>（将 <code>YourComponent</code> 替换为实际类名）。你将看到 <code>ComponentDef</code> 对象的全貌——对照本章介绍的字段，找找 <code>template</code>、<code>dependencies</code>、<code>standalone</code> 分别在哪里，值是什么。</p></blockquote>
+    <div class="chapter-nav"><a href="index.html">← 目录首页</a><a href="ch02.html">下一章：第2章：从零启动——bootstrapApplication 的旅程 →</a></div>
+  </main>
+  
+<aside id="toc-right">
+  <div class="toc-title">本章目录</div>
+  <ul class="toc-list"><li><a href="#h-一个仓库-二十个包-monorepo-的全景图">一个仓库，二十个包——monorepo 的全景图</a></li>
+<li><a href="#h-编译时与运行时的分离">编译时与运行时的分离</a></li>
+<li><a href="#h-ivy-革命-从全局编译到局部编译">Ivy 革命——从全局编译到局部编译</a></li>
+<li><a href="#h-standalone-的演进">Standalone 的演进</a></li>
+<li><a href="#h-全书路线图-走进这座剧院">全书路线图——走进这座剧院</a></li>
+<li><a href="#h-小结">小结</a></li></ul>
+</aside>
+</div>
+<button id="back-to-top" title="返回顶部">↑</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+<script>
+(function () {
+  'use strict';
+  function updateProgress() {
+    var el = document.getElementById('progress-bar');
+    if (!el) return;
+    var st = window.pageYOffset || document.documentElement.scrollTop;
+    var dh = document.documentElement.scrollHeight - window.innerHeight;
+    el.style.width = (dh > 0 ? Math.min(100, st / dh * 100) : 0) + '%';
+  }
+  function updateBackToTop() {
+    var btn = document.getElementById('back-to-top');
+    if (!btn) return;
+    btn.classList.toggle('visible', (window.pageYOffset || document.documentElement.scrollTop) > 300);
+  }
+  function updateTocActive() {
+    var hs = Array.from(document.querySelectorAll('#main h2[id]'));
+    var ls = Array.from(document.querySelectorAll('#toc-right .toc-list a'));
+    if (!hs.length || !ls.length) return;
+    var active = -1;
+    hs.forEach(function (h, i) { if (h.getBoundingClientRect().top <= 120) active = i; });
+    ls.forEach(function (a, i) { a.classList.toggle('active', i === active); });
+  }
+  window.addEventListener('scroll', function () {
+    updateProgress(); updateBackToTop(); updateTocActive();
+  }, { passive: true });
+  var btn = document.getElementById('back-to-top');
+  if (btn) btn.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof hljs !== 'undefined') hljs.highlightAll();
+    updateProgress(); updateTocActive();
+  });
+})();
+</script>
+</body>
+</html>

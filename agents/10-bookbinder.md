@@ -7,8 +7,8 @@
 | 角色隐喻 | 排版设计师 / 电子书工匠 |
 | Agent类型 | general-purpose |
 | 参与阶段 | Phase 5（发布与装帧） |
-| 核心输入 | `chapters/*.md`（所有定稿章节） |
-| 核心输出 | `publish/*.html`（HTML电子书） |
+| 核心输入 | `output/chapters/final/*.md`（所有定稿章节） |
+| 核心输出 | `output/publish/*.html`（HTML电子书） |
 
 ## 核心职责
 
@@ -22,15 +22,15 @@
 
 | 文件 | 说明 |
 |------|------|
-| `{{工作目录}}/chapters/*.md` | 所有定稿Markdown章节文件 |
-| `{{工作目录}}/outline-final.md` | 定稿大纲（用于生成目录结构） |
+| `output/chapters/final/*.md` | 所有定稿Markdown章节文件 |
+| `output/memory/outline.md` | 定稿大纲（用于生成目录结构） |
 
 ## 输出规格
 
-### publish/ 目录结构
+### output/publish/ 目录结构
 
 ```
-publish/
+output/publish/
 ├── index.html          # 目录页/首页
 ├── ch01.html           # 第1章
 ├── ch02.html           # 第2章
@@ -143,7 +143,7 @@ publish/
 
 - **零npm依赖**：使用纯Node.js脚本构建，不依赖任何npm包
 - **单文件输出**：每章一个自包含的HTML文件（CSS/JS内联）
-- **构建命令**：`node build.js`（或类似的单命令构建）
+- **构建命令**：`node scripts/build.js`（或类似的单命令构建）
 
 ## 质量标准
 
@@ -157,7 +157,32 @@ publish/
 - [ ] 响应式布局（适配桌面和平板）
 - [ ] 构建脚本无npm依赖
 
-## 完成标记
+## 配色主题选择（Phase 5 启动前必询问）
+
+在开始装帧工作之前，**主编排必须询问用户偏好的配色风格**：
+
+```
+Phase 5 即将开始。在生成 HTML 电子书之前，请选择配色方案：
+
+① Warm Paper（默认）— 暖白底色 #FEFCF8，柔和深棕文字，仿纸质书感
+② GitHub Light    — 纯白背景，标准深灰文字，简洁科技感
+③ Dark Mode       — 深色背景 #1E1E2E，浅色文字，护眼夜间模式
+④ Minimal         — 纯白背景，纯黑文字，极简无装饰风格
+
+（默认选 ①，若用户说"继续"或"默认"则使用 Warm Paper）
+```
+
+收到用户选择后，将对应主题配置写入 `scripts/build.js` 的 `THEME` 配置块（参见文件内注释），然后运行：
+
+```bash
+node scripts/build.js
+```
+
+输出产物位于 `output/publish/`。
+
+---
+
+
 
 ```html
 <!-- BOOKBINDING_COMPLETE -->
@@ -172,12 +197,12 @@ publish/
 将所有Markdown章节转换为美观的HTML电子书。
 
 ## 输入
-- 定稿章节：{{工作目录}}/chapters/*.md
-- 大纲（目录结构）：{{工作目录}}/outline-final.md
+- 定稿章节：output/chapters/final/*.md
+- 大纲（目录结构）：output/memory/outline.md
 
 ## 输出
-- HTML文件：{{工作目录}}/publish/*.html
-- 构建脚本：{{工作目录}}/build.js
+- HTML文件：output/publish/*.html
+- 构建脚本：scripts/build.js
 
 ## 要求
 1. Markdown → HTML转换

@@ -7,3 +7,7 @@ docs/node_modules
 
 # Meridian meta-framework (local only, not for this repo)
 meridian/
+angular-main/
+
+# Book project output (generated content, project-specific)
+output/.DS_Store

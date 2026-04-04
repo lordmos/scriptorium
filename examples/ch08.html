@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第8章：组件模型——从装饰器到运行时对象 | Angular 源码深度解析</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: #FEFCF8;
+  color: #2C2C2C;
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.85;
+}
+/* Progress bar */
+#progress-bar {
+  position: fixed; top: 0; left: 0; width: 0%; height: 3px;
+  background: #C7553A; z-index: 2000; transition: width 0.08s linear;
+}
+/* Layout */
+#layout { display: flex; min-height: 100vh; }
+/* Left sidebar */
+#sidebar {
+  position: fixed; top: 3px; left: 0;
+  width: 260px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-right: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100;
+}
+.sidebar-header { padding: 22px 18px 14px; border-bottom: 1px solid #E8E2D8; }
+.sidebar-title {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  font-size: 1em; font-weight: 700; color: #1A1A1A; line-height: 1.4; margin-bottom: 5px;
+}
+.sidebar-subtitle { font-size: 0.7em; color: #999; line-height: 1.4; }
+.sidebar-nav { padding: 10px 8px 24px; }
+.sidebar-nav a {
+  display: block; padding: 6px 12px; border-radius: 5px;
+  color: #444; font-size: 0.82em; text-decoration: none;
+  line-height: 1.45; margin-bottom: 2px; word-break: break-all;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar-nav a:hover { background: #EDE7DD; color: #1A1A1A; }
+.sidebar-nav a.active { background: #E8DDD0; color: #C7553A; font-weight: 600; }
+/* Main content */
+#main { margin-left: 260px; margin-right: 224px; padding: 48px 52px 80px; min-height: 100vh; }
+/* Right TOC */
+#toc-right {
+  position: fixed; top: 3px; right: 0;
+  width: 224px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-left: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100; padding: 22px 14px;
+}
+.toc-title {
+  font-size: 0.68em; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #aaa; margin-bottom: 10px;
+}
+.toc-list { list-style: none; }
+.toc-list li { margin-bottom: 3px; }
+.toc-list li a {
+  display: block; padding: 3px 8px; font-size: 0.77em; color: #666;
+  text-decoration: none; border-left: 2px solid transparent;
+  line-height: 1.4; word-break: break-all;
+  transition: color 0.15s, border-color 0.15s;
+}
+.toc-list li a:hover { color: #C7553A; }
+.toc-list li a.active { color: #C7553A; border-left-color: #C7553A; font-weight: 600; }
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  color: #1A1A1A; line-height: 1.4;
+  margin-top: 1.8em; margin-bottom: 0.55em;
+}
+h1 { font-size: 2.1em; margin-top: 0; padding-bottom: 0.35em; border-bottom: 2px solid #C7553A; }
+h2 { font-size: 1.55em; padding-bottom: 0.28em; border-bottom: 1px solid #E8E2D8; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1.08em; }
+h5 { font-size: 1em; }
+h6 { font-size: 0.95em; color: #666; }
+p { margin-bottom: 1em; }
+strong { color: #1A1A1A; font-weight: 700; }
+em { font-style: italic; }
+del { text-decoration: line-through; color: #999; }
+/* Links */
+a { color: #4A7C9B; text-decoration: none; }
+a:hover { text-decoration: underline; color: #3a6c8b; }
+/* Code */
+code {
+  font-family: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Courier New", monospace;
+  font-size: 0.875em; background: #F5F2ED; padding: 0.15em 0.38em;
+  border-radius: 3px; border: 1px solid #E0D9CF; word-break: break-all;
+}
+pre {
+  background: #F5F2ED; padding: 18px 22px; border-radius: 8px;
+  overflow-x: auto; margin: 1.4em 0; border: 1px solid #E0D9CF; line-height: 1.6;
+}
+pre code { background: none; padding: 0; border: none; border-radius: 0; font-size: 0.84em; word-break: normal; }
+.hljs { background: #F5F2ED !important; }
+/* Blockquote */
+blockquote {
+  margin: 1.4em 0; padding: 14px 20px;
+  border-left: 4px solid #C7553A;
+  background: linear-gradient(to right, #FFF9F5, #FEFCF8);
+  border-radius: 0 6px 6px 0;
+}
+blockquote p { margin: 0; color: #555; font-style: italic; }
+/* Lists */
+ul, ol { padding-left: 1.8em; margin-bottom: 1em; }
+li { margin-bottom: 0.38em; }
+li p { margin: 0; }
+/* Tables */
+.table-wrap { overflow-x: auto; margin: 1.4em 0; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+th, td { padding: 9px 13px; border: 1px solid #E8E2D8; text-align: left; vertical-align: top; }
+th { background: #F5F2ED; font-weight: 600; color: #1A1A1A; white-space: nowrap; }
+tr:nth-child(even) td { background: #FDFAF5; }
+/* HR */
+hr { border: none; border-top: 1px solid #E8E2D8; margin: 2.2em 0; }
+/* Images */
+img { max-width: 100%; height: auto; border-radius: 4px; display: block; margin: 1em auto; }
+/* Mermaid */
+.mermaid {
+  margin: 1.6em 0; padding: 20px;
+  background: #FDFAF5; border: 1px solid #E8E2D8; border-radius: 8px;
+  text-align: center; overflow-x: auto;
+}
+/* Chapter nav */
+.chapter-nav {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 4em; padding-top: 1.8em; border-top: 2px solid #E8E2D8; gap: 12px;
+}
+.chapter-nav a {
+  display: inline-flex; align-items: center; padding: 10px 16px;
+  background: #F5F2ED; border: 1px solid #E8E2D8; border-radius: 6px;
+  color: #4A7C9B; font-size: 0.85em; text-decoration: none; max-width: 46%;
+  word-break: break-all; line-height: 1.4;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.chapter-nav a:hover { background: #EDE7DD; border-color: #C7553A; color: #C7553A; text-decoration: none; }
+.chapter-nav span { flex: 1; }
+/* Back to top */
+#back-to-top {
+  position: fixed; bottom: 28px; right: 240px;
+  width: 42px; height: 42px; background: #C7553A; color: #fff;
+  border: none; border-radius: 50%; cursor: pointer;
+  font-size: 18px; font-weight: bold; display: none;
+  align-items: center; justify-content: center; z-index: 500;
+  box-shadow: 0 2px 12px rgba(199,85,58,0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+#back-to-top.visible { display: flex; }
+#back-to-top:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(199,85,58,0.5); }
+/* Index page */
+.index-hero {
+  text-align: center; padding: 44px 0 52px;
+  border-bottom: 1px solid #E8E2D8; margin-bottom: 52px;
+}
+.index-hero h1 { font-size: 2.6em; border: none; margin-bottom: 14px; padding: 0; }
+.index-hero .subtitle { font-size: 1.08em; color: #666; font-style: italic; margin: 0; }
+.index-intro { margin-bottom: 48px; }
+.index-intro p { font-size: 1.05em; margin-bottom: 1.2em; }
+.index-toc { margin-bottom: 48px; }
+.chapter-list { padding-left: 0; list-style: none; }
+.chapter-list li {
+  margin-bottom: 10px; padding: 13px 20px;
+  background: #F8F4EE; border-radius: 8px; border: 1px solid #E8E2D8;
+  transition: background 0.15s, border-color 0.15s;
+}
+.chapter-list li:hover { background: #EDE7DD; border-color: #C7553A; }
+.chapter-list li a { color: #1A1A1A; font-size: 1em; font-weight: 500; text-decoration: none; }
+.chapter-list li a:hover { color: #C7553A; text-decoration: none; }
+.index-audience { margin-bottom: 48px; }
+.index-audience ul { padding-left: 0; list-style: none; }
+.index-audience li { padding: 10px 0; border-bottom: 1px solid #EEE9E0; font-size: 0.95em; }
+/* Responsive */
+@media (max-width: 1200px) {
+  #toc-right { display: none; }
+  #main { margin-right: 0; }
+  #back-to-top { right: 24px; }
+}
+@media (max-width: 900px) { #main { padding: 32px 28px 60px; } }
+@media (max-width: 768px) {
+  #sidebar { display: none; }
+  #main { margin-left: 0; padding: 24px 18px 60px; }
+  h1 { font-size: 1.75em; }
+  h2 { font-size: 1.35em; }
+}
+@media print {
+  #sidebar, #toc-right, #progress-bar, #back-to-top, .chapter-nav { display: none !important; }
+  #main { margin: 0; padding: 0; max-width: 100%; }
+}
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div id="layout">
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">📖 Angular 源码深度解析</div>
+      <div class="sidebar-subtitle">深入 Angular 17+ 运行时、编译器与响应式系统的源码之旅</div>
+    </div>
+    <div class="sidebar-nav">
+      <a href="index.html">📚 目录首页</a>
+<a href="ch01.html">第1章：宏观架构——Angular 的世界观</a>
+<a href="ch02.html">第2章：从零启动——bootstrapApplication 的旅程</a>
+<a href="ch03.html">第3章：依赖注入——框架的神经系统</a>
+<a href="ch04.html">第4章：模板编译器——从 HTML 到指令序列</a>
+<a href="ch05.html">第5章：Ivy 渲染引擎——LView 的生命</a>
+<a href="ch06.html">第6章：变更检测——Angular 如何知道界面需要更新</a>
+<a href="ch07.html">第7章：Signals——细粒度响应式的实现</a>
+<a href="ch08.html" class="active">第8章：组件模型——从装饰器到运行时对象</a>
+<a href="ch09.html">第9章：路由系统——URL 与组件树的映射</a>
+<a href="ch10.html">第10章：服务端渲染与水合——让 Angular 应用「秒开」</a>
+
+    </div>
+  </nav>
+  <main id="main">
+    <h1 id="h-第8章-组件模型-从装饰器到运行时对象">第8章：组件模型——从装饰器到运行时对象</h1>
+<p>你写的 <code>@Component({ selector: 'app-root', template: '...' })</code> 最终变成了什么？</p>
+<p>在第1章的剧院比喻里，我们把编译器比作&quot;剧本作者&quot;——它提前把你的声明式模板翻译成一份供演员（render3 运行时）照单执行的指法谱。但有一个问题没有充分回答：那份&quot;剧本&quot;长什么样？它存在哪里？运行时拿到它之后，又是如何决定何时调用 <code>ngOnInit</code>，何时触发 <code>ngAfterViewInit</code> 的？</p>
+<p>答案就藏在每个组件类上的一个静态字段里：<code>ɵcmp</code>。</p>
+<p>这个字段不是你写的，是编译器生成的。它的类型是 <code>ComponentDef&lt;T&gt;</code>——Angular 运行时对一个组件的<strong>完整身份证</strong>。Angular 真正执行的不是装饰器，而是编译器从装饰器里提炼出来的这份静态描述。一旦你理解了 ComponentDef 的结构，你就拥有了读懂 Angular 任何组件行为的钥匙。</p>
+<p>本章沿着一个组件的&quot;一生&quot;展开：从 <code>@Component</code> 装饰器，到编译器输出的 <code>ComponentDef</code>；从 LView 被创建的那一刻，到每个生命周期钩子被调用的精确时机；从 <code>@Input()</code> 的属性赋值，到内容投影的链表匹配算法。这是一段让装饰器&quot;开口说话&quot;的旅程。</p>
+<hr>
+<h2 id="h-componentdef-组件的运行时身份证">ComponentDef——组件的运行时身份证</h2>
+<p><code>ComponentDef&lt;T&gt;</code> 继承自 <code>DirectiveDef&lt;T&gt;</code>，两者合计约 42 个字段，构成 Angular 运行时对一个组件的完整描述。它挂载在组件类的 <code>ɵcmp</code> 静态属性上，由编译器在构建期通过 <code>ɵɵdefineComponent()</code> 生成。</p>
+<blockquote><p>源码位置：<code>packages/core/src/render3/interfaces/definition.ts</code></p></blockquote>
+<h3 id="h-关键字段一览">关键字段一览</h3>
+<div class="table-wrap"><table><thead><tr><th>字段</th><th>来源</th><th>用途</th></tr></thead><tbody><tr><td><code>type</code></td><td>DirectiveDef</td><td>组件类本身（同时作为 DI token）</td></tr><tr><td><code>selectors</code></td><td>DirectiveDef</td><td>CSS 选择器列表，用于模板匹配</td></tr><tr><td><code>inputs</code> / <code>outputs</code></td><td>DirectiveDef</td><td>输入/输出绑定映射表</td></tr><tr><td><code>hostBindings</code></td><td>DirectiveDef</td><td>宿主绑定函数（<code>rf</code> + <code>ctx</code>）</td></tr><tr><td><code>standalone</code></td><td>DirectiveDef</td><td>是否为独立组件（v19+ 默认 <code>true</code>）</td></tr><tr><td><code>features</code></td><td>DirectiveDef</td><td>运行时特性函数数组（NgOnChangesFeature 等）</td></tr><tr><td><code>template</code></td><td>ComponentDef</td><td>视图模板函数</td></tr><tr><td><code>decls</code> / <code>vars</code></td><td>ComponentDef</td><td>模板节点数量 / 绑定数量</td></tr><tr><td><code>encapsulation</code></td><td>ComponentDef</td><td>视图封装类型</td></tr><tr><td><code>onPush</code></td><td>ComponentDef</td><td>是否使用 OnPush 变更检测策略</td></tr><tr><td><code>tView</code></td><td>ComponentDef</td><td>运行时 TView（首次实例化后填充）</td></tr><tr><td><code>dependencies</code></td><td>ComponentDef</td><td>standalone 组件的 imports 列表</td></tr><tr><td><code>getStandaloneInjector</code></td><td>ComponentDef</td><td>创建独立注入器的工厂函数</td></tr></tbody></table></div>
+<p><code>ɵcmp</code> 是<strong>静态字段</strong>，而非实例字段。这意味着同一个组件类的所有实例共享<strong>同一份</strong> ComponentDef——实例的可变状态（绑定值、DOM 节点引用）存在各自的 LView 里，ComponentDef 只描述&quot;这类组件长什么样&quot;，不描述&quot;这个实例现在的状态&quot;。</p>
+<h3 id="h-编译器如何生成-cmp">编译器如何生成 ɵcmp</h3>
+<p>编译器的入口是 <code>compileComponentFromMetadata()</code>（<code>packages/compiler/src/render3/view/compiler.ts:188</code>）。它把 <code>@Component</code> 元数据转化为一个 <code>DefinitionMap</code>，最终输出对 <code>ɵɵdefineComponent()</code> 的调用：</p>
+<pre><code class="language-javascript">// 编译器生成，非手写
+// 源文件路径：packages/core/src/render3/definition.ts（运行时部分）
+class MyComponent {
+  static ɵcmp = /* @__PURE__ */ ɵɵdefineComponent({
+    type: MyComponent,
+    selectors: [['app-my']],
+    inputs: {
+      title: [0 /* InputFlags.None */, 'title'],
+      count: [1 /* InputFlags.SignalBased */, 'count'],
+    },
+    outputs: { clicked: 'clicked' },
+    standalone: true,
+    features: [ɵɵNgOnChangesFeature],  // 有 ngOnChanges 时由编译器注入
+    decls: 3,
+    vars: 1,
+    template: function MyComponent_Template(rf, ctx) {
+      if (rf &amp; 1) { /* 创建阶段：ɵɵelementStart, ɵɵtext ... */ }
+      if (rf &amp; 2) { /* 更新阶段：ɵɵproperty, ɵɵtextInterpolate ... */ }
+    },
+    encapsulation: ViewEncapsulation.Emulated,
+    changeDetection: ChangeDetectionStrategy.OnPush,
+  });
+}</code></pre>
+<p><code>/* @__PURE__ */</code> 注释是关键。它告诉打包工具（Terser / esbuild）：如果这个类没有被引用，可以安全地将整个 <code>ɵɵdefineComponent({...})</code> 调用树摇掉。这是 Angular 摇树优化（tree-shaking）的基础。</p>
+<p>运行时的 <code>ɵɵdefineComponent()</code> 接收这份配置，执行 <code>initFeatures(def)</code> 遍历 <code>features</code> 数组、计算唯一 ID、填充 <code>directiveDefs</code> 和 <code>pipeDefs</code>，最终返回一个不可变的 <code>ComponentDef</code> 对象。</p>
+<blockquote><p>🔗 <strong>交叉引用</strong>：<code>tView</code> 字段初始为 <code>null</code>，在组件首次实例化时才填充。TView 与 LView 的分离设计已在第5章详细分析。</p></blockquote>
+<p>有了身份证，运行时才知道&quot;这个组件如何工作&quot;。接下来的问题是：当这个组件被创建、检测变更、最终销毁时，它的生命周期钩子是在哪个精确时刻被调用的？</p>
+<hr>
+<h2 id="h-生命周期钩子的调用时序">生命周期钩子的调用时序</h2>
+<p>这是本章最值得细读的一节。Angular 的生命周期钩子不是随意触发的——它们的调用顺序由 <code>refreshView()</code> 的执行结构严格决定。</p>
+<h3 id="h-钩子存储在-tview-中">钩子存储在 TView 中</h3>
+<p>Angular 在组件首次渲染时，通过 <code>registerPreOrderHooks()</code> 和 <code>registerPostOrderHooks()</code> 将钩子函数扫描并注册到 TView 的几个数组里：</p>
+<blockquote><p>源码位置：<code>packages/core/src/render3/hooks.ts</code></p></blockquote>
+<div class="table-wrap"><table><thead><tr><th>TView 属性</th><th>存储的钩子</th><th>执行场景</th></tr></thead><tbody><tr><td><code>preOrderHooks</code></td><td>ngOnChanges、ngOnInit、ngDoCheck</td><td>首次创建</td></tr><tr><td><code>preOrderCheckHooks</code></td><td>ngOnChanges、ngDoCheck</td><td>后续每次检测</td></tr><tr><td><code>contentHooks</code></td><td>ngAfterContentInit、ngAfterContentChecked</td><td>首次创建</td></tr><tr><td><code>contentCheckHooks</code></td><td>ngAfterContentChecked</td><td>后续每次检测</td></tr><tr><td><code>viewHooks</code></td><td>ngAfterViewInit、ngAfterViewChecked</td><td>首次创建</td></tr><tr><td><code>viewCheckHooks</code></td><td>ngAfterViewChecked</td><td>后续每次检测</td></tr><tr><td><code>destroyHooks</code></td><td>ngOnDestroy</td><td>视图销毁</td></tr></tbody></table></div>
+<p>这里有一个精妙的设计：数组里的<strong>元素值</strong>如果是<strong>负数</strong>（存储的是 <code>-directiveIndex</code>），就代表 Init 钩子（只执行一次）；<strong>正数</strong>（存储的是 <code>directiveIndex</code>）代表 Check 钩子（每次变更检测都执行）。<code>ngOnInit</code> 只进入 <code>preOrderHooks</code>，而不进入 <code>preOrderCheckHooks</code>——这保证了它永远只运行一次。</p>
+<h3 id="h-refreshview-的执行顺序">refreshView 的执行顺序</h3>
+<p>变更检测的核心函数 <code>refreshView()</code>（<code>packages/core/src/render3/instructions/change_detection.ts:225</code>）按固定顺序执行：</p>
+<pre><code>1. 模板执行（创建或更新 DOM 节点）
+2. 前序钩子：ngOnChanges → ngOnInit → ngDoCheck
+3. 运行当前视图的 effect
+4. 嵌入视图（ng-if/ng-for 生成的视图）变更检测
+5. 内容查询刷新（ContentChild/ContentChildren）
+6. 内容钩子：ngAfterContentInit → ngAfterContentChecked
+7. 宿主绑定 OpCodes 执行
+8. 子组件变更检测（递归进入子组件的 refreshView）
+9. 视图查询刷新（ViewChild/ViewChildren）
+10. 视图钩子：ngAfterViewInit → ngAfterViewChecked</code></pre>
+<p>步骤 8（子组件变更检测）发生在步骤 10（父组件视图钩子）之前——这决定了父子嵌套时的钩子顺序。</p>
+<h3 id="h-父子嵌套的精确时序">父子嵌套的精确时序</h3>
+<p>假设组件结构为 <code>Parent</code> 包含 <code>Child</code>，<strong>首次渲染</strong>时的钩子调用如下：</p>
+<div class="mermaid">sequenceDiagram
+    participant P as Parent
+    participant C as Child
+
+    Note over P: refreshView() 开始
+    P-&gt;&gt;P: constructor
+    P-&gt;&gt;P: ngOnChanges（若有 @Input）
+    P-&gt;&gt;P: ngOnInit
+    P-&gt;&gt;P: ngDoCheck
+
+    Note over P: 步骤 8：子组件变更检测
+    P-&gt;&gt;C: 进入 Child 的 refreshView()
+    C-&gt;&gt;C: constructor
+    C-&gt;&gt;C: ngOnChanges
+    C-&gt;&gt;C: ngOnInit
+    C-&gt;&gt;C: ngDoCheck
+    C-&gt;&gt;C: ngAfterContentInit
+    C-&gt;&gt;C: ngAfterContentChecked
+    C-&gt;&gt;C: ngAfterViewInit
+    C-&gt;&gt;C: ngAfterViewChecked
+    C--&gt;&gt;P: Child 检测完成
+
+    Note over P: 步骤 10：父组件视图钩子
+    P-&gt;&gt;P: ngAfterContentInit
+    P-&gt;&gt;P: ngAfterContentChecked
+    P-&gt;&gt;P: ngAfterViewInit
+    P-&gt;&gt;P: ngAfterViewChecked</div>
+<blockquote><p>图例：<code>P-&gt;&gt;P</code> 表示组件自身同步调用，<code>P-&gt;&gt;C</code> 表示父调用子，<code>C--&gt;&gt;P</code> 表示子异步返回父。</p></blockquote>
+<p>规律很清晰：<strong>前序钩子从外到内</strong>（父先于子），<strong>视图钩子从内到外</strong>（子先于父）。</p>
+<p>当组件结构更深（如三层嵌套 Parent → Child → GrandChild）时，GrandChild 的 <code>ngAfterViewInit</code> 最先完成，Parent 的 <code>ngAfterViewInit</code> 最后完成——因为只有当所有子孙的视图都&quot;就绪&quot;了，父组件的视图才算真正完整。</p>
+<h3 id="h-后续变更检测的时序差异">后续变更检测的时序差异</h3>
+<p>上图描述的是<strong>首次渲染</strong>的完整钩子序列。从第 N 次（N &gt; 1）变更检测开始，Init 类钩子不再执行，序列缩减为：</p>
+<pre><code>ngOnChanges（仅当输入引用发生变化）→ ngDoCheck → ngAfterContentChecked → ngAfterViewChecked</code></pre>
+<p><code>ngOnInit</code>、<code>ngAfterContentInit</code>、<code>ngAfterViewInit</code> 各只执行一次——由 LView FLAGS 中的状态机保证（详见下文&quot;Init 钩子的单次执行保证&quot;）。这个差异在性能调优时尤为关键：<code>ngDoCheck</code> 与 <code>ngAfterViewChecked</code> 在<strong>每次</strong>检测中都会执行，是性能敏感的钩子，应避免在其中放置耗时的计算或 DOM 操作。</p>
+<h3 id="h-两个最容易踩的误区">两个最容易踩的误区</h3>
+<p><strong>误区一：ngOnInit 等于 constructor</strong>。这两者执行时机不同：<code>constructor</code> 在 Angular 注入系统创建实例时触发（可能比 DOM 创建早很多），而 <code>ngOnInit</code> 在<strong>首次变更检测</strong>期间执行，此时输入属性（<code>@Input</code>）已经被赋值完毕。如果你在 constructor 里读取 <code>@Input</code> 的值，通常会得到 <code>undefined</code>。</p>
+<p><strong>误区二：ngOnChanges 只在值&quot;变化&quot;时触发</strong>。更准确的说法是：只要父组件模板里绑定的表达式在本次变更检测中产生了与上次不同的引用或原始值，Angular 就会调用 <code>ngOnChanges</code>。对于对象和数组，如果你修改了其内部属性而没有创建新引用，<code>ngOnChanges</code> <strong>不会被触发</strong>。</p>
+<blockquote><p>⚠️ <strong>注意</strong>：<code>ngAfterViewInit</code> 才是&quot;DOM 就绪&quot;的信号。如果你需要访问 <code>@ViewChild</code> 查询到的 DOM 元素或子组件实例，<code>ngOnInit</code> 里拿到的通常是 <code>undefined</code>——正确的时机是 <code>ngAfterViewInit</code>。</p></blockquote>
+<blockquote><p>📝 <strong>练习</strong>：在一个组件同时实现 <code>constructor</code>、<code>ngOnChanges</code>、<code>ngOnInit</code>、<code>ngAfterViewInit</code>，并在每个钩子里打印时间戳和当前 <code>@Input</code> 的值。用 Angular DevTools 的性能面板观察第1次与第2次变更检测期间被调用的钩子有何不同。</p></blockquote>
+<h3 id="h-init-钩子的单次执行保证">Init 钩子的单次执行保证</h3>
+<p>Init 类钩子（<code>ngOnInit</code>、<code>ngAfterContentInit</code>、<code>ngAfterViewInit</code>）如何保证只执行一次？答案是 LView FLAGS 字段里维护的一个状态机：</p>
+<pre><code>OnInitHooksToBeRun
+  → AfterContentInitHooksToBeRun
+    → AfterViewInitHooksToBeRun
+      → InitPhaseCompleted</code></pre>
+<p><code>callHook()</code> 函数在调用 Init 钩子前会检查当前 LView 处于哪个阶段，以及该阶段已调用的 Init 钩子数量。两个条件同时满足才执行，并在执行后更新计数器。这三重保护确保了每个 Init 钩子在视图的整个生命周期中只被调用一次。</p>
+<blockquote><p>🔍 <strong>深入</strong>：<code>callHookInternal()</code> 在执行每个生命周期钩子前会调用 <code>setActiveConsumer(null)</code>，暂停 Signals 响应式追踪。这意味着在钩子函数里读取 signal 值<strong>不会</strong>建立响应式依赖——这是有意的设计，防止钩子被 signal 变更意外重新触发。</p></blockquote>
+<hr>
+<h2 id="h-input-与-ngonchanges">@Input() 与 ngOnChanges</h2>
+<h3 id="h-编译输出-inputs-映射表">编译输出：inputs 映射表</h3>
+<p>当你写 <code>@Input() title: string</code>，编译器会在 <code>ComponentDef.inputs</code> 中生成一条映射：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/interfaces/definition.ts（第 119 行附近）
+// inputs 的值类型：[混淆后的私有属性名, InputFlags, 变换函数 | null]
+inputs: {
+  title: [0 /* InputFlags.None */, 'title', null],
+}</code></pre>
+<p>三元组的含义：第一个值是<strong>混淆后的私有属性名</strong>（用于访问实例字段，在生产构建中会被混淆以缩短体积），第二个是 <code>InputFlags</code> 位掩码，第三个是可选的变换函数（来自 <code>@Input({ transform: ... })</code>）。</p>
+<p><code>InputFlags</code> 是一个位掩码枚举，具体定义如下：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/interfaces/input_flags.ts
+export enum InputFlags {
+  None                       = 0,
+  SignalBased                = 0b001,  // 值为 1：信号输入（input()）
+  HasDecoratorInputTransform = 0b010,  // 值为 2：有 @Input({ transform }) 函数
+  Required                   = 0b100,  // 值为 4：必需输入（input.required()）
+}</code></pre>
+<p>位掩码可以组合使用。例如 <code>SignalBased | Required</code>（值为 5）表示必需的信号输入，对应 <code>input.required&lt;T&gt;()</code>；<code>HasDecoratorInputTransform | SignalBased</code>（值为 3）表示带有 transform 函数的信号输入。</p>
+<p>这些标志位是 <code>writeToDirectiveInput()</code> 内部分支处理的依据，也是思考题第1题的背景知识。</p>
+<h3 id="h-输入赋值的完整链路">输入赋值的完整链路</h3>
+<p>从父组件模板 <code>&lt;child [title]=&quot;name&quot;&gt;</code> 到子组件属性赋值，要经过五个环节：</p>
+<pre><code>① ɵɵproperty('title', name)        ← 父模板更新阶段
+② bindingUpdated()                  ← 检测值是否变化
+③ setAllInputsForProperty()         ← 查找匹配的指令输入
+④ writeToDirectiveInput()           ← 解构三元组，处理变换
+⑤ applyValueToInputField()          ← 实际赋值（属性 or 信号）</code></pre>
+<p><code>writeToDirectiveInput()</code>（<code>packages/core/src/render3/instructions/write_to_directive_input.ts</code>）是这条链路的核心。如果组件有 <code>ngOnChanges</code>，编译器会通过 <code>ɵɵNgOnChangesFeature</code> 将 <code>def.setInput</code> 替换为 <code>ngOnChangesSetInput</code>，在每次赋值时同时构造 <code>SimpleChange</code> 对象并存入实例上的 <code>__ngSimpleChanges__</code> 暂存区。待变更检测执行到前序钩子阶段，再统一读取暂存区、调用 <code>ngOnChanges(changes)</code>，然后把 <code>current</code> 合并到 <code>previous</code>。</p>
+<p><code>firstChange</code> 的判断非常直接：<code>previous === EMPTY_OBJ</code>——首次赋值时 <code>previous</code> 是一个空对象哨兵，此时 <code>firstChange</code> 为 <code>true</code>。</p>
+<h3 id="h-signal-based-input-vs-传统-input">signal-based input() vs 传统 @Input()</h3>
+<p>Angular v17 引入了函数式的信号输入 API：</p>
+<pre><code class="language-typescript">// packages/core/src/authoring/input/input.ts
+export class ProductCard {
+  // 传统装饰器——普通属性，每次检测都可能触发 ngOnChanges
+  @Input() productId: string = '';
+
+  // 信号输入——可调用函数，读取时自动注册响应式依赖
+  productName = input&lt;string&gt;('');
+
+  // 必需信号输入——未传值时运行时抛出 NG0XXX 错误
+  price = input.required&lt;number&gt;();
+}</code></pre>
+<p>信号输入的底层是一个 <code>InputSignalNode</code>，<code>InputFlags.SignalBased = 1</code> 被设置在 flags 上。读取 <code>this.productName()</code> 时，<code>producerAccessed(node)</code> 会在当前响应式上下文中注册依赖——这使得 <code>computed</code> 和 <code>effect</code> 能响应输入变更，而无需 <code>ngOnChanges</code>。</p>
+<p><code>input.required()</code> 的运行时检查是通过一个哨兵值 <code>REQUIRED_UNSET_VALUE</code> 实现的：信号初始值被设为这个哨兵，当组件在没有父绑定的情况下被渲染时，第一次读取会抛出 <code>RuntimeError</code>。编译时检查则由 TypeScript 的类型系统完成——<code>input.required&lt;T&gt;()</code> 的返回类型不包含 <code>undefined</code>，模板编译器会确保绑定表达式类型匹配。</p>
+<blockquote><p>💡 <strong>提示</strong>：信号输入不触发 <code>ngOnChanges</code>。如果你同时使用信号输入和 <code>ngOnChanges</code>，Angular 不会为信号输入的变更调用 <code>ngOnChanges</code>——两套系统是独立的，请用 <code>effect()</code> 替代。</p></blockquote>
+<blockquote><p>⚠️ <strong>注意：混合使用 @Input() 与 input() 的陷阱</strong><br>
+<br>
+当组件同时使用 <code>@Input()</code> 装饰器和 <code>input()</code> 函数时，两套变更感知机制互相独立：<br>
+<br>
+- <code>ngOnChanges</code> 的 <code>changes</code> 参数<strong>只包含 <code>@Input()</code> 装饰器声明的属性变更</strong>，<code>input()</code> 信号输入的变更不会出现在其中。<br>
+- 这意味着若你将某个输入从 <code>@Input()</code> 迁移为 <code>input()</code>，依赖 <code>ngOnChanges(changes)</code> 做条件判断的代码会<strong>静默失效</strong>——不会报错，逻辑却不再触发。<br>
+- <strong>推荐做法</strong>：在过渡期，用 <code>effect()</code> 替代 <code>ngOnChanges</code> 监听信号输入的变更；待全部输入迁移完成后，移除 <code>ngOnChanges</code> 方法，编译器将不再注入 <code>ɵɵNgOnChangesFeature</code>，减少一层运行时开销。</p></blockquote>
+<hr>
+<h2 id="h-output-与-eventemitter">@Output() 与 EventEmitter</h2>
+<h3 id="h-outputs-字段与事件绑定">outputs 字段与事件绑定</h3>
+<p><code>@Output()</code> 装饰器在 <code>ComponentDef.outputs</code> 中生成一条简单映射：</p>
+<pre><code class="language-typescript">// 压缩属性名 → 公开事件名
+outputs: { clicked: 'clicked' }</code></pre>
+<p>当父模板绑定 <code>(clicked)=&quot;handler($event)&quot;</code> 时，Angular 会通过这张映射表找到对应的 <code>EventEmitter</code> 实例，订阅它的事件流。</p>
+<h3 id="h-eventemitter-的本质">EventEmitter 的本质</h3>
+<p><code>EventEmitter</code> 继承自 RxJS <code>Subject</code>，这是它与普通 Subject 的主要差异在于多了一层与 Angular 运行时的集成：</p>
+<pre><code class="language-typescript">// packages/core/src/event_emitter.ts（第 114 行附近）
+class EventEmitter_ extends Subject&lt;any&gt; {
+  emit(value?: any) {
+    const prevConsumer = setActiveConsumer(null); // 暂停信号追踪
+    try {
+      super.next(value);  // 委托给 RxJS Subject
+    } finally {
+      setActiveConsumer(prevConsumer);
+    }
+  }
+}</code></pre>
+<blockquote><p>⚠️ <strong>注意</strong>：有些开发者会用 <code>Subject</code> 替代 <code>EventEmitter</code> 直接作为 <code>@Output</code> 值暴露。这技术上可以工作，但有两个隐患：<code>Subject</code> 没有 <code>emit()</code> 方法（需要用 <code>next()</code>），更严重的是外部调用者可以拿到 Subject 并调用 <code>complete()</code> 或 <code>error()</code>，破坏事件流。Angular 团队建议始终使用 <code>EventEmitter</code>。</p></blockquote>
+<h3 id="h-output-信号输出">output() 信号输出</h3>
+<p>v17 同步引入了函数式输出 API，底层与 RxJS <strong>完全无关</strong>：</p>
+<pre><code class="language-typescript">// packages/core/src/authoring/output/output_emitter_ref.ts
+export class ProductCard {
+  // 传统：依赖 RxJS Subject
+  @Output() priceChange = new EventEmitter&lt;number&gt;();
+
+  // 信号输出：独立实现，体积更小
+  priceUpdate = output&lt;number&gt;();
+}</code></pre>
+<p><code>OutputEmitterRef</code> 用一个普通数组 <code>listeners</code> 管理订阅，通过 <code>DestroyRef</code> 实现自动清理。它不依赖 RxJS，也不支持管道操作符——如果你确实需要对输出流使用 RxJS 操作符，<code>outputToObservable()</code> 工具函数可以将 <code>OutputRef</code> 适配为 Observable。</p>
+<hr>
+<h2 id="h-内容投影">内容投影</h2>
+<blockquote><p>🔗 <strong>交叉引用</strong>：内容投影的比喻已在比喻注册表中注册——子组件就像一块<strong>预留了布景槽的舞台</strong>，父组件提供的内容正好插进对应的槽里。</p></blockquote>
+<h3 id="h-两条渲染指令的协作">两条渲染指令的协作</h3>
+<p>内容投影由两条渲染指令（instruction）配合完成：</p>
+<ul><li><strong><code>ɵɵprojectionDef()</code></strong>：在组件<strong>初始化阶段</strong>调用一次，扫描父组件传入的子节点，按 <code>select</code> 选择器分配到各投影槽，构建 TNode 链表。</li><li><strong><code>ɵɵprojection()</code></strong>：在模板每个 <code>&lt;ng-content&gt;</code> 的位置调用，从对应槽中取出链表头，遍历并将 TNode 插入到当前位置的 DOM 中。</li></ul>
+<pre><code class="language-typescript">// packages/core/src/render3/instructions/projection.ts（第 96 行附近）
+// ɵɵprojectionDef 构建的数据结构：
+// componentNode.projection = [slot0Head, slot1Head, slot2Head]
+//                               ↓           ↓
+//                            TNode_A     TNode_C
+//                               ↓ (projectionNext)
+//                            TNode_B</code></pre>
+<p>每个投影槽是一条通过 <code>projectionNext</code> 指针串联的 TNode 单向链表。这种结构意味着投影内容没有被复制，只是被&quot;重新排列&quot;了引用——DOM 节点仍然只有一份。</p>
+<h3 id="h-多槽投影与选择器匹配">多槽投影与选择器匹配</h3>
+<p>当模板中有多个带 <code>select</code> 的 <code>&lt;ng-content&gt;</code> 时：</p>
+<pre><code class="language-html">
+&lt;header&gt;&lt;ng-content select=&quot;.title&quot;&gt;&lt;/ng-content&gt;&lt;/header&gt;
+&lt;main&gt;&lt;ng-content select=&quot;.body&quot;&gt;&lt;/ng-content&gt;&lt;/main&gt;
+&lt;footer&gt;&lt;ng-content&gt;&lt;/ng-content&gt;&lt;/footer&gt;  </code></pre>
+<p>编译器将选择器信息编译进 <code>ɵɵprojectionDef()</code> 的参数，匹配算法（<code>matchingProjectionSlotIndex()</code>）遵循三条规则：</p>
+<ol><li>若节点有 <code>ngProjectAs</code> 属性，以该属性值作为选择器匹配目标（允许运行时控制投影归属）</li><li>否则对节点的标签名、类名、属性名做 CSS 选择器匹配</li><li><strong>首个匹配的槽&quot;捕获&quot;该节点</strong>——不会进入多个槽；无匹配则进入通配符（默认）槽</li></ol>
+<h3 id="h-投影内容的生命周期归属">投影内容的生命周期归属</h3>
+<p>这是一个经常令人困惑的问题：被投影的内容，其生命周期钩子属于父组件还是子组件？</p>
+<p>答案是<strong>父组件</strong>。被投影内容的 <code>ngOnInit</code>、<code>ngOnDestroy</code> 均在父组件的变更检测上下文中执行。<code>ngAfterContentInit</code> 是子组件的钩子，在&quot;内容投影完成后&quot;触发——这里的&quot;完成&quot;指 <code>ɵɵprojectionDef()</code> 完成分配，而不是父组件的生命周期完成。被投影内容对子组件的 <code>viewProviders</code> 也是不可见的，只能访问父组件 providers 中注册的服务。</p>
+<blockquote><p>Angular v17 为 <code>&lt;ng-content&gt;</code> 引入了<strong>后备内容（fallback content）</strong>支持：当没有任何内容被投影到该槽时，显示 <code>&lt;ng-content&gt;</code> 标签内部的内容。这对&quot;可选插槽&quot;的场景很有用。</p></blockquote>
+<hr>
+<h2 id="h-宿主绑定与宿主指令">宿主绑定与宿主指令</h2>
+<h3 id="h-hostbindings-函数">hostBindings 函数</h3>
+<p><code>@HostBinding()</code> 和 <code>@HostListener()</code> 最终会被编译为 <code>ComponentDef.hostBindings</code> 字段——一个接收 <code>rf</code>（RenderFlags）和 <code>ctx</code>（指令实例）的函数：</p>
+<pre><code class="language-typescript">// 编译器生成，非手写
+// packages/core/src/render3/interfaces/definition.ts（第 568 行）
+hostBindings: function MyComponent_HostBindings(rf, ctx) {
+  if (rf &amp; RenderFlags.Create) {
+    // 注册宿主监听器
+    ɵɵlistener('click', function() { return ctx.onClick(); });
+  }
+  if (rf &amp; RenderFlags.Update) {
+    // 更新宿主属性绑定
+    ɵɵhostProperty('class.active', ctx.isActive);
+    ɵɵattribute('aria-label', ctx.label);
+  }
+}</code></pre>
+<p>宿主绑定不是自由执行的——它们被编码为 <code>TView.hostBindingOpCodes</code> 数组，在 <code>refreshView()</code> 的<strong>步骤 7</strong>（内容钩子之后、子组件检测之前）统一执行。这保证了宿主绑定在组件内容准备好之后、但在子组件开始渲染之前完成。</p>
+<h3 id="h-hostdirectives-组合而非继承">hostDirectives：组合而非继承</h3>
+<p><code>hostDirectives</code> 让一个组件或指令在被选择器匹配时，<strong>自动附加</strong>其他指令的能力：</p>
+<pre><code class="language-typescript">@Component({
+  selector: 'app-button',
+  hostDirectives: [
+    { directive: CdkButton, inputs: ['disabled'], outputs: ['cdkButtonClick: click'] }
+  ]
+})
+export class AppButton {}</code></pre>
+<p>底层实现是 <code>ɵɵHostDirectivesFeature</code>（<code>packages/core/src/render3/features/host_directives_feature.ts</code>）。它在 <code>ComponentDef.features</code> 数组里注册一个特性函数，该函数将宿主指令的定义存入 <code>def.hostDirectives</code>。匹配阶段，<code>resolveHostDirectives()</code> 按优先级顺序（先宿主指令，后组件本身）依次实例化并初始化。</p>
+<p>宿主指令有两个硬性约束：<strong>必须是 standalone</strong>（不能来自 NgModule），且<strong>不能再嵌套 hostDirectives</strong>（防止无限递归）。</p>
+<p>这种&quot;指令组合&quot;的设计比继承更灵活——你可以把通用交互行为（焦点管理、无障碍属性、键盘响应）封装成独立指令，然后通过 <code>hostDirectives</code> 组合进任意组件，而不需要改变组件的继承链。</p>
+<hr>
+<h2 id="h-standalone-组件">Standalone 组件</h2>
+<h3 id="h-standalone-true-对运行时的影响">standalone: true 对运行时的影响</h3>
+<p>从 Angular v19 起，<code>standalone</code> 的默认值是 <code>true</code>（<code>definition.ts:633</code>）。这不只是一个标志位的变化，它改变了组件的依赖解析路径。</p>
+<p>NgModule 组件的依赖（可用的指令和 pipe）来自所在模块的声明区，是模块级别的共享作用域。Standalone 组件则把依赖直接写在 <code>@Component({ imports: [...] })</code> 里，编译器将 <code>imports</code> 列表编译到 <code>ComponentDef.dependencies</code>。</p>
+<p>在 <code>ɵɵdefineComponent()</code> 中，这个差异产生了两条不同的分支：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/definition.ts（第 355 行附近）
+dependencies: (baseDef.standalone &amp;&amp; componentDefinition.dependencies) || null,
+getStandaloneInjector: baseDef.standalone
+  ? (parentInjector) =&gt;
+      parentInjector.get(StandaloneService).getOrCreateStandaloneInjector(def)
+  : null,  // NgModule 组件此处为 null</code></pre>
+<h3 id="h-standaloneservice-的注入器缓存">StandaloneService 的注入器缓存</h3>
+<p>当 standalone 组件首次被创建时，Angular 通过 <code>getStandaloneInjector</code> 闭包调用 <code>StandaloneService.getOrCreateStandaloneInjector()</code>：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/standalone_service.ts（第 21 行附近）
+getOrCreateStandaloneInjector(componentDef: ComponentDef&lt;unknown&gt;) {
+  if (!this.cachedInjectors.has(componentDef)) {
+    const providers = internalImportProvidersFrom(false, componentDef.type);
+    const standaloneInjector =
+      providers.length &gt; 0
+        ? createEnvironmentInjector([providers], this._injector, `Standalone[...]`)
+        : null;  // 无 providers 时返回 null，避免创建空注入器
+    this.cachedInjectors.set(componentDef, standaloneInjector);
+  }
+  return this.cachedInjectors.get(componentDef);
+}</code></pre>
+<p>缓存以 <code>ComponentDef</code> 为键——同一类型的多个组件实例共享一个注入器，而非每个实例创建一个。<code>StandaloneService</code> 本身实现了 <code>OnDestroy</code>，在父注入器销毁时自动销毁所有缓存的子注入器。</p>
+<h3 id="h-编译器优化-domonly-模式">编译器优化：DomOnly 模式</h3>
+<p>如果一个 standalone 组件的 <code>imports</code> 数组里没有任何指令或组件依赖（只有 providers），编译器会检测到 <code>!meta.hasDirectiveDependencies</code>，使用 <code>TemplateCompilationMode.DomOnly</code> 生成更精简的模板代码——省去了指令匹配的运行时开销。</p>
+<hr>
+<blockquote><p><strong>设计思考</strong><br>
+<br>
+<strong>为什么 ComponentDef 是静态字段而非实例属性？</strong><br>
+<br>
+想象一个应用里有一个列表，渲染了 500 个 <code>&lt;product-card&gt;</code> 组件。如果 ComponentDef 是实例属性，那 500 个实例就有 500 份完全相同的模板函数、选择器、封装策略——这是纯粹的内存浪费。静态字段让所有实例共享同一份描述，而实例的可变状态（DOM 引用、绑定值）存在各自的 LView 里。TView 与 LView 的分离思路贯穿了整个 render3 设计（第5章详述），ComponentDef 的静态字段是同一设计哲学在组件层面的体现。<br>
+<br>
+<strong>生命周期钩子为什么不用 Observable 或 Signal？</strong><br>
+<br>
+这是一个取舍问题。Observable（如 RxJS）会引入订阅管理的复杂性，并要求开发者手动取消订阅；Signal 依赖是惰性追踪的，而生命周期回调需要<strong>命令式的确定性调用顺序</strong>，不适合&quot;只在被读取时触发&quot;的响应式模型。当前的接口方法设计有一个显著优势：运行时可以通过检查 <code>prototype</code> 上是否存在该方法来决定是否注册钩子，不存在的钩子零运行时成本。Angular 选择了简单和可预测性，代价是 API 稍显&quot;过时&quot;——事实上，Angular 团队已在探索用 <code>DestroyRef</code>、<code>afterNextRender()</code> 等函数式 API 替代部分生命周期钩子的场景。<br>
+<br>
+<strong>Standalone 组件的推出背景</strong><br>
+<br>
+NgModule 最初的设计目标是两个：提供模板编译作用域（确定模板里可以用哪些指令），以及提供 DI 作用域（确定组件树里哪些服务可用）。问题是这两个职责耦合在一起，导致简单组件也必须挂靠一个模块，测试时要搭建大量脚手架。Ivy 的<strong>局部编译原则</strong>（Locality Principle，ch01）让每个组件的编译产物自给自足——不再需要模块上下文。Standalone 是这一原则的自然延伸：组件直接声明自己的依赖，模块只是一个可选的组织层，而非强制的架构约束。</p></blockquote>
+<hr>
+<h2 id="h-小结">小结</h2>
+<p>本章沿着&quot;装饰器 → ComponentDef → LView 生命周期&quot;的主线，拆解了 Angular 组件模型的运行时基础。几个值得记住的关键点：</p>
+<ul><li><strong><code>ɵcmp</code> 是共享的、不可变的身份证</strong>，同类型所有实例共用；可变状态存在 LView 里</li><li><strong>生命周期钩子的顺序由 <code>refreshView()</code> 的结构决定</strong>：前序钩子外到内，视图钩子内到外；<code>ngAfterViewInit</code> 才是 DOM 就绪的真正信号；首次渲染后 Init 类钩子不再执行</li><li><strong><code>@Input()</code> 赋值经过五个环节</strong>，<code>NgOnChangesFeature</code> 在链路中拦截赋值来构造 <code>SimpleChanges</code>；信号输入绕过这套机制，直接接入响应式图</li><li><strong>内容投影的本质是 TNode 链表的重新排列</strong>，投影内容的生命周期归属于父组件</li><li><strong>Standalone 组件用 <code>StandaloneService</code> 按 ComponentDef 缓存注入器</strong>，同类型多个实例共享注入器，不是每实例一个</li></ul>
+<hr>
+<h2 id="h-与后续章节的关联">与后续章节的关联</h2>
+<p>本章建立的组件模型基础将在后续两章中得到直接运用：</p>
+<ul><li><strong>第9章（路由系统）</strong>——路由激活一个组件，本质上是创建其 LView 并触发完整的首次生命周期序列；路由切换时 <code>ngOnDestroy</code> 的精确触发时机（在新组件初始化之前还是之后？），以及路由守卫如何在生命周期钩子序列的前后介入，都以本章的 <code>refreshView()</code> 执行结构为基础。</li><li><strong>第10章（SSR 与水合）</strong>——服务器端渲染时，Angular 预先构建 ComponentDef 和 TView，将 DOM 序列化为静态 HTML 发送给浏览器；客户端水合过程不重新执行 <code>template</code> 函数，而是复用已有 DOM 节点、重新建立 LView——这正是&quot;静态描述（ComponentDef）与可变状态（LView）分离&quot;这一设计哲学的最大实践价值。理解本章的 <code>ngOnInit</code> 与 <code>ngAfterViewInit</code> 的执行时序，也能帮助你在 SSR 场景下正确判断哪些副作用代码应该延迟到客户端才执行。</li></ul>
+<hr>
+<h2 id="h-思考题">思考题</h2>
+<ol><li>一个组件同时有 <code>@Input() value</code> 和 <code>input.required&lt;number&gt;()</code> 两种输入，编译器生成的 <code>ComponentDef.inputs</code> 中，两者的 <code>InputFlags</code> 值分别是什么？你能从 <code>InputFlags</code> 的位掩码推断出一个输入是否同时使用了 <code>transform</code>？</li></ol>
+<ol><li>假设父组件通过 <code>[items]=&quot;items&quot;</code> 绑定一个数组到子组件，父组件在 button 点击时执行 <code>this.items.push(newItem)</code>（直接修改数组，不创建新引用）。子组件的 <code>ngOnChanges</code> 会被触发吗？<code>ngDoCheck</code> 呢？子组件如果使用 <code>OnPush</code> 策略，视图会更新吗？</li></ol>
+<ol><li>一个 standalone 组件 A 在 <code>imports</code> 中引入了 standalone 指令 B，B 里通过 <code>providers</code> 注册了一个服务 S。当应用创建第一个 A 的实例时，S 的注入器是在什么时机创建的？第二个 A 实例会重新创建 S 的注入器吗？（提示：查阅 <code>StandaloneService.getOrCreateStandaloneInjector()</code> 的缓存机制）</li></ol>
+    <div class="chapter-nav"><a href="ch07.html">← 上一章：第7章：Signals——细粒度响应式的实现</a><a href="ch09.html">下一章：第9章：路由系统——URL 与组件树的映射 →</a></div>
+  </main>
+  
+<aside id="toc-right">
+  <div class="toc-title">本章目录</div>
+  <ul class="toc-list"><li><a href="#h-componentdef-组件的运行时身份证">ComponentDef——组件的运行时身份证</a></li>
+<li><a href="#h-生命周期钩子的调用时序">生命周期钩子的调用时序</a></li>
+<li><a href="#h-input-与-ngonchanges">@Input() 与 ngOnChanges</a></li>
+<li><a href="#h-output-与-eventemitter">@Output() 与 EventEmitter</a></li>
+<li><a href="#h-内容投影">内容投影</a></li>
+<li><a href="#h-宿主绑定与宿主指令">宿主绑定与宿主指令</a></li>
+<li><a href="#h-standalone-组件">Standalone 组件</a></li>
+<li><a href="#h-小结">小结</a></li>
+<li><a href="#h-与后续章节的关联">与后续章节的关联</a></li>
+<li><a href="#h-思考题">思考题</a></li></ul>
+</aside>
+</div>
+<button id="back-to-top" title="返回顶部">↑</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+<script>
+(function () {
+  'use strict';
+  function updateProgress() {
+    var el = document.getElementById('progress-bar');
+    if (!el) return;
+    var st = window.pageYOffset || document.documentElement.scrollTop;
+    var dh = document.documentElement.scrollHeight - window.innerHeight;
+    el.style.width = (dh > 0 ? Math.min(100, st / dh * 100) : 0) + '%';
+  }
+  function updateBackToTop() {
+    var btn = document.getElementById('back-to-top');
+    if (!btn) return;
+    btn.classList.toggle('visible', (window.pageYOffset || document.documentElement.scrollTop) > 300);
+  }
+  function updateTocActive() {
+    var hs = Array.from(document.querySelectorAll('#main h2[id]'));
+    var ls = Array.from(document.querySelectorAll('#toc-right .toc-list a'));
+    if (!hs.length || !ls.length) return;
+    var active = -1;
+    hs.forEach(function (h, i) { if (h.getBoundingClientRect().top <= 120) active = i; });
+    ls.forEach(function (a, i) { a.classList.toggle('active', i === active); });
+  }
+  window.addEventListener('scroll', function () {
+    updateProgress(); updateBackToTop(); updateTocActive();
+  }, { passive: true });
+  var btn = document.getElementById('back-to-top');
+  if (btn) btn.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof hljs !== 'undefined') hljs.highlightAll();
+    updateProgress(); updateTocActive();
+  });
+})();
+</script>
+</body>
+</html>

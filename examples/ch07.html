@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第7章：Signals——细粒度响应式的实现 | Angular 源码深度解析</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: #FEFCF8;
+  color: #2C2C2C;
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.85;
+}
+/* Progress bar */
+#progress-bar {
+  position: fixed; top: 0; left: 0; width: 0%; height: 3px;
+  background: #C7553A; z-index: 2000; transition: width 0.08s linear;
+}
+/* Layout */
+#layout { display: flex; min-height: 100vh; }
+/* Left sidebar */
+#sidebar {
+  position: fixed; top: 3px; left: 0;
+  width: 260px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-right: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100;
+}
+.sidebar-header { padding: 22px 18px 14px; border-bottom: 1px solid #E8E2D8; }
+.sidebar-title {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  font-size: 1em; font-weight: 700; color: #1A1A1A; line-height: 1.4; margin-bottom: 5px;
+}
+.sidebar-subtitle { font-size: 0.7em; color: #999; line-height: 1.4; }
+.sidebar-nav { padding: 10px 8px 24px; }
+.sidebar-nav a {
+  display: block; padding: 6px 12px; border-radius: 5px;
+  color: #444; font-size: 0.82em; text-decoration: none;
+  line-height: 1.45; margin-bottom: 2px; word-break: break-all;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar-nav a:hover { background: #EDE7DD; color: #1A1A1A; }
+.sidebar-nav a.active { background: #E8DDD0; color: #C7553A; font-weight: 600; }
+/* Main content */
+#main { margin-left: 260px; margin-right: 224px; padding: 48px 52px 80px; min-height: 100vh; }
+/* Right TOC */
+#toc-right {
+  position: fixed; top: 3px; right: 0;
+  width: 224px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-left: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100; padding: 22px 14px;
+}
+.toc-title {
+  font-size: 0.68em; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #aaa; margin-bottom: 10px;
+}
+.toc-list { list-style: none; }
+.toc-list li { margin-bottom: 3px; }
+.toc-list li a {
+  display: block; padding: 3px 8px; font-size: 0.77em; color: #666;
+  text-decoration: none; border-left: 2px solid transparent;
+  line-height: 1.4; word-break: break-all;
+  transition: color 0.15s, border-color 0.15s;
+}
+.toc-list li a:hover { color: #C7553A; }
+.toc-list li a.active { color: #C7553A; border-left-color: #C7553A; font-weight: 600; }
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  color: #1A1A1A; line-height: 1.4;
+  margin-top: 1.8em; margin-bottom: 0.55em;
+}
+h1 { font-size: 2.1em; margin-top: 0; padding-bottom: 0.35em; border-bottom: 2px solid #C7553A; }
+h2 { font-size: 1.55em; padding-bottom: 0.28em; border-bottom: 1px solid #E8E2D8; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1.08em; }
+h5 { font-size: 1em; }
+h6 { font-size: 0.95em; color: #666; }
+p { margin-bottom: 1em; }
+strong { color: #1A1A1A; font-weight: 700; }
+em { font-style: italic; }
+del { text-decoration: line-through; color: #999; }
+/* Links */
+a { color: #4A7C9B; text-decoration: none; }
+a:hover { text-decoration: underline; color: #3a6c8b; }
+/* Code */
+code {
+  font-family: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Courier New", monospace;
+  font-size: 0.875em; background: #F5F2ED; padding: 0.15em 0.38em;
+  border-radius: 3px; border: 1px solid #E0D9CF; word-break: break-all;
+}
+pre {
+  background: #F5F2ED; padding: 18px 22px; border-radius: 8px;
+  overflow-x: auto; margin: 1.4em 0; border: 1px solid #E0D9CF; line-height: 1.6;
+}
+pre code { background: none; padding: 0; border: none; border-radius: 0; font-size: 0.84em; word-break: normal; }
+.hljs { background: #F5F2ED !important; }
+/* Blockquote */
+blockquote {
+  margin: 1.4em 0; padding: 14px 20px;
+  border-left: 4px solid #C7553A;
+  background: linear-gradient(to right, #FFF9F5, #FEFCF8);
+  border-radius: 0 6px 6px 0;
+}
+blockquote p { margin: 0; color: #555; font-style: italic; }
+/* Lists */
+ul, ol { padding-left: 1.8em; margin-bottom: 1em; }
+li { margin-bottom: 0.38em; }
+li p { margin: 0; }
+/* Tables */
+.table-wrap { overflow-x: auto; margin: 1.4em 0; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+th, td { padding: 9px 13px; border: 1px solid #E8E2D8; text-align: left; vertical-align: top; }
+th { background: #F5F2ED; font-weight: 600; color: #1A1A1A; white-space: nowrap; }
+tr:nth-child(even) td { background: #FDFAF5; }
+/* HR */
+hr { border: none; border-top: 1px solid #E8E2D8; margin: 2.2em 0; }
+/* Images */
+img { max-width: 100%; height: auto; border-radius: 4px; display: block; margin: 1em auto; }
+/* Mermaid */
+.mermaid {
+  margin: 1.6em 0; padding: 20px;
+  background: #FDFAF5; border: 1px solid #E8E2D8; border-radius: 8px;
+  text-align: center; overflow-x: auto;
+}
+/* Chapter nav */
+.chapter-nav {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 4em; padding-top: 1.8em; border-top: 2px solid #E8E2D8; gap: 12px;
+}
+.chapter-nav a {
+  display: inline-flex; align-items: center; padding: 10px 16px;
+  background: #F5F2ED; border: 1px solid #E8E2D8; border-radius: 6px;
+  color: #4A7C9B; font-size: 0.85em; text-decoration: none; max-width: 46%;
+  word-break: break-all; line-height: 1.4;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.chapter-nav a:hover { background: #EDE7DD; border-color: #C7553A; color: #C7553A; text-decoration: none; }
+.chapter-nav span { flex: 1; }
+/* Back to top */
+#back-to-top {
+  position: fixed; bottom: 28px; right: 240px;
+  width: 42px; height: 42px; background: #C7553A; color: #fff;
+  border: none; border-radius: 50%; cursor: pointer;
+  font-size: 18px; font-weight: bold; display: none;
+  align-items: center; justify-content: center; z-index: 500;
+  box-shadow: 0 2px 12px rgba(199,85,58,0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+#back-to-top.visible { display: flex; }
+#back-to-top:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(199,85,58,0.5); }
+/* Index page */
+.index-hero {
+  text-align: center; padding: 44px 0 52px;
+  border-bottom: 1px solid #E8E2D8; margin-bottom: 52px;
+}
+.index-hero h1 { font-size: 2.6em; border: none; margin-bottom: 14px; padding: 0; }
+.index-hero .subtitle { font-size: 1.08em; color: #666; font-style: italic; margin: 0; }
+.index-intro { margin-bottom: 48px; }
+.index-intro p { font-size: 1.05em; margin-bottom: 1.2em; }
+.index-toc { margin-bottom: 48px; }
+.chapter-list { padding-left: 0; list-style: none; }
+.chapter-list li {
+  margin-bottom: 10px; padding: 13px 20px;
+  background: #F8F4EE; border-radius: 8px; border: 1px solid #E8E2D8;
+  transition: background 0.15s, border-color 0.15s;
+}
+.chapter-list li:hover { background: #EDE7DD; border-color: #C7553A; }
+.chapter-list li a { color: #1A1A1A; font-size: 1em; font-weight: 500; text-decoration: none; }
+.chapter-list li a:hover { color: #C7553A; text-decoration: none; }
+.index-audience { margin-bottom: 48px; }
+.index-audience ul { padding-left: 0; list-style: none; }
+.index-audience li { padding: 10px 0; border-bottom: 1px solid #EEE9E0; font-size: 0.95em; }
+/* Responsive */
+@media (max-width: 1200px) {
+  #toc-right { display: none; }
+  #main { margin-right: 0; }
+  #back-to-top { right: 24px; }
+}
+@media (max-width: 900px) { #main { padding: 32px 28px 60px; } }
+@media (max-width: 768px) {
+  #sidebar { display: none; }
+  #main { margin-left: 0; padding: 24px 18px 60px; }
+  h1 { font-size: 1.75em; }
+  h2 { font-size: 1.35em; }
+}
+@media print {
+  #sidebar, #toc-right, #progress-bar, #back-to-top, .chapter-nav { display: none !important; }
+  #main { margin: 0; padding: 0; max-width: 100%; }
+}
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div id="layout">
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">📖 Angular 源码深度解析</div>
+      <div class="sidebar-subtitle">深入 Angular 17+ 运行时、编译器与响应式系统的源码之旅</div>
+    </div>
+    <div class="sidebar-nav">
+      <a href="index.html">📚 目录首页</a>
+<a href="ch01.html">第1章：宏观架构——Angular 的世界观</a>
+<a href="ch02.html">第2章：从零启动——bootstrapApplication 的旅程</a>
+<a href="ch03.html">第3章：依赖注入——框架的神经系统</a>
+<a href="ch04.html">第4章：模板编译器——从 HTML 到指令序列</a>
+<a href="ch05.html">第5章：Ivy 渲染引擎——LView 的生命</a>
+<a href="ch06.html">第6章：变更检测——Angular 如何知道界面需要更新</a>
+<a href="ch07.html" class="active">第7章：Signals——细粒度响应式的实现</a>
+<a href="ch08.html">第8章：组件模型——从装饰器到运行时对象</a>
+<a href="ch09.html">第9章：路由系统——URL 与组件树的映射</a>
+<a href="ch10.html">第10章：服务端渲染与水合——让 Angular 应用「秒开」</a>
+
+    </div>
+  </nav>
+  <main id="main">
+    <h1 id="h-第7章-signals-细粒度响应式的实现">第7章：Signals——细粒度响应式的实现</h1>
+<p>第6章告诉了我们 Angular 如何知道需要更新——Zone.js 监听异步边界，<code>ApplicationRef.tick()</code> 触发全树脏检查，<code>LViewFlags</code> 决定哪些视图要被刷新。但&quot;如何知道需要更新&quot;的背后，是一套精密的响应式图。这一章，我们进入 Signals 的内部。</p>
+<p>想象超市里的电子价签系统：每一块货架标签都与后台数据库实时同步，批发商调整了进价，所有显示零售价的价签会自动计算新的利润空间并更新显示——没有人需要逐一刷新，没有轮询，数据变了，价签自动更新。这就是 Angular Signals 的直觉模型。<code>signal()</code> 是后台数据库里的记录，<code>computed()</code> 是根据进价自动计算零售价的公式格，<code>effect()</code> 是当价格变化时自动触发的门店广播。</p>
+<p>这个比喻还可以继续延伸：当某款商品从促销价恢复到原价，如果恢复后的价格恰好和上次的普通价相同，聪明的价签系统不会浪费电力刷新显示——这对应 Signals 的<strong>等值优化</strong>。整个店里的价签通过一张&quot;布告栏&quot;彼此感知变化：signal 把消息钉到布告栏上（标脏），computed 和 effect 等着被通知，而不是主动轮询。这就是&quot;发布订阅的活动布告栏&quot;比喻的来源。</p>
+<p>这套系统有几个让人印象深刻的特性：它是<strong>懒惰的</strong>——不读计算格就不算；它是<strong>精确的</strong>——只有真正用到你的视图才会被更新；它是<strong>glitch-free 的</strong>——即便在复杂的钻石依赖中也不会读到中间状态。这些特性如何从源码中涌现，是本章要回答的问题。</p>
+<p>Angular Signals 的实现分两层：<strong>原语层</strong>（<code>packages/core/primitives/signals/src/</code>）是与框架完全解耦的纯响应式图，理论上可以独立运行；<strong>集成层</strong>（<code>packages/core/src/render3/reactivity/</code>）将原语层接入 DI、组件生命周期和变更检测。我们会在这两层之间来回游走，看清楚每个抽象的意义，以及分层设计如何让 Angular 得以在不破坏现有应用的前提下引入全新的响应式机制。</p>
+<p>以下是本章涉及的核心源文件，建议对照阅读：</p>
+<div class="table-wrap"><table><thead><tr><th>文件路径（相对 packages/core/）</th><th>职责</th></tr></thead><tbody><tr><td><code>primitives/signals/src/graph.ts</code></td><td>响应式图核心：ReactiveNode、ReactiveLink、版本号机制</td></tr><tr><td><code>primitives/signals/src/signal.ts</code></td><td>WritableSignal 原语实现</td></tr><tr><td><code>primitives/signals/src/computed.ts</code></td><td>Computed 惰性计算原语</td></tr><tr><td><code>primitives/signals/src/effect.ts</code></td><td>BaseEffectNode 原语</td></tr><tr><td><code>src/render3/reactive_lview_consumer.ts</code></td><td>模板的响应式消费者代理</td></tr><tr><td><code>src/render3/reactivity/effect.ts</code></td><td>Angular effect() 公共 API 及变更检测集成</td></tr><tr><td><code>rxjs-interop/src/to_signal.ts</code></td><td>Observable → Signal 互操作</td></tr><tr><td><code>rxjs-interop/src/to_observable.ts</code></td><td>Signal → Observable 互操作</td></tr></tbody></table></div>
+<hr>
+<h2 id="h-三个核心原语">三个核心原语</h2>
+<p>Signals 系统对外暴露三个原语，它们的关系如同一套生产链：</p>
+<div class="mermaid">flowchart LR
+    S[&quot;signal()&lt;br/&gt;可写信号&lt;br/&gt;（Producer）&quot;]
+    C[&quot;computed()&lt;br/&gt;派生信号&lt;br/&gt;（Producer &amp; Consumer）&quot;]
+    E[&quot;effect()&lt;br/&gt;副作用&lt;br/&gt;（Consumer）&quot;]
+    DOM[&quot;DOM / 副作用输出&quot;]
+
+    S --&gt;|&quot;读取时建立依赖&quot;| C
+    S --&gt;|&quot;读取时建立依赖&quot;| E
+    C --&gt;|&quot;读取时建立依赖&quot;| E
+    E --&gt; DOM
+
+    style S fill:#e3f2fd,stroke:#1976d2
+    style C fill:#f3e5f5,stroke:#7b1fa2
+    style E fill:#e8f5e9,stroke:#388e3c</div>
+<p><strong><code>signal()</code></strong> 是最简单的原语：一个带版本号的值容器。你写入，它存着；你读取，它返回值并顺手记下&quot;有人在追踪我&quot;。与 RxJS 的 <code>BehaviorSubject</code> 不同，signal 没有流的语义——它只是当前时刻的一个值，不记录历史，不存在&quot;未订阅就错过的&quot;问题。</p>
+<p><strong><code>computed()</code></strong> 是派生信号。它的计算函数只有在被读取时才执行（懒计算），并缓存结果，只有当依赖的 signal 版本变化时才重新计算。它同时是消费者（读取上游 signal）和生产者（被下游读取）。由于它是只读的，你无法直接修改 computed 的值，这保证了数据流向的单向性——值只能由依赖的 signal 推动变化。</p>
+<p><strong><code>effect()</code></strong> 是副作用节点。当其依赖的 signal 或 computed 发生变化时，effect 的回调会被重新执行。与 <code>computed()</code> 不同，effect 不返回值，而是产生外部可见的副作用——打日志、发网络请求、更新非 Angular 管控的 DOM。effect 是整个响应式链路的&quot;终点&quot;，没有其他节点消费它的输出。</p>
+<p>三者的核心区别可以用一句话概括：<code>computed</code> 是<strong>拉（pull）模式</strong>——有人读我，我才计算；<code>effect</code> 是<strong>推（push）模式</strong>——依赖一变，我就被调度执行。这个区别在第五节会深入展开。在数据流图中，signal 是源头，computed 是中间层，effect 是出口。数据流的方向永远是从 signal 流向 effect，不存在逆流。</p>
+<p>理解这三个原语的使用边界，是写出良好 Signals 代码的前提：<strong>状态用 <code>signal</code>，派生用 <code>computed</code>，副作用用 <code>effect</code></strong>。一个常见的错误是用 <code>effect</code> 来同步两个 signal 的值——这本质上是在&quot;订阅变化然后手动更新&quot;，而 <code>computed</code> 才是&quot;自动同步派生值&quot;的正确工具。<code>effect</code> 应该留给真正的副作用：持久化到 localStorage、调用第三方库 API、更新 canvas 等脱离 Angular 控制的操作。</p>
+<p>💡 <strong>提示</strong>：注意 <code>computed()</code> 返回的是<strong>只读信号</strong>。你无法对它调用 <code>.set()</code>——这不是限制，而是约束：<code>computed</code> 应该是纯函数，其值完全由依赖决定。如果你需要一个&quot;可覆盖的 computed&quot;（例如切换数据源时重置选中项，但用户也可以手动选择），Angular v19 引入的 <code>linkedSignal()</code> 是正确答案。</p>
+<hr>
+<h2 id="h-reactivenode-响应式图的节点">ReactiveNode——响应式图的节点</h2>
+<p>如果说三个原语是 Signals 系统的外表，那么 <code>ReactiveNode</code> 就是骨架。每一个参与响应式图的节点——不管是 <code>signal</code>、<code>computed</code> 还是 <code>effect</code>——都实现了这个接口。理解 <code>ReactiveNode</code>，就等于理解了整个响应式图运作的底层逻辑。</p>
+<p><code>ReactiveNode</code> 的设计遵循一个朴素的原则：<strong>角色不是节点的属性，而是节点的行为方式</strong>。signal 之所以是&quot;生产者&quot;，是因为它有值让别人读；computed 之所以同时是&quot;消费者&quot;和&quot;生产者&quot;，是因为它既读别人也被别人读；effect 之所以是&quot;消费者&quot;，是因为它只读不产出。这种设计使整个图的实现极为统一——所有节点共享同一套接口，差异通过多态方法（<code>producerRecomputeValue</code>、<code>consumerMarkedDirty</code> 等）体现。</p>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/graph.ts（第 112-199 行）
+export interface ReactiveNode {
+  version: Version;              // 此节点产出值的版本号，值变化时递增
+  lastCleanEpoch: Version;       // 上次验证为&quot;干净&quot;时的全局 epoch（优化用）
+  dirty: boolean;                // 作为消费者，是否需要重新计算
+  recomputing: boolean;          // 是否正在重建生产者列表（循环检测用）
+
+  producers: ReactiveLink | undefined;     // 依赖的生产者链表头
+  producersTail: ReactiveLink | undefined; // 生产者链表尾
+  consumers: ReactiveLink | undefined;     // 活跃消费者链表头
+  consumersTail: ReactiveLink | undefined; // 消费者链表尾
+
+  consumerAllowSignalWrites: boolean;   // 消费者上下文中是否允许写 signal
+  readonly consumerIsAlwaysLive: boolean; // 是否始终活跃（effect 和模板为 true）
+  kind: ReactiveNodeKind;               // 节点类型标识
+
+  // 多态方法——不同节点类型有不同实现
+  producerMustRecompute(node: unknown): boolean;
+  producerRecomputeValue(node: unknown): void;
+  consumerMarkedDirty(node: unknown): void;
+  consumerOnSignalRead(node: unknown): void;
+}</code></pre>
+<h3 id="h-节点之间的边-reactivelink">节点之间的边：ReactiveLink</h3>
+<p>生产者和消费者之间的关系通过 <code>ReactiveLink</code> 表示。每条边是一个独立的对象，同时存在于两条链中：</p>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/graph.ts（第 82-89 行）
+interface ReactiveLink {
+  producer: ReactiveNode;
+  consumer: ReactiveNode;
+  lastReadVersion: number;        // 消费者上次读取时，生产者的 version
+  prevConsumer: ReactiveLink | undefined;
+  nextConsumer: ReactiveLink | undefined; // 同一生产者的消费者链
+  nextProducer: ReactiveLink | undefined; // 同一消费者的生产者链
+}</code></pre>
+<p>这是一个<strong>十字链表</strong>结构：每个 <code>ReactiveLink</code> 对象同时属于两条链——从消费者出发沿 <code>nextProducer</code> 可以遍历该消费者依赖的所有生产者；从生产者出发沿 <code>nextConsumer</code> 可以遍历该生产者的所有活跃消费者。</p>
+<p>举个具体例子：假设有 <code>computed d = b() + c()</code>，<code>d</code> 的 <code>producers</code> 链就包含两个 <code>ReactiveLink</code>——一个指向 <code>b</code>，一个指向 <code>c</code>。与此同时，<code>b.consumers</code> 链和 <code>c.consumers</code> 链各自也包含指向 <code>d</code> 的 <code>ReactiveLink</code>。同一个链接对象，同时在两个方向被引用，这就是&quot;十字&quot;的含义。</p>
+<p>每条链接还记录了 <code>lastReadVersion</code>：消费者上次读取这个生产者时，生产者的版本号。这个字段是后面版本号检查的关键——如果生产者当前 <code>version &gt; link.lastReadVersion</code>，说明自上次读取以来生产者的值已经变化，消费者需要重新计算。</p>
+<p>🔍 <strong>深入</strong>：Angular 选择链表而不是数组来管理边，是因为 <code>computed</code> 的依赖是<strong>动态的</strong>。如果 computed 函数有条件分支（<code>if (a()) return b(); else return c();</code>），当 <code>a</code> 的值从 <code>true</code> 变成 <code>false</code> 时，<code>b</code> 这条边需要被删除，<code>c</code> 这条边需要被添加。链表的增删操作是 O(1)，而数组则需要移位——对于频繁变化的动态依赖，链表是更好的选择。</p>
+<h3 id="h-版本号与-epoch-机制">版本号与 Epoch 机制</h3>
+<p><code>ReactiveNode</code> 有两个版本相关的字段，它们承担不同的职责：</p>
+<p><strong><code>version</code></strong>：节点独有的版本号。只有当该节点的值<strong>真正发生变化</strong>时才递增。消费者通过比较自己记录的 <code>lastReadVersion</code> 与生产者当前的 <code>version</code>，来判断&quot;我上次读它之后，它有没有变&quot;。</p>
+<p><strong><code>epoch</code></strong>（全局变量）：每当任意 source signal 被 <code>.set()</code> 时递增。这是一个全局快捷路径：</p>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/graph.ts（第 26 行）
+let epoch: Version = 1 as Version;
+
+export function producerIncrementEpoch(): void {
+  epoch++;
+}</code></pre>
+<p>当一个消费者验证完自己是&quot;干净的&quot;，会把当前 epoch 记录到 <code>lastCleanEpoch</code>。下次被读取时，如果全局 epoch 没有变化（意味着在此期间没有任何 signal 被写入），就可以跳过所有脏检查直接返回缓存值。这对模板渲染中大量并发信号读取的性能至关重要——在没有写入的情况下，每次渲染的脏检查开销接近于零。</p>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/graph.ts（第 304-309 行）
+if (!node.dirty &amp;&amp; node.lastCleanEpoch === epoch) {
+  return; // 快速路径：全局没有变化，无需检查任何依赖
+}</code></pre>
+<h3 id="h-生产者与消费者的角色">生产者与消费者的角色</h3>
+<p><code>ReactiveNode</code> 并不区分&quot;生产者&quot;和&quot;消费者&quot;——<strong>每个节点同时具备两种能力</strong>。区分角色的是节点实际的使用方式：</p>
+<ul><li><code>signal</code>：永远不读取其他节点，因此只充当生产者</li><li><code>effect</code>：永远不被其他节点读取，因此只充当消费者</li><li><code>computed</code>：读取上游（是消费者），同时被下游读取（是生产者）</li></ul>
+<p>这一设计使得图的中间层（<code>computed</code>）能够透明地参与依赖传播，无需特殊处理。<code>ReactiveNode</code> 的这种&quot;角色由行为定义&quot;的设计哲学，也使得未来扩展新的原语（如 <code>linkedSignal</code>）成为可能——只需实现相应的多态方法，即可无缝融入现有的响应式图机制。</p>
+<h3 id="h-活跃消费者-live-consumer-机制">活跃消费者（Live Consumer）机制</h3>
+<p>并非所有 computed 都会始终待在生产者的消费者链表中。Angular 区分了<strong>活跃消费者</strong>和<strong>非活跃消费者</strong>：</p>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/graph.ts（第 548-550 行）
+function consumerIsLive(node: ReactiveNode): boolean {
+  return node.consumerIsAlwaysLive || node.consumers !== undefined;
+}</code></pre>
+<p><code>effect</code> 和模板消费者设置 <code>consumerIsAlwaysLive: true</code>，因此永远活跃，始终注册在生产者的消费者链表中。<code>computed</code> 的 <code>consumerIsAlwaysLive</code> 为 <code>false</code>，只有当它自身也被某个活跃消费者（直接或传递地）订阅时，才会被加入生产者的链表——这种活跃性是<strong>传递的</strong>。</p>
+<p>这个设计有一个重要的实际含义：如果你创建了一系列 computed，但没有将它们绑定到任何 effect 或模板，这些 computed 形成的子图不会在响应式图中注册任何边，不会占用内存，也不会在 signal 变化时被遍历。这避免了&quot;创建了大量未使用的 computed 导致内存泄漏&quot;的问题。</p>
+<h4 id="h-活跃性的传递-图遍历如何动态建立依赖链">活跃性的传递：图遍历如何动态建立依赖链</h4>
+<p>活跃性的传递不是元数据标记，而是在<strong>依赖追踪时动态建立</strong>的。以 <code>effect → computed A → computed B → signal</code> 这条链为例：</p>
+<ul><li>effect 首次执行时，将自身设为 <code>activeConsumer</code>，读取 <code>computedA()</code>，触发 <code>producerAccessed(computedA)</code>，在 effect 和 A 之间建立 <code>ReactiveLink</code>——此时 <code>A.consumers !== undefined</code>，<code>consumerIsLive(A) === true</code>；</li><li>A 求值时将自身设为 <code>activeConsumer</code>，读取 <code>computedB()</code>，在 A 和 B 之间建立边——<code>B.consumers !== undefined</code>，<code>consumerIsLive(B) === true</code>；</li><li>B 求值时读取 <code>signal()</code>，signal 的消费者链表中出现 B。</li></ul>
+<p>当 <code>signal.set()</code> 触发 <code>producerNotifyConsumers(signal)</code> 时，B 被标脏；B 传播到 A，A 传播到 effect——整条链都参与了推阶段。</p>
+<p>反过来，若 <code>computedA</code> 从未被任何 effect 或模板读取，<code>A.consumers === undefined</code>，<code>consumerIsLive(A) === false</code>。<code>producerAccessed()</code> 在尝试建立 A 到 B 的边时，因 A 不是活跃消费者，B 不会将 A 加入自己的消费者链表。于是整条 A → B → signal 子图与响应式图<strong>完全解耦</strong>，signal 的推阶段不会遍历到任何非活跃节点，不占用任何计算资源。</p>
+<hr>
+<h2 id="h-signal-的实现">signal() 的实现</h2>
+<p><code>signal()</code> 的原语实现在 <code>packages/core/primitives/signals/src/signal.ts</code>，Angular 公共 API 只是薄薄的一层包装。</p>
+<h3 id="h-创建与数据结构">创建与数据结构</h3>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/signal.ts（第 53-73 行）
+export function createSignal&lt;T&gt;(initialValue: T, equal?: ValueEqualityFn&lt;T&gt;) {
+  const node: SignalNode&lt;T&gt; = Object.create(SIGNAL_NODE);
+  node.value = initialValue;
+  if (equal !== undefined) { node.equal = equal; }
+
+  // getter 函数本身就是 signal 的&quot;门面&quot;
+  const getter = (() =&gt; signalGetFn(node)) as SignalGetter&lt;T&gt;;
+  (getter as any)[SIGNAL] = node;  // 把 node 挂在函数对象上，供框架访问
+  return [getter, set, update];
+}</code></pre>
+<p><code>signal</code> 的 getter 是一个<strong>闭包函数</strong>。当你写 <code>count()</code> 时，实际上是调用了 <code>() =&gt; signalGetFn(node)</code>，而 <code>node</code> 通过 <code>getter[SIGNAL]</code> 属性附在函数对象上。这个设计让 signal 既能像函数一样调用（读值），又能通过 <code>.set()</code> / <code>.update()</code> 方法修改——同一个函数对象同时是&quot;读接口&quot;和&quot;写接口&quot;的载体。</p>
+<h3 id="h-读取路径-produceraccessed">读取路径：producerAccessed</h3>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/signal.ts（第 81-84 行）
+export function signalGetFn&lt;T&gt;(node: SignalNode&lt;T&gt;): T {
+  producerAccessed(node);  // 关键：注册依赖
+  return node.value;
+}</code></pre>
+<p><code>producerAccessed()</code> 是依赖追踪的入口。它检查当前是否存在<strong>活跃消费者</strong>（<code>activeConsumer</code> 全局变量），如果有，就在生产者和消费者之间创建或更新一条 <code>ReactiveLink</code>。</p>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/graph.ts（第 204-283 行，节选）
+export function producerAccessed(node: ReactiveNode): void {
+  if (activeConsumer === null) {
+    return;  // 没有活跃消费者，忽略（如在模板外裸调用 signal()）
+  }
+  // 建立或复用 ReactiveLink，记录 lastReadVersion
+  // ... 链表操作
+}</code></pre>
+<p><code>activeConsumer</code> 何时被设置？当 <code>computed</code> 或 <code>effect</code> 开始执行其计算函数时，会先调用 <code>consumerBeforeComputation(node)</code> 将自己设为 <code>activeConsumer</code>，执行完毕后再调用 <code>consumerAfterComputation()</code> 恢复。因此，计算函数内部读取的所有 signal，都会自动注册为该 computed/effect 的依赖。</p>
+<p>这个&quot;全局变量充当上下文&quot;的设计有一个重要限制：依赖追踪是<strong>单线程同步</strong>的。在异步回调（<code>setTimeout</code>、<code>Promise.then</code>）中读取 signal，因为计算函数已经返回、<code>activeConsumer</code> 已被清除，所以不会建立依赖。这也是为什么 effect 的回调函数必须是同步的——如果 effect 内部有异步操作，只有 <code>await</code> 之前同步读取到的 signal 才会被追踪。</p>
+<p>📝 <strong>练习</strong>：在 effect 内部创建一个 <code>setTimeout</code>，在其回调中读取一个 signal。观察修改该 signal 时，外层 effect 是否会重新执行。答案是不会，原因正是上述机制。</p>
+<h3 id="h-写入路径-完整传播链">写入路径：完整传播链</h3>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/signal.ts（第 86-125 行）
+export function signalSetFn&lt;T&gt;(node: SignalNode&lt;T&gt;, newValue: T) {
+  if (!producerUpdatesAllowed()) {
+    throwInvalidWriteToSignalError(node); // computed 内部禁止写入
+  }
+  if (!node.equal(node.value, newValue)) { // 默认用 Object.is 比较
+    node.value = newValue;
+    signalValueChanged(node);
+  }
+}
+
+function signalValueChanged&lt;T&gt;(node: SignalNode&lt;T&gt;): void {
+  node.version++;                  // ① 递增自身版本号
+  producerIncrementEpoch();        // ② 递增全局 epoch
+  producerNotifyConsumers(node);   // ③ 通知所有活跃消费者（标脏）
+                                   //    非活跃消费者（consumerIsLive = false）不在消费者链表中，
+                                   //    自动跳过——这是非活跃子图的第二层快速路径
+  postSignalSetFn?.(node);         // ④ 可选钩子（Angular 集成层用于同步调度）
+}</code></pre>
+<p><code>producerNotifyConsumers</code> 遍历消费者链表，对每个未标脏的消费者调用 <code>consumerMarkDirty()</code>——这是一个<strong>递归操作</strong>：</p>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/graph.ts（第 359-363 行）
+export function consumerMarkDirty(node: ReactiveNode): void {
+  node.dirty = true;
+  producerNotifyConsumers(node);     // 继续向下传播，computed 也作为生产者通知其消费者
+  node.consumerMarkedDirty?.(node);  // 多态回调：模板/effect/根effect 各有不同响应
+}</code></pre>
+<p>这里有一个关键设计：<strong>脏标记是推的，值计算是拉的</strong>。<code>signal.set()</code> 只将整条依赖链上的所有节点标记为脏，并不触发任何重算。当需要读取最终值时，才从末端往前拉取最新值。这个&quot;推脏/拉值&quot;模式是 Angular Signals 保证 glitch-free 的根本机制，第六节会详细展开。</p>
+<p>值得注意的是 <code>postSignalSetFn</code> 这个可选钩子（<code>signalValueChanged</code> 第四步）。Angular 集成层在初始化时会设置这个钩子，用于在 Zoneless 模式下（Angular v18+）通知 <code>ChangeDetectionScheduler</code> 有 signal 发生了变化。在有 Zone.js 的应用中，Zone 的 async task 机制也会在合适时机触发 tick，两条路径最终都会进入 <code>ApplicationRef._tick()</code>。这个钩子是原语层与框架层之间唯一的&quot;跨层通知&quot;通道，保持了原语层的纯洁性。</p>
+<h3 id="h-update-与-mutate-的差异">update() 与 mutate() 的差异</h3>
+<p><code>signal.update(fn)</code> 是 <code>signal.set(fn(currentValue))</code> 的语法糖：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/reactivity/signal.ts（第 72-89 行）
+export function signal&lt;T&gt;(initialValue: T, options?: CreateSignalOptions&lt;T&gt;): WritableSignal&lt;T&gt; {
+  const [get, set, update] = createSignal(initialValue, options?.equal);
+  const signalFn = get as SignalGetter&lt;T&gt; &amp; WritableSignal&lt;T&gt;;
+  signalFn.set = set;
+  signalFn.update = update;  // update = fn =&gt; set(fn(get()))
+  signalFn.asReadonly = signalAsReadonlyFn.bind(signalFn as any);
+  return signalFn;
+}</code></pre>
+<p>⚠️ <strong>注意</strong>：Angular v17 之前存在 <code>signal.mutate()</code> 方法，允许直接修改对象内部而不替换引用，调用后强制通知消费者。该方法在 v17.1 已被<strong>移除</strong>，因为它绕过了等值检查，容易导致意外的重新渲染。如果你需要更新数组或对象，推荐的方式是用 <code>update()</code> 返回一个新引用：<code>items.update(arr =&gt; [...arr, newItem])</code>。</p>
+<hr>
+<h2 id="h-computed-的懒计算">computed() 的懒计算</h2>
+<p><code>computed()</code> 是 Signals 中最精妙的原语。它解决了一个看似矛盾的需求：自动追踪依赖、值变化时自动更新，但又不做不必要的计算。懒计算（lazy evaluation）这个词在这里不只是性能优化的说辞，它是 <code>computed</code> 语义的核心——一个未被读取的 computed，其计算函数在任何情况下都不会执行，哪怕依赖的 signal 已经变化了无数次。</p>
+<h3 id="h-三个哨兵值">三个哨兵值</h3>
+<p><code>ComputedNode</code> 用三个特殊的 Symbol 来表示值的状态，而不是用 <code>null</code> 或 <code>undefined</code>（它们可能是合法的计算结果）：</p>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/computed.ts（第 99-113 行）
+export const UNSET: any = Symbol('UNSET');       // 从未计算过（初始状态）
+export const COMPUTING: any = Symbol('COMPUTING'); // 正在计算中（循环检测）
+export const ERRORED: any = Symbol('ERRORED');     // 上次计算抛出了异常</code></pre>
+<p>初始状态下 <code>node.value === UNSET</code>，这意味着首次读取时必须执行计算。<code>COMPUTING</code> 状态用于检测循环依赖：如果 computed A 的计算函数中读取了 computed A 自身，就会看到值为 <code>COMPUTING</code> 并抛出错误。</p>
+<h3 id="h-读取路径-懒惰求值">读取路径：懒惰求值</h3>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/computed.ts（第 70-83 行）
+const computed = () =&gt; {
+  producerUpdateValueVersion(node);  // 确保值是最新的（如有必要，触发重算）
+  producerAccessed(node);            // 注册到上游消费者的依赖列表
+  if (node.value === ERRORED) { throw node.error; }
+  return node.value;
+};</code></pre>
+<p><code>producerUpdateValueVersion</code> 是懒计算的核心：</p>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/graph.ts（第 297-322 行）
+export function producerUpdateValueVersion(node: ReactiveNode): void {
+  // 快速路径1：活跃且干净 → 直接返回
+  if (consumerIsLive(node) &amp;&amp; !node.dirty) { return; }
+  // 快速路径2b：非活跃消费者（consumerIsLive 为 false）且脏 → 直接跳过脏检查
+  // 非活跃节点从未进入任何生产者的消费者链表，推阶段不会通知它们，
+  // 因此无需通知任何消费者，节省递归遍历开销
+  if (!consumerIsLive(node) &amp;&amp; node.dirty) { return; }
+  // 快速路径2：全局 epoch 未变 → 直接返回
+  if (!node.dirty &amp;&amp; node.lastCleanEpoch === epoch) { return; }
+  // 检查是否首次计算，或依赖是否真的变了
+  if (!node.producerMustRecompute(node) &amp;&amp; !consumerPollProducersForChange(node)) {
+    producerMarkClean(node);  // 依赖没变，标记为干净并返回
+    return;
+  }
+  // 真正的重算
+  node.producerRecomputeValue(node);
+  producerMarkClean(node);
+}</code></pre>
+<p><strong>依赖验证</strong>由 <code>consumerPollProducersForChange()</code> 完成——它遍历所有生产者，比较记录的 <code>lastReadVersion</code> 与生产者当前的 <code>version</code>，若不一致则说明依赖真的变了：</p>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/graph.ts（第 448-472 行）
+export function consumerPollProducersForChange(node: ReactiveNode): boolean {
+  for (let link = node.producers; link !== undefined; link = link.nextProducer) {
+    const producer = link.producer;
+    const seenVersion = link.lastReadVersion;
+    if (seenVersion !== producer.version) { return true; }
+    // 递归验证：确保生产者自己也是最新的（关键！glitch-free 的来源）
+    producerUpdateValueVersion(producer);
+    if (seenVersion !== producer.version) { return true; }
+  }
+  return false;
+}</code></pre>
+<h3 id="h-动态依赖追踪与等值优化">动态依赖追踪与等值优化</h3>
+<p>每次 computed 重算时，<code>consumerBeforeComputation()</code> 先清除旧的依赖列表，然后在计算函数执行过程中<strong>重新建立</strong>依赖。这意味着依赖是<strong>动态的</strong>，不是静态订阅。</p>
+<p>动态依赖追踪对有条件分支的计算非常重要。考虑：</p>
+<pre><code class="language-typescript">const mode = signal&lt;'a' | 'b'&gt;('a');
+const valueA = signal(10);
+const valueB = signal(20);
+
+const result = computed(() =&gt; {
+  if (mode() === 'a') return valueA();  // 只依赖 valueA
+  return valueB();                       // 只依赖 valueB
+});</code></pre>
+<p>当 <code>mode()</code> 为 <code>'a'</code> 时，<code>result</code> 的依赖列表只包含 <code>mode</code> 和 <code>valueA</code>——修改 <code>valueB</code> 不会触发 <code>result</code> 重算，因为它根本没被读取过。这种按实际执行路径动态建立的依赖关系，比静态声明依赖更精确，减少了不必要的重算。</p>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/computed.ts（第 132-173 行，节选）
+producerRecomputeValue(node: ComputedNode&lt;unknown&gt;): void {
+  const oldValue = node.value;
+  node.value = COMPUTING;  // 防止循环依赖
+
+  const prevConsumer = consumerBeforeComputation(node); // 设为 activeConsumer
+  try {
+    newValue = node.computation();  // 执行用户函数，自动追踪依赖
+    setActiveConsumer(null);        // equal() 调用不应追踪信号
+    wasEqual = oldValue !== UNSET &amp;&amp; node.equal(oldValue, newValue);
+  } finally {
+    consumerAfterComputation(node, prevConsumer); // 恢复 activeConsumer，清理过期边
+  }
+
+  if (wasEqual) {
+    node.value = oldValue;  // ← 关键！值相等时保留旧引用，不递增 version
+    return;
+  }
+  node.value = newValue;
+  node.version++;  // version 递增 → 下游才能感知到变化
+}</code></pre>
+<p><strong>等值优化</strong>是 Signals 的一个重要特性：如果 computed 重算后的新值与旧值相等（通过 <code>equal</code> 函数判断，默认 <code>Object.is</code>），则 <code>node.version</code> 不递增。下游的 effect 或模板在做 <code>consumerPollProducersForChange()</code> 时，会发现版本没有变，从而<strong>阻断传播</strong>，不触发重新渲染。这意味着即使 signal 的某个字段变了，如果 computed 提取的那个子集没变，整条依赖链上的 UI 就不会更新。</p>
+<p>这在列表过滤、聚合计算等场景中非常有价值——用 <code>computed</code> 提取感兴趣的派生值，天然获得细粒度的更新隔离：</p>
+<pre><code class="language-typescript">// 用户列表中，只关心&quot;是否有管理员&quot;
+const users = signal&lt;User[]&gt;([]);
+const hasAdmin = computed(() =&gt; users().some(u =&gt; u.role === 'admin'));
+
+// 即使 users 数组频繁更新（添加普通用户），
+// 只要 hasAdmin 的结果不变，依赖它的视图就不会重渲染</code></pre>
+<p>💡 <strong>提示</strong>：等值判断默认使用 <code>Object.is</code>（严格相等 + 处理 <code>NaN</code>）。如果 computed 返回数组或对象，每次新建引用即使内容相同也不相等，等值优化就会失效。这种情况下，可以传入自定义 <code>equal</code> 函数：<code>computed(() =&gt; [...ids()].sort(), { equal: (a, b) =&gt; a.length === b.length &amp;&amp; a.every((v, i) =&gt; v === b[i]) })</code>。</p>
+<hr>
+<h2 id="h-effect-的调度">effect() 的调度</h2>
+<h3 id="h-effect-的本质-始终活跃的消费者">effect 的本质：始终活跃的消费者</h3>
+<p><code>effect</code> 与 <code>computed</code> 最根本的区别在于 <code>consumerIsAlwaysLive</code> 标志：</p>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/effect.ts（第 36-43 行）
+export const BASE_EFFECT_NODE = {
+  ...REACTIVE_NODE,
+  consumerIsAlwaysLive: true,     // effect 始终注册在生产者的消费者链表中
+  consumerAllowSignalWrites: true, // effect 内允许写 signal（与 computed 不同）
+  dirty: true,                    // 初始为脏，确保首次执行
+  kind: 'effect',
+};</code></pre>
+<p><code>consumerIsAlwaysLive: true</code> 的含义是：即使没有其他消费者订阅这个 effect，它也始终存在于其依赖的 signal 的消费者链表中。这是&quot;推&quot;模式的基础——signal 变化时才能主动通知到 effect。</p>
+<p>相比之下，<code>computed</code> 默认 <code>consumerIsAlwaysLive: false</code>，只有当它被某个 <code>consumerIsAlwaysLive</code> 的节点（直接或间接）订阅时，才会被加入生产者的消费者链表。未被任何 effect 或模板使用的 <code>computed</code> 链，不会在图中注册任何边，避免内存泄漏。</p>
+<p>这个机制还有一个微妙之处：<code>computed</code> 的活跃性是<strong>传递的</strong>。若 effect → computed A → computed B → signal，那么 signal 变化时，B 也会在 signal 的消费者链表中注册——因为 B 被 A 消费，A 被 effect 消费，effect 是活跃的，活跃性沿链向上传递。整个响应式子图在没有 effect 根节点时能够&quot;安静&quot;下来，不占用任何资源。</p>
+<h3 id="h-两种-effect-的执行时机">两种 effect 的执行时机</h3>
+<p>Angular 的 effect API 在集成层分为两种，理解它们的差异对调试很重要：</p>
+<p><strong>组件 effect（ViewEffectNode）</strong>：在 <code>@Component</code> 内通过 <code>effect()</code> 创建，绑定到组件的生命周期。其 <code>consumerMarkedDirty</code> 实现如下：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/reactivity/effect.ts（第 275-282 行）
+consumerMarkedDirty(this: ViewEffectNode): void {
+  this.view[FLAGS] |= LViewFlags.HasChildViewsToRefresh;
+  markAncestorsForTraversal(this.view);  // 沿视图树向上标记祖先
+  this.notifier.notify(NotificationSource.ViewEffect);
+}</code></pre>
+<p>组件 effect 在变更检测期间由 <code>runEffectsInView()</code> 执行，<strong>作为视图刷新的前置步骤，在模板渲染前执行</strong>——与 <code>ngDoCheck</code> 处于同一调度批次。它的生命周期与组件绑定，组件销毁时 effect 自动清理。</p>
+<p><strong>根 effect（RootEffectNode）</strong>：在注入上下文外或通过 <code>inject()</code> 创建（如在服务中）。其 <code>consumerMarkedDirty</code> 实现：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/reactivity/effect.ts（第 254-260 行）
+consumerMarkedDirty(this: RootEffectNode) {
+  this.scheduler.schedule(this);                        // 加入调度队列
+  this.notifier.notify(NotificationSource.RootEffect);  // 通知触发 tick
+}</code></pre>
+<p>根 effect 通过 <code>EffectScheduler</code> 独立调度，在 <code>ApplicationRef.synchronizeOnce()</code> 的开头通过 <code>effectScheduler.flush()</code> 批量执行——<strong>早于模板变更检测</strong>。这意味着根 effect 的执行先于视图更新，若 effect 内修改了 signal，该变化能在同一个 tick 内被视图捕获，不需要等到下一个 tick。</p>
+<p>正如第6章分析的 <code>synchronizeOnce()</code> 代码所示，执行顺序是：<code>effectScheduler.flush()</code>（根 effect 批量执行）→ 遍历所有视图执行变更检测 → <code>afterRender</code> 钩子。这个顺序保证了视图看到的是 effect 执行后的最新状态。</p>
+<p>📝 <strong>防护机制</strong>：在执行 effect 回调之前，<code>runEffect()</code> 会先对 effect 节点执行 <code>version++</code>。这个自增防止了&quot;effect 内写入 signal → signal 脏标记传播回 effect → effect 被再次调度&quot;的无限循环：当 signal 的脏标记传播回同一 effect 时，<code>consumerPollProducersForChange</code> 发现 effect 的版本已被递增，从而跳过重复调度。这是一个低开销的防循环保护，比 <code>MAXIMUM_REFRESH_RERUNS</code> 硬性限制更早触发。</p>
+<p>⚠️ <strong>注意</strong>：<code>effect()</code> 不是同步执行的。调用 <code>signal.set(value)</code> 后，effect 不会立即运行——它会被调度到下一个 microtask（或 requestAnimationFrame）。在同一同步块中多次调用 <code>set()</code>，effect 只会运行一次，拿到最终值。这就是 Angular Signals 的<strong>自动批处理</strong>。</p>
+<h3 id="h-untracked-读而不订阅">untracked()：读而不订阅</h3>
+<p>有时候你需要在 effect 中读取 signal 的值，但不希望将其建立为依赖——比如在日志记录中，你只是想打印当前值，不希望每次变化都重新触发整个 effect。这时可以用 <code>untracked()</code>：</p>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/untracked.ts（第 15-24 行）
+export function untracked&lt;T&gt;(nonReactiveReadsFn: () =&gt; T): T {
+  const prevConsumer = setActiveConsumer(null); // 暂时清除 activeConsumer
+  try {
+    return nonReactiveReadsFn();
+  } finally {
+    setActiveConsumer(prevConsumer); // 恢复
+  }
+}</code></pre>
+<p><code>untracked()</code> 在 <code>toObservable()</code> 的实现中也有使用：<code>subject.next()</code> 在 effect 上下文中被调用，但如果 <code>next()</code> 内部触发了其他 signal 读取，这些读取不应该成为 effect 的依赖。</p>
+<hr>
+<h2 id="h-钻石问题与-glitch-free-保证">钻石问题与 glitch-free 保证</h2>
+<p>这是本章最值得细品的部分。&quot;钻石问题&quot;（Diamond Problem）这个名字来自依赖图的形状：一个节点有两条路径流向另一个节点，形成菱形（钻石形）。它是响应式系统设计中的经典难题，Angular 的解法颇具代表性。</p>
+<h3 id="h-什么是钻石问题">什么是钻石问题</h3>
+<p>考虑以下依赖结构：</p>
+<pre><code class="language-typescript">const a = signal(1);
+const b = computed(() =&gt; a() * 2);  // b 依赖 a
+const c = computed(() =&gt; a() * 3);  // c 依赖 a
+const d = computed(() =&gt; b() + c()); // d 依赖 b 和 c</code></pre>
+<div class="mermaid">flowchart TD
+    A[&quot;a = signal(1)&quot;]
+    B[&quot;b = computed&lt;br/&gt;a() * 2 = 2&quot;]
+    C[&quot;c = computed&lt;br/&gt;a() * 3 = 3&quot;]
+    D[&quot;d = computed&lt;br/&gt;b() + c() = 5&quot;]
+    E[&quot;effect / 模板&quot;]
+
+    A --&gt;|&quot;写入: a.set(2)&quot;| B
+    A --&gt;|&quot;写入: a.set(2)&quot;| C
+    B --&gt; D
+    C --&gt; D
+    D --&gt; E
+
+    style A fill:#ffecb3,stroke:#f57f17
+    style B fill:#e3f2fd,stroke:#1976d2
+    style C fill:#e3f2fd,stroke:#1976d2
+    style D fill:#f3e5f5,stroke:#7b1fa2
+    style E fill:#e8f5e9,stroke:#388e3c</div>
+<p>当 <code>a.set(2)</code> 时，如果系统的实现是<strong>纯推（pure push）</strong>——每当生产者变化就立即重算消费者——会发生什么？</p>
+<ul><li><code>a</code> 变化 → 先通知 <code>b</code> → <code>b</code> 重算为 4 → <code>b</code> 变化 → 通知 <code>d</code> → <code>d</code> 尝试读取 <code>b()</code> + <code>c()</code>，此时 <code>c</code> 还是旧值 3 → <strong><code>d</code> 得到 7，而不是正确的 10</strong></li></ul>
+<p>这种中间状态读取就是 <strong>glitch</strong>（毛刺）。它不只是性能问题，而是<strong>正确性</strong>问题。</p>
+<h3 id="h-angular-的解决方案-推脏拉值">Angular 的解决方案：推脏拉值</h3>
+<p>Angular Signals 使用 <strong>push-pull 混合模型</strong>彻底消除 glitch：</p>
+<p><strong>推阶段</strong>（<code>signal.set()</code> 触发）：只传播脏标记，不重算任何值。所有直接和间接消费者的 <code>dirty</code> 标志被设为 <code>true</code>，不涉及任何计算。</p>
+<pre><code>a.set(2)
+  → b.dirty = true（b 作为消费者）
+  → b 的 producerNotifyConsumers 传播：d.dirty = true
+  → c.dirty = true（c 作为消费者）
+  → c 的 producerNotifyConsumers 传播：d.dirty = true（已为 true，幂等）</code></pre>
+<p>推阶段结束后，b、c、d 都被标脏，但没有任何计算发生。<code>a.version</code> 递增，全局 <code>epoch</code> 递增，这是推阶段唯一的&quot;副作用&quot;。</p>
+<p><strong>拉阶段</strong>（effect 或模板读取 <code>d()</code> 时触发）：从末端节点出发，递归地验证并重算依赖链：</p>
+<pre><code>d()
+  → producerUpdateValueVersion(d)
+    → d.dirty = true → 检查依赖是否真的变了
+      → consumerPollProducersForChange(d)
+        → 检查 b：b.version vs lastReadVersion 不同
+          → producerUpdateValueVersion(b) ← 先保证 b 最新
+            → b 重算：b() = 2 * 2 = 4，b.version++
+        → 检查 c：c.version vs lastReadVersion 不同
+          → producerUpdateValueVersion(c) ← 先保证 c 最新
+            → c 重算：c() = 2 * 3 = 6，c.version++
+      → 依赖确实变了，d 执行重算
+    → d 重算：d() = b() + c() = 4 + 6 = 10 ✓</code></pre>
+<p>关键在 <code>consumerPollProducersForChange()</code> 中的递归调用：在判断 <code>d</code> 的依赖是否变化之前，会先调用 <code>producerUpdateValueVersion(b)</code> 和 <code>producerUpdateValueVersion(c)</code>，确保它们都基于最新的 <code>a</code> 值重算完毕。这形成了一个<strong>深度优先的按需重算</strong>过程，保证任何中间节点被读取时其依赖都已是最新状态。</p>
+<p>加上等值优化，还有第三重保障：如果 <code>b</code> 重算后值与旧值相等（<code>wasEqual = true</code>），<code>b.version</code> 不递增，<code>d</code> 看到版本没变，不触发重算，整条链就此截断。这在实际应用中非常有价值——例如一个根据用户状态计算权限的链：<code>userState → role → hasAdminPermission → UI</code>，如果 <code>userState</code> 的某个字段变化但 <code>role</code> 没变，<code>hasAdminPermission</code> 和 UI 都不会重算，精准地避免了不必要的刷新。</p>
+<hr>
+<h2 id="h-与变更检测的集成">与变更检测的集成</h2>
+<p>Signals 的精妙之处不仅在于响应式图的内部机制，还在于它如何无缝接入 Angular 已有的变更检测体系。正如第6章所分析的，变更检测引擎通过 <code>LViewFlags</code> 位掩码来决定哪些视图需要刷新。Signals 的集成，本质上是将&quot;signal 变化&quot;这一事件翻译成&quot;设置正确的 LViewFlags&quot;这一操作。</p>
+<h3 id="h-模板消费者-reactivelviewconsumer">模板消费者：ReactiveLViewConsumer</h3>
+<p>每个 Signal 组件（标有 <code>SignalView</code> 标志的组件）的模板渲染，都有一个对应的 <code>ReactiveLViewConsumer</code> 节点挂载在 LView 上。这个节点充当<strong>模板的代理消费者</strong>：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/reactive_lview_consumer.ts（第 43-53 行）
+consumerMarkedDirty: (node: ReactiveLViewConsumer) =&gt; {
+  markAncestorsForTraversal(node.lView!);
+  // markAncestorsForTraversal 会沿视图树向上给每个祖先设置
+  // LViewFlags.HasChildViewsToRefresh 标志
+}</code></pre>
+<p>当模板读取到某个 signal 时，该 signal 与 <code>ReactiveLViewConsumer</code> 之间建立 <code>ReactiveLink</code>。当 signal 变化时，<code>consumerMarkedDirty</code> 被调用，向上标记祖先视图，最终触发 <code>ChangeDetectionScheduler</code> 调度一次 tick。</p>
+<p>这里有一个值得注意的细节：<code>ReactiveLViewConsumer</code> 在每次模板渲染开始时被设置为 <code>activeConsumer</code>，渲染过程中读取到的所有 signal 都会自动成为该视图的依赖。渲染结束后，旧的依赖边被清理，新的依赖边被建立。这与 <code>computed</code> 的动态依赖追踪机制完全相同——模板渲染，从 Signals 的角度看，就是一次特殊的 <code>computed</code> 求值过程，只是其&quot;输出&quot;是 DOM 更新而不是一个值。</p>
+<p>从 signal 写入到视图更新的完整路径如下：</p>
+<div class="mermaid">flowchart LR
+    SET[&quot;signal.set()&quot;]
+    VER[&quot;node.version++&lt;br/&gt;epoch++&quot;]
+    NOTIFY[&quot;producerNotifyConsumers()&lt;br/&gt;标脏传播&quot;]
+    DIRTY[&quot;consumerMarkedDirty()&lt;br/&gt;（多态）&quot;]
+    MARK[&quot;markAncestorsForTraversal()&lt;br/&gt;设置 HasChildViewsToRefresh&quot;]
+    SCHED[&quot;ChangeDetectionScheduler&lt;br/&gt;.notify()&quot;]
+    MICRO[&quot;microtask 边界&quot;]
+    TICK[&quot;ApplicationRef._tick()&quot;]
+    REFRESH[&quot;检测有 HasChildViewsToRefresh&lt;br/&gt;标志的视图&quot;]
+    DOM[&quot;DOM 更新&quot;]
+
+    SET --&gt; VER --&gt; NOTIFY --&gt; DIRTY --&gt; MARK --&gt; SCHED --&gt; MICRO --&gt; TICK --&gt; REFRESH --&gt; DOM
+
+    style MICRO fill:#fff9c4,stroke:#f9a825
+    style TICK fill:#fce4ec,stroke:#c62828</div>
+<p>注意图中的<strong>microtask 边界</strong>：<code>signal.set()</code> 是同步的，但从调度通知到 <code>_tick()</code> 执行之间存在一个异步边界。这就是 Angular Signals 实现自动批处理的机制——在同一同步执行块中多次写入 signal，只会触发一次 tick。</p>
+<h3 id="h-input-与传统-input-的底层差异">input() 与传统 @Input() 的底层差异</h3>
+<p><code>input()</code> signal-based 输入在底层复用了 <code>SignalNode</code>：</p>
+<pre><code class="language-typescript">// packages/core/src/authoring/input/input_signal_node.ts（第 42-51 行）
+export const INPUT_SIGNAL_NODE: InputSignalNode&lt;unknown, unknown&gt; = {
+  ...SIGNAL_NODE,
+  transformFn: undefined,
+  applyValueToInputSignal&lt;T, TransformT&gt;(node: InputSignalNode&lt;T, TransformT&gt;, value: T) {
+    signalSetFn(node, value);  // 框架内部通过此方法写入值
+  },
+};</code></pre>
+<p>与传统 <code>@Input()</code> 的本质区别在于通知机制：传统 <code>@Input()</code> 的属性变化通过 <code>ngOnChanges</code> 钩子通知组件，依赖 Zone.js 或 <code>markForCheck()</code> 才能触发视图更新；<code>input()</code> signal 的值变化直接触发响应式图的传播，精准地只更新依赖该 input 的计算和视图。</p>
+<p>对于 <code>input()</code>，框架调用 <code>applyValueToInputSignal()</code> 写入新值，这与 <code>signal.set()</code> 走的是完全相同的路径——<code>signalSetFn</code> → <code>signalValueChanged</code> → <code>producerNotifyConsumers</code>。视图中所有依赖该 input 的 <code>computed</code> 会被标脏，相关部分的 DOM 会在下次 tick 时精确更新。</p>
+<p>此外，<code>input()</code> 对外是<strong>只读</strong>的——<code>InputSignal&lt;T&gt;</code> 类型不暴露 <code>set()</code> 和 <code>update()</code> 方法。只有框架通过 <code>applyValueToInputSignal()</code> 这个内部 API 写入。这个约束在类型层面强制了&quot;数据从父到子单向流动&quot;的原则，避免了子组件意外修改父组件传入的值。</p>
+<p>🔗 <strong>交叉引用</strong>：第6章分析的 <code>LViewFlags.HasChildViewsToRefresh</code> 标志和 <code>markAncestorsForTraversal()</code> 函数，正是 Signals 与变更检测的连接点。Signal 组件的精准更新，就是通过设置这个标志，告诉变更检测引擎&quot;我这个分支需要刷新&quot;。</p>
+<hr>
+<h2 id="h-rxjs-互操作">RxJS 互操作</h2>
+<p>Signal 和 Observable 各有长处——Signal 同步、始终有值、天然懒计算，非常适合表达 UI 状态；Observable 擅长表达时序、多值和异步流，在处理 HTTP 请求、WebSocket、用户输入防抖等场景仍然是更自然的选择。Angular 提供了两个互操作函数，让两个世界可以互联，开发者可以在新旧两种模式之间渐进过渡。</p>
+<h3 id="h-tosignal-observable-signal">toSignal()：Observable → Signal</h3>
+<pre><code class="language-typescript">// packages/core/rxjs-interop/src/to_signal.ts（第 154-224 行，节选）
+// 1. 内部状态用一个包含 kind/value/error 的 State 对象存储
+let state: WritableSignal&lt;State&lt;T | U&gt;&gt;;
+state = signal&lt;State&lt;T | U&gt;&gt;({ kind: StateKind.Value, value: options?.initialValue as U });
+
+// 2. 订阅 Observable，每次发射更新 state signal
+const sub = source.subscribe({
+  next: (value) =&gt; state.set({ kind: StateKind.Value, value }),
+  error: (error) =&gt; state.set({ kind: StateKind.Error, error }),
+});
+
+// 3. 返回一个 computed，解包 State 对象
+return computed(() =&gt; {
+  const current = state();
+  switch (current.kind) {
+    case StateKind.Value: return current.value;
+    case StateKind.Error: throw current.error;
+    case StateKind.NoValue: throw new Error('No value available yet.');
+  }
+});</code></pre>
+<p><code>toSignal</code> 返回的实际上是一个 <strong>computed</strong>，不是 WritableSignal。内部有一个 WritableSignal 存储 Observable 推来的最新状态，外层 computed 负责解包。这意味着等值优化同样适用：如果 Observable 连续发出相同的值，computed 的 <code>equal</code> 函数会阻止下游更新。</p>
+<p>为什么用 <code>State</code> 对象包装而不是直接存储值？因为 Observable 有三种终态：正常值、错误和无值（初始状态）。Signal 本身没有错误状态的概念，但通过 computed 内部的 <code>throw</code>，错误可以被缓存在 <code>ComputedNode.error</code> 字段中，下次读取时重新抛出。这是一个优雅的语义桥接。</p>
+<p>⚠️ <strong>注意</strong>：<code>toSignal()</code> 必须在<strong>注入上下文</strong>中调用（构造函数或 <code>runInInjectionContext()</code> 内），因为它内部需要通过 <code>inject(DestroyRef)</code> 注册清理订阅的回调。如果 Observable 可能在订阅时没有立即发射值，需要提供 <code>{ initialValue: ... }</code> 或使用 <code>requireSync: true</code> 配合同步 Observable。</p>
+<h3 id="h-toobservable-signal-observable">toObservable()：Signal → Observable</h3>
+<pre><code class="language-typescript">// packages/core/rxjs-interop/src/to_observable.ts（第 48-75 行）
+export function toObservable&lt;T&gt;(source: Signal&lt;T&gt;, options?: ToObservableOptions): Observable&lt;T&gt; {
+  const subject = new ReplaySubject&lt;T&gt;(1); // 确保新订阅者获得最新值
+
+  const watcher = effect(() =&gt; {
+    let value: T;
+    try {
+      value = source();  // 在 effect 中读取 signal → 建立依赖
+    } catch (err) {
+      untracked(() =&gt; subject.error(err));
+      return;
+    }
+    untracked(() =&gt; subject.next(value)); // untracked：subject.next 内部不应追踪
+  }, { injector, manualCleanup: true });
+
+  injector.get(DestroyRef).onDestroy(() =&gt; {
+    watcher.destroy();
+    subject.complete();
+  });
+
+  return subject.asObservable();
+}</code></pre>
+<p>实现极为简洁：用一个 effect 追踪 signal，signal 变化时 effect 重新运行，通过 <code>ReplaySubject</code> 推送给 Observable 订阅者。<code>untracked()</code> 包裹 <code>subject.next()</code> 是必要的——否则 <code>next()</code> 内部如果触发了任何 signal 读取（比如订阅者的 pipe 操作中），会被错误地记录为这个 effect 的依赖。</p>
+<p><code>ReplaySubject(1)</code> 的选择也有讲究：它会缓存最新一个值，使得新订阅者能立即获得当前 signal 的值，而不需要等待下次变化。这保证了 <code>toObservable()</code> 返回的 Observable 具有与 signal 相似的&quot;始终有当前值&quot;语义。</p>
+<p>⚠️ <strong>注意</strong>：<code>toSignal()</code> 和 <code>toObservable()</code> 都必须在<strong>注入上下文</strong>中调用，因为它们内部需要通过 <code>inject(DestroyRef)</code> 注册销毁回调。如果在路由守卫或服务的工厂函数中使用，需要手动传入 <code>injector</code> 参数。</p>
+<h3 id="h-tosignal-的实战陷阱">toSignal() 的实战陷阱</h3>
+<p><strong>陷阱1：多组件共用 <code>toSignal()</code> 导致重复订阅</strong></p>
+<pre><code class="language-typescript">// ❌ 危险写法：每个组件实例各自调用 toSignal()，持有独立订阅
+@Component({ ... })
+export class ProductListComponent {
+  products = toSignal(this.http.get&lt;Product[]&gt;('/api/products'));
+}</code></pre>
+<p>若同一页面渲染了多个 <code>ProductListComponent</code> 实例，HTTP 请求会被发起<strong>多次</strong>——每个 <code>toSignal()</code> 内部调用 <code>source.subscribe()</code>，订阅同一个 Cold Observable（HTTP 请求是 Cold 的）会独立触发一次请求。正确做法是将 <code>toSignal()</code> 提升到单例服务中，所有组件共享同一信号：</p>
+<pre><code class="language-typescript">// ✅ 正确：在服务中创建一次，所有组件读取同一个 Signal
+@Injectable({ providedIn: 'root' })
+export class ProductService {
+  products = toSignal(this.http.get&lt;Product[]&gt;('/api/products'), { initialValue: [] });
+}</code></pre>
+<p><strong>陷阱2：<code>initialValue</code> 缺失时的类型安全问题</strong></p>
+<p>不提供 <code>initialValue</code> 时，<code>toSignal()</code> 返回 <code>Signal&lt;T | undefined&gt;</code>——在 Observable 同步发射值之前，信号的初始状态是 <code>undefined</code>。若消费侧未处理 <code>undefined</code> 分支，运行时可能抛出错误：</p>
+<pre><code class="language-typescript">const data = toSignal(http.get&lt;User&gt;('/api/user'));
+// data 类型：Signal&lt;User | undefined&gt;
+
+const userName = computed(() =&gt; data()?.name ?? '加载中...');  // ✅ 安全消费
+
+// 若 Observable 保证同步发射（如 of(defaultUser)），可用 requireSync 消除 undefined
+const data2 = toSignal(of(defaultUser), { requireSync: true }); // Signal&lt;User&gt;，无 undefined</code></pre>
+<hr>
+<blockquote><p><strong>设计思考</strong><br>
+<br>
+<strong>为什么选择 push-pull 混合模型，而不是纯 push？</strong><br>
+<br>
+纯 push 的实现（如早期的 Vue 2 <code>Object.defineProperty</code>）在依赖关系简单时效率高，但在 DAG（有向无环图）中很容易产生 glitch，必须引入拓扑排序来保证更新顺序。MobX 就是这一路线的代表：它维护一个全局更新队列，按拓扑排序执行重算，保证 glitch-free，但这意味着<strong>必须在每次写入时更新整个图的拓扑状态</strong>，有持续的内存和 CPU 开销。Solid.js 的 Signals 也选择了纯 push + 调度队列的方式，确实代码路径更短，但为 glitch-free 付出了维护队列的代价。<br>
+<br>
+Angular 选择了 push-pull：推阶段只传播脏标记（成本极低，没有任何值计算），拉阶段在读取时递归按需重算（可以理解为&quot;惰性拓扑排序&quot;）。这带来几个优势：如果没有人读取某个 computed，它的计算函数<strong>永远不会执行</strong>，在服务端渲染或懒加载场景中节省了大量不必要的计算；等值优化可以在链路中间截断传播，避免大量下游重算；响应式图不需要全局的排序状态，可以并发地读写不同的子图而不产生干扰。<br>
+<br>
+<strong>glitch-free 的代价是什么？</strong><br>
+<br>
+Push-pull 模型的代价是<strong>读取时的递归验证开销</strong>。当读取一个深层 computed 时，需要递归验证其所有依赖的依赖是否最新，这在极端情况下（超深依赖链、高扇入）可能造成较高的调用栈开销。Angular 用两个机制缓解了这个问题：<code>lastCleanEpoch</code> 提供了全局快捷路径——如果全局 epoch 没变，所有验证在 O(1) 时间内完成；<code>consumerIsLive</code> 过滤掉未被任何活跃消费者订阅的子图，使这些子图完全不参与推阶段的传播。综合来看，在典型的应用中（依赖链深度有限，大多数 tick 没有大量写入），push-pull 的开销是可接受的。<br>
+<br>
+<strong>Signals 与 Zone.js 的共存策略</strong><br>
+<br>
+Angular v18-v19 处于从 Zone.js 到 Zoneless 的过渡期，两种机制可以共存。Zone.js 触发的全局 tick 会遍历所有视图，Signal 组件通过 <code>markAncestorsForTraversal()</code> 额外获得精准的 <code>HasChildViewsToRefresh</code> 标记，两者都能工作。对于 Zoneless 应用，Signals 是唯一的变更检测触发源，Zone.js 的全局轮询完全退出。<br>
+<br>
+推荐的迁移路径：<strong>OnPush + Signals</strong>（中间状态）→ <strong>Zoneless + Signals</strong>（目标状态）。在第一阶段，OnPush 减少了全树检查的范围，Signals 进一步精确到组件内部的 signal 级别；在第二阶段，Zone.js 完全退出，变更检测由 Signals 精准驱动，性能达到最优。Angular 团队在 v19 将 Zoneless 标记为稳定，预示着这一迁移路径已经足够成熟，可以在生产环境中使用。</p></blockquote>
+<hr>
+<h2 id="h-小结">小结</h2>
+<p>本章从 <code>ReactiveNode</code> 数据结构出发，拆解了 Angular Signals 的完整实现链路。Signals 系统的设计美在于：复杂的响应式语义（懒计算、自动追踪、glitch-free）都从几个简单的原则中涌现——版本号、脏标记、活跃消费者机制、递归按需重算。以下是关键结论：</p>
+<ul><li><strong>响应式图</strong>是一个 DAG，节点同时具备生产者和消费者角色，通过 <code>ReactiveLink</code> 十字链表连接；<code>version</code>（节点维度）和 <code>epoch</code>（全局维度）协同提供高效的脏检测</li><li><strong>signal</strong> 是值容器：读取时通过 <code>producerAccessed()</code> 自动注册依赖，写入时通过 <code>signalValueChanged()</code> 递增版本、传播脏标记</li><li><strong>computed</strong> 是懒的：<code>dirty = true</code> 不等于立刻重算——只有被读取时才通过 <code>producerUpdateValueVersion()</code> 按需重算，等值优化（<code>wasEqual</code>）可在中间节点截断传播</li><li><strong>effect</strong> 永远活跃（<code>consumerIsAlwaysLive: true</code>），是响应式链路的终点，分为组件 effect（CD 期间执行）和根 effect（microtask 调度执行）两种</li><li><strong>glitch-free 保证</strong>来自 push-pull 混合模型：<code>producerNotifyConsumers</code> 只推脏标记，<code>consumerPollProducersForChange</code> 在读取时递归验证依赖树，确保最终消费者看到一致快照</li><li><strong>与变更检测的集成</strong>通过 <code>ReactiveLViewConsumer</code> 实现：模板渲染即是一次特殊的 computed 求值，依赖自动追踪，变化自动调度 tick</li><li><strong>RxJS 互操作</strong>：<code>toSignal()</code> 用 <code>WritableSignal + computed</code> 桥接，<code>toObservable()</code> 用 <code>effect + ReplaySubject</code> 桥接，两者均通过 <code>untracked()</code> 避免依赖污染</li></ul>
+<hr>
+<h2 id="h-思考题">思考题</h2>
+<p><strong>【基础】掌握核心传播链</strong></p>
+<ol><li>在模板中写 <code>{{ count() }}</code>，<code>ReactiveLViewConsumer</code> 会建立对 <code>count</code> 的依赖。现在连续调用两次 <code>count.set(1)</code>（第一次从 0 改为 1，第二次仍然是 1）——这两次写入各自会触发哪些步骤（版本号、epoch、脏标记、视图调度）？两次调用在行为上有何不同？</li></ol>
+<blockquote><p><strong>答案提示</strong>：第一次写入：<code>count.version++</code> → <code>epoch++</code> → <code>consumerMarkDirty(ReactiveLViewConsumer)</code> → <code>markAncestorsForTraversal()</code> → <code>ChangeDetectionScheduler.notify()</code> → 下一 tick 更新 DOM。第二次写入：<code>signalSetFn</code> 中 <code>Object.is(1, 1) === true</code> → 相等检查阻止 <code>signalValueChanged()</code> → 不执行任何后续步骤，无脏标记传播，无视图调度。</p></blockquote>
+<p><strong>【中级】深入等值优化与批处理</strong></p>
+<ol><li>创建 <code>const isEven = computed(() =&gt; count() % 2 === 0)</code>，在同一同步块中连续调用 <code>count.set(1)</code>、<code>count.set(3)</code>、<code>count.set(5)</code>。依赖 <code>isEven</code> 的 <code>effect(() =&gt; console.log(isEven()))</code> 最终会执行几次，打印什么值？请从批处理合并（自动批处理）、<code>version</code> 递增和等值优化的角度逐步分析——注意拉取（pull）发生在调度批次结束之后，而不是每次 <code>set()</code> 之后。</li></ol>
+<p><strong>【高级】架构权衡与实战设计</strong></p>
+<ol><li>你在服务中写了 <code>data = toSignal(this.http.get&lt;User[]&gt;('/api/users'))</code>。(a) 若该服务是 <code>providedIn: 'root'</code>，5 个组件同时注入并在模板中读取 <code>data()</code>，会发起几次 HTTP 请求？若该服务改为组件级 <code>providers</code>，答案是否不同？(b) 现在需要在路由参数（<code>userId</code>）变化时自动重新请求用户数据，请设计一个基于 <code>computed + toSignal</code> 或 <code>toSignal(rxjs.switchMap(...))</code> 的响应式数据流方案，并分析其与变更检测的集成方式（提示：参数变化如何触发 <code>ReactiveLViewConsumer</code> 脏标记传播）。</li></ol>
+    <div class="chapter-nav"><a href="ch06.html">← 上一章：第6章：变更检测——Angular 如何知道界面需要更新</a><a href="ch08.html">下一章：第8章：组件模型——从装饰器到运行时对象 →</a></div>
+  </main>
+  
+<aside id="toc-right">
+  <div class="toc-title">本章目录</div>
+  <ul class="toc-list"><li><a href="#h-三个核心原语">三个核心原语</a></li>
+<li><a href="#h-reactivenode-响应式图的节点">ReactiveNode——响应式图的节点</a></li>
+<li><a href="#h-signal-的实现">signal() 的实现</a></li>
+<li><a href="#h-computed-的懒计算">computed() 的懒计算</a></li>
+<li><a href="#h-effect-的调度">effect() 的调度</a></li>
+<li><a href="#h-钻石问题与-glitch-free-保证">钻石问题与 glitch-free 保证</a></li>
+<li><a href="#h-与变更检测的集成">与变更检测的集成</a></li>
+<li><a href="#h-rxjs-互操作">RxJS 互操作</a></li>
+<li><a href="#h-小结">小结</a></li>
+<li><a href="#h-思考题">思考题</a></li></ul>
+</aside>
+</div>
+<button id="back-to-top" title="返回顶部">↑</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+<script>
+(function () {
+  'use strict';
+  function updateProgress() {
+    var el = document.getElementById('progress-bar');
+    if (!el) return;
+    var st = window.pageYOffset || document.documentElement.scrollTop;
+    var dh = document.documentElement.scrollHeight - window.innerHeight;
+    el.style.width = (dh > 0 ? Math.min(100, st / dh * 100) : 0) + '%';
+  }
+  function updateBackToTop() {
+    var btn = document.getElementById('back-to-top');
+    if (!btn) return;
+    btn.classList.toggle('visible', (window.pageYOffset || document.documentElement.scrollTop) > 300);
+  }
+  function updateTocActive() {
+    var hs = Array.from(document.querySelectorAll('#main h2[id]'));
+    var ls = Array.from(document.querySelectorAll('#toc-right .toc-list a'));
+    if (!hs.length || !ls.length) return;
+    var active = -1;
+    hs.forEach(function (h, i) { if (h.getBoundingClientRect().top <= 120) active = i; });
+    ls.forEach(function (a, i) { a.classList.toggle('active', i === active); });
+  }
+  window.addEventListener('scroll', function () {
+    updateProgress(); updateBackToTop(); updateTocActive();
+  }, { passive: true });
+  var btn = document.getElementById('back-to-top');
+  if (btn) btn.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof hljs !== 'undefined') hljs.highlightAll();
+    updateProgress(); updateTocActive();
+  });
+})();
+</script>
+</body>
+</html>

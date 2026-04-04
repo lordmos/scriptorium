@@ -8,7 +8,7 @@
 | Agent类型 | general-purpose |
 | 参与阶段 | Phase 3 Step 2（逐章撰写） |
 | 核心输入 | 调研报告、风格指南、长记忆文件 |
-| 核心输出 | `drafts/chXX-draft.md`（章节草稿） |
+| 核心输出 | `output/chapters/draft/chXX-draft.md`（章节草稿） |
 
 ## 核心职责
 
@@ -22,16 +22,16 @@
 
 | 文件 | 说明 | 必需 |
 |------|------|------|
-| `{{工作目录}}/research/chXX-research.md` | 本章调研报告（核心素材） | ✅ |
-| `{{工作目录}}/style-guide.md` | 全书写作风格指南 | ✅ |
-| `{{工作目录}}/chapter-summaries.md` | 已完成章节的摘要（防止重复） | ✅ |
-| `{{工作目录}}/glossary.md` | 术语表（统一用语） | ✅ |
-| `{{工作目录}}/metaphor-registry.md` | 比喻注册表（复用/避免冲突） | ✅ |
-| `{{工作目录}}/outline-final.md` | 定稿大纲（本章结构参考） | ✅ |
+| `output/research/chXX-report.md` | 本章调研报告（核心素材） | ✅ |
+| `output/memory/style-guide.md` | 全书写作风格指南 | ✅ |
+| `output/memory/chapter-summaries.md` | 已完成章节的摘要（防止重复） | ✅ |
+| `output/memory/glossary.md` | 术语表（统一用语） | ✅ |
+| `output/memory/metaphor-registry.md` | 比喻注册表（复用/避免冲突） | ✅ |
+| `output/memory/outline.md` | 定稿大纲（本章结构参考） | ✅ |
 
 ## 输出规格
 
-### drafts/chXX-draft.md
+### output/chapters/draft/chXX-draft.md
 
 ```markdown
 # 第{{章节号}}章 {{章节标题}}
@@ -124,15 +124,15 @@
 撰写第{{章节号}}章：{{章节标题}}
 
 ## 输入文件（请仔细阅读全部）
-1. 调研报告：{{工作目录}}/research/ch{{章节号}}-research.md
-2. 写作风格：{{工作目录}}/style-guide.md
-3. 已有章节摘要：{{工作目录}}/chapter-summaries.md （避免重复）
-4. 术语表：{{工作目录}}/glossary.md （统一用语）
-5. 比喻注册表：{{工作目录}}/metaphor-registry.md （复用比喻）
-6. 大纲：{{工作目录}}/outline-final.md （本章结构）
+1. 调研报告：output/research/ch{{章节号}}-report.md
+2. 写作风格：output/memory/style-guide.md
+3. 已有章节摘要：output/memory/chapter-summaries.md （避免重复）
+4. 术语表：output/memory/glossary.md （统一用语）
+5. 比喻注册表：output/memory/metaphor-registry.md （复用比喻）
+6. 大纲：output/memory/outline.md （本章结构）
 
 ## 输出
-- 写入：{{工作目录}}/drafts/ch{{章节号}}-draft.md
+- 写入：output/chapters/draft/ch{{章节号}}-draft.md
 
 ## 写作要求
 - {{字数范围}}字

@@ -55,14 +55,14 @@ AI Agent写作:
 │  "你是作家Agent，负责撰写第5章。                     │
 │                                                   │
 │   📖 读取以下文件获取上下文:                         │
-│   - meta/chapter-summaries.md (了解前4章内容)       │
-│   - meta/glossary.md (已有术语，保持一致)            │
-│   - meta/metaphor-registry.md (已用比喻，避免重复)   │
-│   - meta/style-guide.md (写作风格要求)               │
-│   - research/ch05-research.md (本章研究报告)         │
+│   - output/memory/chapter-summaries.md (了解前4章内容)       │
+│   - output/memory/glossary.md (已有术语，保持一致)            │
+│   - output/memory/metaphor-registry.md (已用比喻，避免重复)   │
+│   - output/memory/style-guide.md (写作风格要求)               │
+│   - output/research/ch05-research.md (本章研究报告)         │
 │                                                   │
 │   ✏️ 输出到:                                       │
-│   - drafts/ch05-draft.md"                          │
+│   - output/chapters/draft/ch05-draft.md"                          │
 │                                                   │
 └─────────────────────────────────────────────────┘
           │
@@ -100,9 +100,9 @@ AI Agent写作:
 
 | 文件 | 创建时机 | 说明 |
 |------|---------|------|
-| `outline-final.md` | Phase 1结束 | 最终定稿大纲 |
-| `source-map.md` | Phase 1结束 | 源码文件→章节映射 |
-| `meta/style-guide.md` | Phase 2 | 写作风格指南 |
+| `output/memory/outline.md` | Phase 1结束 | 最终定稿大纲 |
+| `output/memory/source-map.md` | Phase 1结束 | 源码文件→章节映射 |
+| `output/memory/style-guide.md` | Phase 2 | 写作风格指南 |
 
 ```
 特点:
@@ -117,10 +117,10 @@ AI Agent写作:
 
 | 文件 | 追加时机 | 说明 |
 |------|---------|------|
-| `meta/chapter-summaries.md` | 每章完成后 | 各章200-300字摘要 |
-| `meta/glossary.md` | 每章完成后 | 新增术语及定义 |
-| `meta/metaphor-registry.md` | 每章完成后 | 新增比喻/类比 |
-| `meta/cross-references.md` | 每章完成后 | 新增交叉引用点 |
+| `output/memory/chapter-summaries.md` | 每章完成后 | 各章200-300字摘要 |
+| `output/memory/glossary.md` | 每章完成后 | 新增术语及定义 |
+| `output/memory/metaphor-registry.md` | 每章完成后 | 新增比喻/类比 |
+| `output/memory/cross-references.md` | 每章完成后 | 新增交叉引用点 |
 | `audit-log.md` | 任何异常时 | 操作日志 |
 
 ```
@@ -137,13 +137,13 @@ AI Agent写作:
 
 | 文件模式 | 写入者 | 说明 |
 |----------|-------|------|
-| `research/chXX-research.md` | 研究员 #3 | 本章源码分析 |
-| `drafts/chXX-draft.md` | 作家 #4 | 本章初稿 |
-| `reviews/chXX-r1-code.md` | R1 | 源码审查报告 |
-| `reviews/chXX-r2-consistency.md` | R2 | 一致性审查报告 |
-| `reviews/chXX-r3-content.md` | R3 | 内容审查报告 |
-| `reviews/chXX-review.md` | 主编排 | 合并审查报告 |
-| `reader-feedback/chXX-panel.md` | 主编排 | 读者评审合并 |
+| `output/research/chXX-report.md` | 研究员 #3 | 本章源码分析 |
+| `output/chapters/draft/chXX-draft.md` | 作家 #4 | 本章初稿 |
+| `output/reviews/chXX-r1.md` | R1 | 源码审查报告 |
+| `output/reviews/chXX-r2.md` | R2 | 一致性审查报告 |
+| `output/reviews/chXX-r3.md` | R3 | 内容审查报告 |
+| `output/reviews/chXX-review.md` | 主编排 | 合并审查报告 |
+| `output/reviews/chXX-panel.md` | 主编排 | 读者评审合并 |
 
 ```
 特点:
@@ -161,7 +161,7 @@ AI Agent写作:
 ```
                         ┌──────────────┐
                         │  静态文件     │
-                        │ outline-final│
+                        │ outline      │
                         │ source-map   │
                         │ style-guide  │
                         └──────┬───────┘
@@ -173,8 +173,8 @@ AI Agent写作:
         └────┬─────┘    └────┬─────┘    └────┬─────┘
              │写入            │写入           │写入
              ▼                ▼               ▼
-        research/        drafts/          reviews/
-        chXX-research    chXX-draft       chXX-r{1,2,3}
+        output/research/        output/chapters/draft/          output/reviews/
+        chXX-report      chXX-draft       chXX-r{1,2,3}
                               │
                               │ 读取
                               ▼
@@ -194,12 +194,12 @@ AI Agent写作:
 Agent类型: explore
 
 📖 读取:
-  - source-map.md              — 定位本章对应的源码文件
-  - outline-final.md           — 获取本章的写作要求和范围
+  - output/memory/source-map.md              — 定位本章对应的源码文件
+  - output/memory/outline.md           — 获取本章的写作要求和范围
   - {{源码根目录}}/{{文件路径}} — 实际源码文件（根据source-map定位）
 
 ✏️ 写入:
-  - research/chXX-research.md  — 源码分析报告
+  - output/research/chXX-report.md  — 源码分析报告
 
 ⚠️ 不读取:
   - 长记忆文件（summaries, glossary等）—— 研究员只关注源码事实
@@ -213,15 +213,15 @@ Agent类型: explore
 Agent类型: general-purpose
 
 📖 读取:
-  - research/chXX-research.md    — 本章的源码研究报告
-  - meta/style-guide.md          — 写作风格要求
-  - meta/chapter-summaries.md    — 前序章节摘要（获取"记忆"）
-  - meta/glossary.md             — 已有术语（保持一致）
-  - meta/metaphor-registry.md   — 已用比喻（避免重复）
-  - outline-final.md             — 本章的大纲要求
+  - output/research/chXX-report.md    — 本章的源码研究报告
+  - output/memory/style-guide.md          — 写作风格要求
+  - output/memory/chapter-summaries.md    — 前序章节摘要（获取"记忆"）
+  - output/memory/glossary.md             — 已有术语（保持一致）
+  - output/memory/metaphor-registry.md   — 已用比喻（避免重复）
+  - output/memory/outline.md             — 本章的大纲要求
 
 ✏️ 写入:
-  - drafts/chXX-draft.md        — 章节初稿
+  - output/chapters/draft/chXX-draft.md        — 章节初稿
 
 ⚠️ 不读取:
   - 源码文件 —— 作家通过研究报告间接了解源码
@@ -235,12 +235,12 @@ Agent类型: general-purpose
 Agent类型: explore
 
 📖 读取:
-  - drafts/chXX-draft.md          — 待审查的初稿
-  - source-map.md                 — 定位相关源码文件
+  - output/chapters/draft/chXX-draft.md          — 待审查的初稿
+  - output/memory/source-map.md                 — 定位相关源码文件
   - {{源码根目录}}/{{文件路径}}    — 实际源码文件
 
 ✏️ 写入:
-  - reviews/chXX-r1-code.md      — 源码准确性审查报告
+  - output/reviews/chXX-r1.md      — 源码准确性审查报告
 
 ⚠️ 不读取:
   - 长记忆文件 —— R1只关注"代码是否正确"
@@ -254,14 +254,14 @@ Agent类型: explore
 Agent类型: explore
 
 📖 读取:
-  - drafts/chXX-draft.md          — 待审查的初稿
-  - meta/chapter-summaries.md     — 前序章节摘要
-  - meta/glossary.md              — 术语表
-  - meta/metaphor-registry.md    — 比喻注册表
-  - meta/cross-references.md     — 交叉引用表
+  - output/chapters/draft/chXX-draft.md          — 待审查的初稿
+  - output/memory/chapter-summaries.md     — 前序章节摘要
+  - output/memory/glossary.md              — 术语表
+  - output/memory/metaphor-registry.md    — 比喻注册表
+  - output/memory/cross-references.md     — 交叉引用表
 
 ✏️ 写入:
-  - reviews/chXX-r2-consistency.md — 一致性审查报告
+  - output/reviews/chXX-r2.md — 一致性审查报告
 
 ⚠️ 不读取:
   - 源码文件 —— R2不关注代码正确性
@@ -275,11 +275,11 @@ Agent类型: explore
 Agent类型: general-purpose
 
 📖 读取:
-  - drafts/chXX-draft.md     — 待审查的初稿
-  - meta/style-guide.md      — 写作风格指南
+  - output/chapters/draft/chXX-draft.md     — 待审查的初稿
+  - output/memory/style-guide.md      — 写作风格指南
 
 ✏️ 写入:
-  - reviews/chXX-r3-content.md — 内容审查报告
+  - output/reviews/chXX-r3.md — 内容审查报告
 
 ⚠️ 不读取:
   - 源码文件 —— R3不验证代码
@@ -293,12 +293,12 @@ Agent类型: general-purpose
 Agent类型: explore
 
 📖 读取:
-  - drafts/chXX-draft.md          — 待评审的初稿
-  - reviews/chXX-review.md        — 审查组的合并报告
-  - outline-final.md              — 本章的目标定位
+  - output/chapters/draft/chXX-draft.md          — 待评审的初稿
+  - output/reviews/chXX-review.md        — 审查组的合并报告
+  - output/memory/outline.md              — 本章的目标定位
 
 ✏️ 输出:
-  - 各自的评审意见（由主编排合并为 reader-feedback/chXX-panel.md）
+  - 各自的评审意见（由主编排合并为 output/reviews/chXX-panel.md）
 
 三种读者画像:
   RS: {{读者画像_学生}} — 关注学习曲线、前置知识假设
@@ -313,13 +313,13 @@ Agent类型: explore
 Agent类型: general-purpose
 
 📖 读取:
-  - chapters/chXX.md          — 最终定稿的章节
-  - meta/style-guide.md       — 获取样式相关配置
+  - output/chapters/final/chXX-final.md          — 最终定稿的章节
+  - output/memory/style-guide.md       — 获取样式相关配置
 
 ✏️ 写入:
-  - publish/chXX.html         — HTML页面
-  - publish/style.css         — 样式表（仅首次）
-  - publish/index.html        — 目录页（仅最后）
+  - output/publish/chXX.html         — HTML页面
+  - output/publish/style.css         — 样式表（仅首次）
+  - output/publish/index.html        — 目录页（仅最后）
 ```
 
 ---
@@ -356,12 +356,12 @@ Agent类型: general-purpose
 上下文预算 = Agent上下文窗口 - 系统prompt - 输出预留
 
 示例（作家#4写作第10章时）:
-  meta/style-guide.md          ≈ 2K tokens
-  meta/chapter-summaries.md    ≈ 9K tokens (前9章×1K/章)
-  meta/glossary.md             ≈ 3K tokens
-  meta/metaphor-registry.md   ≈ 1K tokens
-  research/ch10-research.md   ≈ 5K tokens
-  outline-final.md (本章部分)  ≈ 1K tokens
+  output/memory/style-guide.md          ≈ 2K tokens
+  output/memory/chapter-summaries.md    ≈ 9K tokens (前9章×1K/章)
+  output/memory/glossary.md             ≈ 3K tokens
+  output/memory/metaphor-registry.md   ≈ 1K tokens
+  output/research/ch10-research.md   ≈ 5K tokens
+  output/memory/outline.md (本章部分)  ≈ 1K tokens
   ──────────────────────────────────────
   总读取量                     ≈ 21K tokens
   输出预留（{{每章目标字数}}字） ≈ 10-15K tokens
@@ -432,13 +432,13 @@ Agent类型: general-purpose
 ---
 
 **必须阅读的文件（File Pointers）:**
-- 📖 读取: {{工作目录}}/source-map.md — 定位本章对应的源码文件
-- 📖 读取: {{工作目录}}/outline-final.md — 获取本章的写作要求
+- 📖 读取: output/memory/source-map.md — 定位本章对应的源码文件
+- 📖 读取: output/memory/outline.md — 获取本章的写作要求
 - 📖 读取: {{源码根目录}}/{{源码文件1}} — 核心源码
 - 📖 读取: {{源码根目录}}/{{源码文件2}} — 相关源码
 
 **必须输出的文件:**
-- ✏️ 写入: {{工作目录}}/research/ch{{章节号}}-research.md
+- ✏️ 写入: output/research/ch{{章节号}}-report.md
 
 **输出格式要求:**
 1. 模块概述（本章涉及的源码模块整体功能）
@@ -462,14 +462,14 @@ Agent类型: general-purpose
 ---
 
 **必须阅读的文件（File Pointers）:**
-- 📖 读取: {{工作目录}}/research/ch{{章节号}}-research.md — 本章研究报告（核心素材）
-- 📖 读取: {{工作目录}}/meta/style-guide.md — 写作风格（必须遵守）
-- 📖 读取: {{工作目录}}/meta/chapter-summaries.md — 前序章节摘要（保持连贯）
-- 📖 读取: {{工作目录}}/meta/glossary.md — 已有术语（保持一致）
-- 📖 读取: {{工作目录}}/meta/metaphor-registry.md — 已用比喻（避免重复）
+- 📖 读取: output/research/ch{{章节号}}-report.md — 本章研究报告（核心素材）
+- 📖 读取: {{工作目录}}/output/memory/style-guide.md — 写作风格（必须遵守）
+- 📖 读取: {{工作目录}}/output/memory/chapter-summaries.md — 前序章节摘要（保持连贯）
+- 📖 读取: {{工作目录}}/output/memory/glossary.md — 已有术语（保持一致）
+- 📖 读取: {{工作目录}}/output/memory/metaphor-registry.md — 已用比喻（避免重复）
 
 **必须输出的文件:**
-- ✏️ 写入: {{工作目录}}/drafts/ch{{章节号}}-draft.md
+- ✏️ 写入: output/chapters/draft/ch{{章节号}}-draft.md
 
 **质量标准:**
 - 字数: {{每章目标字数}}字 ± 20%
@@ -490,9 +490,9 @@ Agent类型: general-purpose
 
 ```
 源码仓库                    静态文件                     追加文件
-{{源码根目录}}/         outline-final.md             meta/chapter-summaries.md
-                        source-map.md                meta/glossary.md
-                        meta/style-guide.md          meta/metaphor-registry.md
+{{源码根目录}}/         output/memory/outline.md             output/memory/chapter-summaries.md
+                        output/memory/source-map.md                output/memory/glossary.md
+                        output/memory/style-guide.md          output/memory/metaphor-registry.md
      │                       │                            │
      │    ┌──────────────────┤                            │
      ▼    ▼                  │                            │
@@ -503,7 +503,7 @@ Agent类型: general-purpose
 │ 读: source-map│             │                            │
 │ 读: outline   │             │                            │
 │              │             │                            │
-│ 写: research/ │             │                            │
+│ 写: output/research/ │             │                            │
 │    chXX-     │             │                            │
 │    research  │             │                            │
 └──────┬───────┘             │                            │
@@ -512,13 +512,13 @@ Agent类型: general-purpose
 ┌──────────────────────────────────────────────────────────┐
 │  作家 #4                                                  │
 │                                                           │
-│  读: research/chXX-research.md                            │
+│  读: output/research/chXX-report.md                            │
 │  读: style-guide.md                                       │
 │  读: chapter-summaries.md   ◀── 这就是"长期记忆"          │
 │  读: glossary.md                                          │
 │  读: metaphor-registry.md                                 │
 │                                                           │
-│  写: drafts/chXX-draft.md                                 │
+│  写: output/chapters/draft/chXX-draft.md                                 │
 └──────────────┬───────────────────────────────────────────┘
                │
                ▼
@@ -529,7 +529,7 @@ Agent类型: general-purpose
 │  R2: 读[draft+长记忆]   → r2-consistency  │
 │  R3: 读[draft+style]   → r3-content.md   │
 │                                           │
-│  → 合并: reviews/chXX-review.md           │
+│  → 合并: output/reviews/chXX-review.md           │
 └──────────────┬───────────────────────────┘
                │
                ▼
@@ -537,7 +537,7 @@ Agent类型: general-purpose
 │     读者评审团 (RS + RE + RH)              │
 │                                           │
 │  读: draft + review                       │
-│  写: reader-feedback/chXX-panel.md        │
+│  写: output/reviews/chXX-panel.md        │
 └──────────────┬───────────────────────────┘
                │
                ▼
@@ -605,12 +605,12 @@ Chapter 1                  Chapter 2                  Chapter N
 
 | Agent | 读取 | 写入 |
 |-------|------|------|
-| 架构师 #1 | 源码, outline-draft | outline-draft, source-map |
-| 读者代言人 #2 | outline-draft | outline-reader-feedback |
-| 研究员 #3 | source-map, outline-final, 源码 | research/chXX-research |
-| 作家 #4 | research/chXX, style-guide, summaries, glossary, metaphors | drafts/chXX-draft |
-| R1 源码审查 | drafts/chXX, source-map, 源码 | reviews/chXX-r1-code |
-| R2 一致性审查 | drafts/chXX, summaries, glossary, metaphors, cross-refs | reviews/chXX-r2-consistency |
-| R3 内容审查 | drafts/chXX, style-guide | reviews/chXX-r3-content |
-| RS/RE/RH 读者 | drafts/chXX, reviews/chXX-review | reader-feedback/chXX-panel |
-| 装帧工人 #11 | chapters/chXX, style-guide | publish/chXX.html |
+| 架构师 #1 | 源码 | output/memory/outline.md, output/memory/source-map.md |
+| 读者代言人 #2 | output/memory/outline.md | output/reviews/outline-reader-feedback.md |
+| 研究员 #3 | output/memory/source-map.md, output/memory/outline.md, 源码 | output/research/chXX-report.md |
+| 作家 #4 | output/research/chXX-report.md, output/memory/style-guide.md, summaries, glossary, metaphors | output/chapters/draft/chXX-draft.md |
+| R1 源码审查 | output/chapters/draft/chXX-draft.md, output/memory/source-map.md, 源码 | output/reviews/chXX-r1.md |
+| R2 一致性审查 | output/chapters/draft/chXX-draft.md, summaries, glossary, metaphors, cross-refs | output/reviews/chXX-r2.md |
+| R3 内容审查 | output/chapters/draft/chXX-draft.md, output/memory/style-guide.md | output/reviews/chXX-r3.md |
+| RS/RE/RH 读者 | output/chapters/draft/chXX-draft.md, output/reviews/chXX-review.md | output/reviews/chXX-panel.md |
+| 装帧工人 #11 | chapters/chXX, style-guide | output/publish/chXX.html |

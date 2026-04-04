@@ -8,7 +8,7 @@
 | Agent类型 | explore |
 | 参与阶段 | Phase 3 Step 3（与R1、R3并行审查） |
 | 核心输入 | 章节草稿、长记忆文件（chapter-summaries / glossary / metaphor-registry） |
-| 核心输出 | `reviews/chXX-r2-consistency.md`（一致性报告） |
+| 核心输出 | `output/reviews/chXX-r2.md`（一致性报告） |
 
 ## 核心职责
 
@@ -21,16 +21,16 @@
 
 | 文件 | 说明 |
 |------|------|
-| `{{工作目录}}/drafts/chXX-draft.md` | 待审查的章节草稿 |
-| `{{工作目录}}/chapter-summaries.md` | 已完成章节的内容摘要 |
-| `{{工作目录}}/glossary.md` | 全书术语表 |
-| `{{工作目录}}/metaphor-registry.md` | 比喻注册表 |
+| `output/chapters/draft/chXX-draft.md` | 待审查的章节草稿 |
+| `output/memory/chapter-summaries.md` | 已完成章节的内容摘要 |
+| `output/memory/glossary.md` | 全书术语表 |
+| `output/memory/metaphor-registry.md` | 比喻注册表 |
 
 > 💡 **关键设计**：R2不需要访问源码，只需要长记忆文件。这是它能与R1（需要源码）并行工作的关键。
 
 ## 输出规格
 
-### reviews/chXX-r2-consistency.md
+### output/reviews/chXX-r2.md
 
 ```markdown
 # 第{{章节号}}章 一致性审查报告（R2）
@@ -124,10 +124,10 @@
 检查第{{章节号}}章草稿与全书已有内容的一致性。
 
 ## 输入（只需要以下文件，不需要源码）
-- 章节草稿：{{工作目录}}/drafts/ch{{章节号}}-draft.md
-- 已有章节摘要：{{工作目录}}/chapter-summaries.md
-- 术语表：{{工作目录}}/glossary.md
-- 比喻注册表：{{工作目录}}/metaphor-registry.md
+- 章节草稿：output/chapters/draft/ch{{章节号}}-draft.md
+- 已有章节摘要：output/memory/chapter-summaries.md
+- 术语表：output/memory/glossary.md
+- 比喻注册表：output/memory/metaphor-registry.md
 
 ## 审查要求
 - 逐一核对术语一致性
@@ -135,7 +135,7 @@
 - 对比技术声明是否前后矛盾
 - 评估章节间过渡自然度
 - 不需要检查代码准确性（那是R1的职责）
-- 输出到：{{工作目录}}/reviews/ch{{章节号}}-r2-consistency.md
+- 输出到：output/reviews/ch{{章节号}}-r2.md
 - 完成后添加 <!-- R2_CONSISTENCY_REVIEW_COMPLETE -->
 ```
 

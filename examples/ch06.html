@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第6章：变更检测——Angular 如何知道界面需要更新 | Angular 源码深度解析</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: #FEFCF8;
+  color: #2C2C2C;
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.85;
+}
+/* Progress bar */
+#progress-bar {
+  position: fixed; top: 0; left: 0; width: 0%; height: 3px;
+  background: #C7553A; z-index: 2000; transition: width 0.08s linear;
+}
+/* Layout */
+#layout { display: flex; min-height: 100vh; }
+/* Left sidebar */
+#sidebar {
+  position: fixed; top: 3px; left: 0;
+  width: 260px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-right: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100;
+}
+.sidebar-header { padding: 22px 18px 14px; border-bottom: 1px solid #E8E2D8; }
+.sidebar-title {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  font-size: 1em; font-weight: 700; color: #1A1A1A; line-height: 1.4; margin-bottom: 5px;
+}
+.sidebar-subtitle { font-size: 0.7em; color: #999; line-height: 1.4; }
+.sidebar-nav { padding: 10px 8px 24px; }
+.sidebar-nav a {
+  display: block; padding: 6px 12px; border-radius: 5px;
+  color: #444; font-size: 0.82em; text-decoration: none;
+  line-height: 1.45; margin-bottom: 2px; word-break: break-all;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar-nav a:hover { background: #EDE7DD; color: #1A1A1A; }
+.sidebar-nav a.active { background: #E8DDD0; color: #C7553A; font-weight: 600; }
+/* Main content */
+#main { margin-left: 260px; margin-right: 224px; padding: 48px 52px 80px; min-height: 100vh; }
+/* Right TOC */
+#toc-right {
+  position: fixed; top: 3px; right: 0;
+  width: 224px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-left: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100; padding: 22px 14px;
+}
+.toc-title {
+  font-size: 0.68em; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #aaa; margin-bottom: 10px;
+}
+.toc-list { list-style: none; }
+.toc-list li { margin-bottom: 3px; }
+.toc-list li a {
+  display: block; padding: 3px 8px; font-size: 0.77em; color: #666;
+  text-decoration: none; border-left: 2px solid transparent;
+  line-height: 1.4; word-break: break-all;
+  transition: color 0.15s, border-color 0.15s;
+}
+.toc-list li a:hover { color: #C7553A; }
+.toc-list li a.active { color: #C7553A; border-left-color: #C7553A; font-weight: 600; }
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  color: #1A1A1A; line-height: 1.4;
+  margin-top: 1.8em; margin-bottom: 0.55em;
+}
+h1 { font-size: 2.1em; margin-top: 0; padding-bottom: 0.35em; border-bottom: 2px solid #C7553A; }
+h2 { font-size: 1.55em; padding-bottom: 0.28em; border-bottom: 1px solid #E8E2D8; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1.08em; }
+h5 { font-size: 1em; }
+h6 { font-size: 0.95em; color: #666; }
+p { margin-bottom: 1em; }
+strong { color: #1A1A1A; font-weight: 700; }
+em { font-style: italic; }
+del { text-decoration: line-through; color: #999; }
+/* Links */
+a { color: #4A7C9B; text-decoration: none; }
+a:hover { text-decoration: underline; color: #3a6c8b; }
+/* Code */
+code {
+  font-family: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Courier New", monospace;
+  font-size: 0.875em; background: #F5F2ED; padding: 0.15em 0.38em;
+  border-radius: 3px; border: 1px solid #E0D9CF; word-break: break-all;
+}
+pre {
+  background: #F5F2ED; padding: 18px 22px; border-radius: 8px;
+  overflow-x: auto; margin: 1.4em 0; border: 1px solid #E0D9CF; line-height: 1.6;
+}
+pre code { background: none; padding: 0; border: none; border-radius: 0; font-size: 0.84em; word-break: normal; }
+.hljs { background: #F5F2ED !important; }
+/* Blockquote */
+blockquote {
+  margin: 1.4em 0; padding: 14px 20px;
+  border-left: 4px solid #C7553A;
+  background: linear-gradient(to right, #FFF9F5, #FEFCF8);
+  border-radius: 0 6px 6px 0;
+}
+blockquote p { margin: 0; color: #555; font-style: italic; }
+/* Lists */
+ul, ol { padding-left: 1.8em; margin-bottom: 1em; }
+li { margin-bottom: 0.38em; }
+li p { margin: 0; }
+/* Tables */
+.table-wrap { overflow-x: auto; margin: 1.4em 0; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+th, td { padding: 9px 13px; border: 1px solid #E8E2D8; text-align: left; vertical-align: top; }
+th { background: #F5F2ED; font-weight: 600; color: #1A1A1A; white-space: nowrap; }
+tr:nth-child(even) td { background: #FDFAF5; }
+/* HR */
+hr { border: none; border-top: 1px solid #E8E2D8; margin: 2.2em 0; }
+/* Images */
+img { max-width: 100%; height: auto; border-radius: 4px; display: block; margin: 1em auto; }
+/* Mermaid */
+.mermaid {
+  margin: 1.6em 0; padding: 20px;
+  background: #FDFAF5; border: 1px solid #E8E2D8; border-radius: 8px;
+  text-align: center; overflow-x: auto;
+}
+/* Chapter nav */
+.chapter-nav {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 4em; padding-top: 1.8em; border-top: 2px solid #E8E2D8; gap: 12px;
+}
+.chapter-nav a {
+  display: inline-flex; align-items: center; padding: 10px 16px;
+  background: #F5F2ED; border: 1px solid #E8E2D8; border-radius: 6px;
+  color: #4A7C9B; font-size: 0.85em; text-decoration: none; max-width: 46%;
+  word-break: break-all; line-height: 1.4;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.chapter-nav a:hover { background: #EDE7DD; border-color: #C7553A; color: #C7553A; text-decoration: none; }
+.chapter-nav span { flex: 1; }
+/* Back to top */
+#back-to-top {
+  position: fixed; bottom: 28px; right: 240px;
+  width: 42px; height: 42px; background: #C7553A; color: #fff;
+  border: none; border-radius: 50%; cursor: pointer;
+  font-size: 18px; font-weight: bold; display: none;
+  align-items: center; justify-content: center; z-index: 500;
+  box-shadow: 0 2px 12px rgba(199,85,58,0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+#back-to-top.visible { display: flex; }
+#back-to-top:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(199,85,58,0.5); }
+/* Index page */
+.index-hero {
+  text-align: center; padding: 44px 0 52px;
+  border-bottom: 1px solid #E8E2D8; margin-bottom: 52px;
+}
+.index-hero h1 { font-size: 2.6em; border: none; margin-bottom: 14px; padding: 0; }
+.index-hero .subtitle { font-size: 1.08em; color: #666; font-style: italic; margin: 0; }
+.index-intro { margin-bottom: 48px; }
+.index-intro p { font-size: 1.05em; margin-bottom: 1.2em; }
+.index-toc { margin-bottom: 48px; }
+.chapter-list { padding-left: 0; list-style: none; }
+.chapter-list li {
+  margin-bottom: 10px; padding: 13px 20px;
+  background: #F8F4EE; border-radius: 8px; border: 1px solid #E8E2D8;
+  transition: background 0.15s, border-color 0.15s;
+}
+.chapter-list li:hover { background: #EDE7DD; border-color: #C7553A; }
+.chapter-list li a { color: #1A1A1A; font-size: 1em; font-weight: 500; text-decoration: none; }
+.chapter-list li a:hover { color: #C7553A; text-decoration: none; }
+.index-audience { margin-bottom: 48px; }
+.index-audience ul { padding-left: 0; list-style: none; }
+.index-audience li { padding: 10px 0; border-bottom: 1px solid #EEE9E0; font-size: 0.95em; }
+/* Responsive */
+@media (max-width: 1200px) {
+  #toc-right { display: none; }
+  #main { margin-right: 0; }
+  #back-to-top { right: 24px; }
+}
+@media (max-width: 900px) { #main { padding: 32px 28px 60px; } }
+@media (max-width: 768px) {
+  #sidebar { display: none; }
+  #main { margin-left: 0; padding: 24px 18px 60px; }
+  h1 { font-size: 1.75em; }
+  h2 { font-size: 1.35em; }
+}
+@media print {
+  #sidebar, #toc-right, #progress-bar, #back-to-top, .chapter-nav { display: none !important; }
+  #main { margin: 0; padding: 0; max-width: 100%; }
+}
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div id="layout">
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">📖 Angular 源码深度解析</div>
+      <div class="sidebar-subtitle">深入 Angular 17+ 运行时、编译器与响应式系统的源码之旅</div>
+    </div>
+    <div class="sidebar-nav">
+      <a href="index.html">📚 目录首页</a>
+<a href="ch01.html">第1章：宏观架构——Angular 的世界观</a>
+<a href="ch02.html">第2章：从零启动——bootstrapApplication 的旅程</a>
+<a href="ch03.html">第3章：依赖注入——框架的神经系统</a>
+<a href="ch04.html">第4章：模板编译器——从 HTML 到指令序列</a>
+<a href="ch05.html">第5章：Ivy 渲染引擎——LView 的生命</a>
+<a href="ch06.html" class="active">第6章：变更检测——Angular 如何知道界面需要更新</a>
+<a href="ch07.html">第7章：Signals——细粒度响应式的实现</a>
+<a href="ch08.html">第8章：组件模型——从装饰器到运行时对象</a>
+<a href="ch09.html">第9章：路由系统——URL 与组件树的映射</a>
+<a href="ch10.html">第10章：服务端渲染与水合——让 Angular 应用「秒开」</a>
+
+    </div>
+  </nav>
+  <main id="main">
+    <h1 id="h-第6章-变更检测-angular-如何知道界面需要更新">第6章《变更检测——Angular 如何知道界面需要更新》</h1>
+<p>你有没有遇到过这样的场景：你写了一个方法，调用 HTTP 接口，在 Promise 的 <code>.then()</code> 里把返回的数据赋给组件属性，然后你切回浏览器，等待了一秒……界面没有任何变化。你加上 <code>console.log</code>，数据确实更新了。但页面还是旧的。</p>
+<p>这个 bug 几乎是每位 Angular 开发者的&quot;成人礼&quot;。第一次遇到它时，你可能会怀疑自己是不是哪里写错了；第二次遇到它时，你已经学会了加上 <code>this.cdr.markForCheck()</code>；但如果你想真正理解为什么要加这一行，以及为什么有时候加了也不管用，就需要深入变更检测的源码。</p>
+<p>与浏览器原生 DOM API 不同，Angular 的视图更新是<strong>按需触发</strong>的。Angular 不会为每个对象属性安装监听器（那样内存和 CPU 开销会非常大），而是选择了一种不同的策略：在特定时机，遍历整个组件树，比较每个绑定值的新旧版本，按需更新 DOM。这个过程就是<strong>变更检测（Change Detection）</strong>。</p>
+<p>正如第2章所分析的，<code>ApplicationRef.tick()</code> 是触发变更检测的&quot;心跳&quot;，<code>NgZone</code> 是负责报时的广播系统。但 <code>tick()</code> 内部究竟发生了什么？哪些组件会被检查？检查的依据是什么？<code>OnPush</code> 策略为什么能减少不必要的检测？Signals 又是如何做到&quot;自动精确更新&quot;的？</p>
+<p>在剧院比喻体系里，变更检测就像<strong>舞台监督的巡场</strong>：在每一幕结束后（每次 tick），监督员（变更检测引擎）巡视所有舞台区域（组件视图），逐一检查演员的状态（绑定值）是否与剧本（数据模型）一致，不一致则立即发出&quot;补妆换景&quot;指令（DOM 更新）。</p>
+<p><code>Default</code> 策略的组件，就像一个每幕都要接受全面检查的演员——不管有没有换台词，监督员都会走一遍。<code>OnPush</code> 组件则是挂了&quot;有事再叫我&quot;牌子的演员——只有导演亲自来拍桌子（<code>markForCheck()</code>），才会进入检查流程。而 Signals 组件更聪明，它能<strong>主动举手示意</strong>——但只有真的换了台词，才会举手。</p>
+<p>理解这三种策略的区别，是 Angular 性能优化的基础。这一章，我们从源码出发，把这套机制彻底讲清楚。</p>
+<p>在阅读本章之前，你需要理解第5章建立的基础：每个组件实例对应一个 <code>LView</code> 数组，<code>LView</code> 的特定槽位存储着 DOM 节点引用、绑定值的历史快照，以及描述视图状态的标志位。变更检测引擎的工作，本质上是遍历所有 <code>LView</code>，比较绑定值的新旧版本，按需操作 DOM。整个过程是同步的（在单次 JavaScript 事件循环任务中完成），是可预测的（在确定的时间点触发），也是可调试的（标志位状态随时可以在调试器中查看）。</p>
+<hr>
+<h2 id="h-变更检测全景调用链">变更检测全景调用链</h2>
+<p>在深入任何具体机制之前，先建立对整条调用链的全局认知。从 <code>ApplicationRef.tick()</code> 到单个组件的 DOM 更新，Angular 经过了九层函数调用，横跨多个源文件：</p>
+<div class="mermaid">flowchart TD
+    A[&quot;ApplicationRef.tick()&lt;br/&gt;application_ref.ts&quot;] --&gt; B[&quot;ApplicationRef._tick()&lt;br/&gt;application_ref.ts&quot;]
+    B --&gt; C[&quot;ApplicationRef.tickImpl()&lt;br/&gt;application_ref.ts&quot;]
+    C --&gt; D[&quot;ApplicationRef.synchronize()&lt;br/&gt;application_ref.ts&quot;]
+    D --&gt; E[&quot;ApplicationRef.synchronizeOnce()&lt;br/&gt;application_ref.ts&quot;]
+    E --&gt; F[&quot;detectChangesInternal(lView, mode)&lt;br/&gt;change_detection.ts&quot;]
+    F --&gt; G[&quot;detectChangesInViewWhileDirty(lView, mode)&lt;br/&gt;change_detection.ts&quot;]
+    G --&gt; H[&quot;detectChangesInView(lView, mode)&lt;br/&gt;change_detection.ts&quot;]
+    H --&gt; I[&quot;refreshView(tView, lView, templateFn, ctx)&lt;br/&gt;change_detection.ts&quot;]
+
+    style A fill:#e8f4fd,stroke:#2196f3
+    style E fill:#fff3cd,stroke:#ff9800
+    style H fill:#fce4ec,stroke:#e91e63
+    style I fill:#d4edda,stroke:#28a745</div>
+<p>链路分为两层：前五个函数（<code>tick</code> 到 <code>synchronizeOnce</code>）是<strong>调度层</strong>，负责&quot;什么时候检测、检测哪些根视图、如何处理级联效应&quot;；后四个函数（<code>detectChangesInternal</code> 到 <code>refreshView</code>）是<strong>执行层</strong>，负责&quot;具体检测这个视图并更新 DOM&quot;。调度层和执行层的分离，是 Angular 同时支持 Zone.js 和 Zoneless 的关键——不管是哪条触发路径，一旦进入执行层，代码路径完全相同。</p>
+<h3 id="h-调度层-synchronize-的稳定性保证">调度层：synchronize 的稳定性保证</h3>
+<p><code>tickImpl()</code> 做的事情比你想象的要多：</p>
+<pre><code class="language-typescript">// packages/core/src/application/application_ref.ts（第 537-565 行）
+private tickImpl(): void {
+  this._runningTick = true;
+  try {
+    this.synchronize();
+
+    // 仅 dev 模式：第二轮检查，验证单向数据流的稳定性
+    if (typeof ngDevMode === 'undefined' || ngDevMode) {
+      for (const view of this.allViews) {
+        view.checkNoChanges();  // ← 产生 ExpressionChangedAfterChecked 错误的地方
+      }
+    }
+  } finally {
+    this._runningTick = false;
+  }
+}</code></pre>
+<p>dev 模式的第二轮检查（<code>checkNoChanges</code>）是本章后面要讲的 <code>ExpressionChangedAfterItHasBeenCheckedError</code> 的根源，先记住这里有它。</p>
+<p><code>synchronize()</code> 本身是一个 <code>while</code> 循环：</p>
+<pre><code class="language-typescript">// packages/core/src/application/application_ref.ts（第 571-595 行）
+private synchronize(): void {
+  let runs = 0;
+  while (this.dirtyFlags !== ApplicationRefDirtyFlags.None) {
+    if (runs++ &gt;= MAXIMUM_REFRESH_RERUNS) {
+      // 防止无限循环：超过最大重跑次数则抛出错误
+      throw new RuntimeError(RuntimeErrorCode.INFINITE_CHANGE_DETECTION, ...);
+    }
+    this.synchronizeOnce();
+  }
+}</code></pre>
+<p>这个循环保证应用达到<strong>稳定状态</strong>（<code>dirtyFlags === None</code>）后才停止：一次变更检测期间，<code>effect()</code> 的副作用可能再次写入 Signal，导致新视图需要更新，循环确保所有级联效应都被处理。<code>MAXIMUM_REFRESH_RERUNS</code>（默认 100）是安全阀，防止写入→更新→写入的无限级联。</p>
+<p><code>synchronizeOnce()</code> 是实际执行检测的地方（<code>application_ref.ts:600-671</code>）：先检查并冲刷 <code>rootEffectScheduler</code>（Signal effect 的根调度器，注意这里是 <code>rootEffectScheduler</code> 而非 <code>effectScheduler</code>）；再根据 <code>dirtyFlags</code> 决定是否需要全量或精确检测——使用 <code>requiresRefreshOrTraversal()</code> 跳过无需检测的视图——调用 <code>detectChangesInternal()</code>；最后执行 <code>afterRender</code> 钩子并通过 <code>syncDirtyFlagsWithViews()</code> 同步视图状态。Signal effect 总是先于模板更新被冲刷，确保 effect 里的写入在当前 tick 内得到响应。</p>
+<hr>
+<h2 id="h-lviewflags-变更检测的-通行证">LViewFlags：变更检测的&quot;通行证&quot;</h2>
+<p>在进入检测逻辑之前，我们需要理解一个核心前提：Angular 怎么知道&quot;这个组件现在需不需要检测&quot;？</p>
+<p>答案存储在每个 LView 的固定槽位里：<code>lView[FLAGS]</code>。这是一个 32 位整数，每一个二进制位代表这个视图的一种状态。这就是 <code>LViewFlags</code> 枚举——变更检测的&quot;通行证&quot;体系。</p>
+<p>把 <code>lView[FLAGS]</code> 想象成一张多格打卡卡，每格对应一个问题的&quot;是/否&quot;答案：这个视图需要全量刷新吗？它有子视图需要刷新吗？它是 Signals 组件吗？巡场时，监督员只需翻一下这张卡，就知道这块舞台今天需要什么处理。</p>
+<h3 id="h-关键标志位解析">关键标志位解析</h3>
+<pre><code class="language-typescript">// packages/core/src/render3/interfaces/view.ts（第 402-450 行）
+export const enum LViewFlags {
+  // 位 4：默认策略，Global 模式下无条件刷新
+  CheckAlways = 1 &lt;&lt; 4,
+
+  // 位 6：OnPush 组件已被标记，等待刷新；刷新后自动清除
+  Dirty = 1 &lt;&lt; 6,
+
+  // 位 7：视图是否附着在变更检测树上（detach() 会清除此位）
+  Attached = 1 &lt;&lt; 7,
+
+  // 位 10：强制刷新请求，无论当前是何种检测模式都执行刷新
+  // Signal 组件和&quot;移植视图&quot;（transplanted view）使用此位
+  RefreshView = 1 &lt;&lt; 10,
+
+  // 位 12：Signals 组件标识，刷新完全依赖 consumer.dirty
+  SignalView = 1 &lt;&lt; 12,
+
+  // 位 13：子代视图树中有视图需要刷新，驱动 Targeted 遍历算法向下导航
+  HasChildViewsToRefresh = 1 &lt;&lt; 13,
+}</code></pre>
+<p>这六个标志位是理解整个变更检测算法的基础，它们并非互斥而是<strong>组合使用</strong>。一个典型 OnPush 组件在 <code>markForCheck()</code> 后，<code>lView[FLAGS]</code> 会同时拥有 <code>Dirty</code>（自身需刷新）+ <code>RefreshView</code>（强制刷新）两个位。它的祖先视图则会拥有 <code>HasChildViewsToRefresh</code>（路径导航标记）。</p>
+<p>位操作的意义在于高效：读取 <code>lView[FLAGS]</code> 是一次内存访问，检查标志位只需一条 CPU 指令，同时设置或清除多个标志也是一次原子操作——<code>lView[FLAGS] &amp;= ~(LViewFlags.Dirty | LViewFlags.RefreshView)</code> 一次操作清除两位。在几百甚至几千个组件的应用里，这种效率优势会积累成可感知的性能差距。</p>
+<h3 id="h-三种策略的初始状态">三种策略的初始状态</h3>
+<p>Angular 在创建视图时，根据 <code>ComponentDef</code> 的设置初始化 <code>lView[FLAGS]</code>：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/view/construction.ts（第 264-280 行）
+export function getInitialLViewFlagsFromDef(def: ComponentDef&lt;unknown&gt;): LViewFlags {
+  let flags = LViewFlags.CheckAlways;  // 默认策略：无条件刷新
+
+  if (def.signals) {
+    // Signals 组件：既不 CheckAlways，也不初始 Dirty
+    // 完全由 producer-consumer 响应式图驱动刷新
+    flags = LViewFlags.SignalView;
+  } else if (def.onPush) {
+    // OnPush：初始给 Dirty 允许首次渲染，但没有 CheckAlways
+    // 首次 refreshView 后 Dirty 被清除，组件进入&quot;休眠&quot;
+    flags = LViewFlags.Dirty;
+  }
+
+  return flags;
+}</code></pre>
+<div class="table-wrap"><table><thead><tr><th>策略</th><th>初始标志</th><th>首次渲染后</th><th>后续唤醒方式</th></tr></thead><tbody><tr><td>Default（<code>CheckAlways</code>）</td><td><code>CheckAlways</code></td><td><code>CheckAlways</code> 永久保持</td><td>无需唤醒，每次 Global tick 都刷新</td></tr><tr><td>OnPush</td><td><code>Dirty</code>（无 <code>CheckAlways</code>）</td><td><code>Dirty</code> 被清除，进入休眠</td><td><code>markForCheck()</code> 重新设置 <code>Dirty</code></td></tr><tr><td>Signals（<code>SignalView</code>）</td><td><code>SignalView</code>（无 <code>CheckAlways</code>/<code>Dirty</code>）</td><td><code>SignalView</code> 永久保持</td><td><code>signal.set()</code> 设置 <code>consumer.dirty</code></td></tr></tbody></table></div>
+<h3 id="h-detectchangesinview-的四条决策路径">detectChangesInView() 的四条决策路径</h3>
+<p>所有的一切，最终汇聚在 <code>detectChangesInView()</code> 的这段决策逻辑里——这是全书最重要的逻辑之一，它决定了视图是否被刷新：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/instructions/change_detection.ts（第 452-510 行）
+function detectChangesInView(lView: LView, mode: ChangeDetectionMode): void {
+  const flags = lView[FLAGS];
+  const consumer = lView[REACTIVE_TEMPLATE_CONSUMER];  // Signal 消费者节点
+
+  // 路径1：Default 策略 + Global 模式 → 无条件刷新
+  let shouldRefreshView = !!(
+    mode === ChangeDetectionMode.Global &amp;&amp; flags &amp; LViewFlags.CheckAlways
+  );
+
+  // 路径2：OnPush 已标记（Dirty）+ Global 模式 → 刷新
+  shouldRefreshView ||= !!(
+    flags &amp; LViewFlags.Dirty &amp;&amp;
+    mode === ChangeDetectionMode.Global &amp;&amp;
+    !isInCheckNoChangesPass  // dev 模式二次检查时不走此路径
+  );
+
+  // 路径3：RefreshView 标志 → 无论何种模式都强制刷新
+  // Signal 组件和移植视图（transplanted view）走此路径
+  shouldRefreshView ||= !!(flags &amp; LViewFlags.RefreshView);
+
+  // 路径4：Signal 消费者脏了，且生产者版本号确认发生变化 → 刷新
+  // push 通知（consumer.dirty）+ pull 确认（consumerPollProducersForChange）双重机制
+  shouldRefreshView ||= !!(consumer?.dirty &amp;&amp; consumerPollProducersForChange(consumer));
+
+  // 刷新前先清除标志，允许刷新期间重新被标记（如 effect 写入新值）
+  if (consumer) consumer.dirty = false;
+  lView[FLAGS] &amp;= ~(LViewFlags.HasChildViewsToRefresh | LViewFlags.RefreshView);
+
+  if (shouldRefreshView) {
+    refreshView(tView, lView, tView.template, lView[CONTEXT]);
+  } else if (flags &amp; LViewFlags.HasChildViewsToRefresh) {
+    // 自身不刷新，但子树有需要刷新的视图 → 继续向下遍历
+    detectChangesInEmbeddedViews(lView, ChangeDetectionMode.Targeted);
+    detectChangesInChildComponents(lView, components, ChangeDetectionMode.Targeted);
+  }
+}</code></pre>
+<p>请仔细读这段代码。四条路径各自服务一种策略，而 <code>else if</code> 分支（<code>HasChildViewsToRefresh</code>）是 Targeted 模式能够&quot;穿透&quot;中间层视图的关键——即便某个中间组件自身不需要刷新，只要有 <code>HasChildViewsToRefresh</code> 标志，遍历就会继续向下推进。</p>
+<p>接下来的三节，我们分别深入这四条路径。</p>
+<hr>
+<h2 id="h-默认策略-脏检查的本质">默认策略：脏检查的本质</h2>
+<p>&quot;脏检查&quot;（Dirty Checking）这个名字，乍一听让人以为是在检查&quot;脏数据&quot;，但实际的含义恰恰相反——它是说&quot;假设什么都可能脏了（变了），统一扫一遍&quot;。</p>
+<p>这是 Default 策略（<code>ChangeDetectionStrategy.Default</code>）的工作方式：不管你的数据有没有变，只要持有 <code>CheckAlways</code> 标志，在每次 Global 模式 tick 时，Angular 都会执行 <code>refreshView()</code>。这是路径1在每次心跳里无条件触发的保证。</p>
+<h3 id="h-为什么选择-脏检查-而不是更精确的方式">为什么选择&quot;脏检查&quot;而不是更精确的方式</h3>
+<p>这是一个务实的决策。Default 策略的价值在于：开发者可以用普通 JavaScript 对象直接修改属性，Angular 会自己发现；心智模型极简，不需要理解&quot;哪些变化能被检测到&quot;；调试友好，状态在已知时间点被检查，不存在&quot;为什么这个变化没有触发更新&quot;的困惑。代价是性能：在组件树深或节点多的应用里，每次 tick 全量扫描会消耗大量 CPU，这也是 OnPush 策略存在的理由。</p>
+<h3 id="h-refreshview-的工作内容">refreshView() 的工作内容</h3>
+<p>当 <code>detectChangesInView()</code> 决定刷新某个视图，它调用 <code>refreshView()</code>。这个函数会重新执行组件的 template 函数，<strong>但仅执行其中的 Update 模式</strong>（<code>rf &amp; RenderFlags.Update</code>）——创建阶段已经在首次渲染时完成，这里只需要更新绑定值：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/instructions/change_detection.ts（第 185-290 行）
+export function refreshView&lt;T&gt;(
+  tView: TView,
+  lView: LView,
+  templateFn: ComponentTemplate&lt;{}&gt; | null,
+  context: T,
+): void {
+  // Signal 追踪开始（稍后第六节详细讲）
+  const currentConsumer = getOrBorrowReactiveLViewConsumer(lView);
+  consumerBeforeComputation(currentConsumer);
+
+  try {
+    if (templateFn !== null) {
+      // 执行编译器生成的模板函数，Update 模式只处理绑定更新，不重建 DOM 结构
+      executeTemplate(tView, lView, templateFn, RenderFlags.Update, context);
+    }
+
+    // 按顺序触发生命周期钩子：ngOnChanges → ngDoCheck → ngAfterContentChecked 等
+    // ... 省略生命周期钩子相关代码 ...
+
+    // 刷新嵌入视图（*ngIf、*ngFor 等结构型指令产生的视图）
+    detectChangesInEmbeddedViews(lView, ChangeDetectionMode.Global);
+
+    // 刷新子组件
+    detectChangesInChildComponents(lView, components, ChangeDetectionMode.Global);
+
+  } finally {
+    consumerAfterComputation(currentConsumer, prevConsumer);  // Signal 追踪结束
+  }
+
+  // 刷新完成：清除 Dirty 和 FirstLViewPass 标志
+  lView[FLAGS] &amp;= ~(LViewFlags.Dirty | LViewFlags.FirstLViewPass);
+}</code></pre>
+<p>注意最后的 <code>lView[FLAGS] &amp;= ~LViewFlags.Dirty</code>——这正是 OnPush 组件完成首次渲染后进入&quot;休眠&quot;的机制：<code>Dirty</code> 在此被清除，下次 Global 扫描时不再满足路径2的条件。</p>
+<h3 id="h-bindingupdated-真正做-dom-决策的地方">bindingUpdated()：真正做 DOM 决策的地方</h3>
+<p>template 函数中的每次属性绑定（<code>[title]=&quot;name&quot;</code>）最终都会调用 <code>bindingUpdated()</code>。这是 Angular 的最后一道&quot;节流阀&quot;：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/bindings.ts（第 44-80 行）
+export function bindingUpdated(
+  lView: LView,
+  bindingIndex: number,
+  value: unknown,
+): boolean {
+  const oldValue = lView[bindingIndex];  // 从 LView 读取上次记录的值
+
+  // Object.is 语义：NaN === NaN，+0 !== -0，精确引用比较
+  if (Object.is(oldValue, value)) {
+    return false;  // 值没变，跳过所有 DOM 操作
+  }
+
+  // dev 模式下的二次检查：若值在两次检测间发生了变化，则抛出错误
+  if (ngDevMode &amp;&amp; isInCheckNoChangesMode()) {
+    throwErrorIfNoChangesMode(oldValue === NO_CHANGE, oldValue, value, ...);
+  }
+
+  lView[bindingIndex] = value;  // 更新 LView 里缓存的旧值
+  return true;  // 通知调用方：值已变化，需要操作 DOM
+}</code></pre>
+<p><code>Object.is(oldValue, value)</code> 是脏检查中真正的比较操作：对于基本类型（string、number、boolean），比较的是值；对于引用类型（对象、数组），比较的是引用地址——<code>[] === []</code> 不同！这解释了为什么在 template 中直接写 <code>[items]=&quot;getItems()&quot;</code> 而 <code>getItems()</code> 每次 <code>return []</code> 会带来性能问题，以及为什么 OnPush 组件接收的对象应当使用不可变引用（修改属性不创建新引用时，<code>Object.is</code> 返回 true，子组件不会被标记刷新）。</p>
+<p>全树扫描只是&quot;决定检查哪些组件&quot;的策略，<code>bindingUpdated()</code> 保证了&quot;真正的 DOM 操作只在值变化时发生&quot;。两者结合：粗粒度触发 + 细粒度比较。</p>
+<hr>
+<h2 id="h-onpush-策略-精确标记与双轨冒泡">OnPush 策略：精确标记与双轨冒泡</h2>
+<p>如果 Default 是&quot;每幕都检查全部演员&quot;，OnPush 就是&quot;只检查贴了便利贴的演员&quot;。这个&quot;便利贴&quot;就是 <code>Dirty</code> 标志。</p>
+<p>OnPush 是 Angular 中使用最广泛的性能优化策略。但它经常被误解为&quot;不检测变化&quot;。正确的理解是：OnPush 组件是<strong>显式请求才检测</strong>，而不是永不检测。只要你知道数据变了，Angular 会比 Default 策略更高效地完成更新。</p>
+<h3 id="h-onpush-组件的生命周期">OnPush 组件的生命周期</h3>
+<p>OnPush 组件的状态变化分为三个阶段：</p>
+<p><strong>第一阶段：创建</strong>。<code>getInitialLViewFlagsFromDef()</code> 给视图设置初始标志 <code>Dirty</code>（不含 <code>CheckAlways</code>）。</p>
+<p><strong>第二阶段：首次渲染</strong>。Global 模式下，路径2条件满足（<code>Dirty</code> 为真），执行 <code>refreshView()</code>，渲染 DOM。<code>refreshView()</code> 末尾清除 <code>Dirty</code>。</p>
+<p><strong>第三阶段：休眠</strong>。<code>Dirty</code> 被清除后，下次 Global 扫描时路径2不再满足，组件被跳过。除非有人来重新设置 <code>Dirty</code>。</p>
+<p>这就是&quot;你调用了 API，数据更新了，但界面没有刷新&quot;的根本原因。在 <code>Promise.then()</code> 这样的异步回调里直接赋值，Zone.js 虽然捕获到了事件触发了 tick，但 OnPush 组件的 <code>Dirty</code> 并没有被设置，四条路径中没有一条为真，组件被跳过。</p>
+<h3 id="h-markforcheck-双轨冒泡机制">markForCheck()：双轨冒泡机制</h3>
+<p>要唤醒休眠的 OnPush 组件，需要某种机制重新设置 <code>Dirty</code>，并且让遍历算法能够&quot;找到&quot;这个组件。这是 <code>markForCheck()</code> 的职责，它触发了<strong>两条独立的冒泡链</strong>：</p>
+<pre><code>markForCheck() 触发双轨冒泡：
+
+轨道1（Dirty 冒泡）              轨道2（HasChildViewsToRefresh 冒泡）
+ChildComponent                   ChildComponent
+   ↑ Dirty + RefreshView            ↑ HasChildViewsToRefresh
+  Parent                           Parent
+   ↑ Dirty + RefreshView            ↑ HasChildViewsToRefresh
+  Root                             Root（到根则停止）</code></pre>
+<p>没有轨道2，Targeted 遍历算法遇到中间层组件时，看到没有 <code>HasChildViewsToRefresh</code>，会直接跳过整棵子树——深埋在组件树第5层的 OnPush 组件就永远到达不了。</p>
+<p><strong>第一条冒泡链：Dirty 冒泡</strong>（<code>markViewDirty()</code>）</p>
+<pre><code class="language-typescript">// packages/core/src/render3/instructions/mark_view_dirty.ts（第 29-72 行）
+export function markViewDirty(
+  lView: LView,
+  source: NotificationSource,
+): LView | null {
+  // 正在刷新中：只标 Dirty（避免刷新重入）
+  // 非刷新中：同时标 Dirty 和 RefreshView（让 Targeted 模式也能处理）
+  const dirtyBitsToUse = isRefreshingViews()
+    ? LViewFlags.Dirty
+    : LViewFlags.RefreshView | LViewFlags.Dirty;
+
+  // 通知调度器：有视图需要参与下次 tick
+  lView[ENVIRONMENT].changeDetectionScheduler?.notify(source);
+
+  // 向上冒泡：对当前视图及每个祖先都设置 dirtyBitsToUse
+  while (lView !== null) {
+    lView[FLAGS] |= dirtyBitsToUse;
+    const parent = getLViewParent(lView);
+    if (isRootView(lView) &amp;&amp; parent === null) break;  // 到达根视图，停止
+    lView = parent!;
+  }
+
+  return lView;
+}</code></pre>
+<p><strong>第二条冒泡链：遍历路径冒泡</strong>（<code>markAncestorsForTraversal()</code>）</p>
+<pre><code class="language-typescript">// packages/core/src/render3/util/view_utils.ts（第 264-295 行）
+export function markAncestorsForTraversal(lView: LView): void {
+  lView[ENVIRONMENT].changeDetectionScheduler?.notify(
+    NotificationSource.MarkAncestorsForTraversal,
+  );
+
+  // 向上冒泡：标记 HasChildViewsToRefresh，为遍历算法铺路
+  let parent = getLViewParent(lView);
+  while (parent !== null) {
+    if (parent[FLAGS] &amp; LViewFlags.HasChildViewsToRefresh) break;  // 已标记则停止
+    parent[FLAGS] |= LViewFlags.HasChildViewsToRefresh;
+    if (!viewAttachedToChangeDetector(parent)) break;  // 脱离 CD 树则停止
+    parent = getLViewParent(parent);
+  }
+}</code></pre>
+<ul><li><code>Dirty</code> / <code>RefreshView</code> 回答的是：&quot;<strong>这个视图自身需要刷新</strong>&quot;——满足 <code>detectChangesInView()</code> 的路径2或路径3</li><li><code>HasChildViewsToRefresh</code> 回答的是：&quot;<strong>请沿这条路径继续向下走，子树里有视图需要刷新</strong>&quot;——让 Targeted 模式能够导航到目标组件</li></ul>
+<h3 id="h-冒泡后的完整状态图">冒泡后的完整状态图</h3>
+<p>下面是一个典型的多层嵌套场景：最深处的 <code>ChildComponent</code> 调用 <code>markForCheck()</code> 后，整棵视图树的标志状态如何变化：</p>
+<div class="mermaid">flowchart TD
+    Root[&quot;根视图（Root）&lt;br/&gt;+ HasChildViewsToRefresh ✅&quot;]
+    Parent[&quot;父组件（Default）&lt;br/&gt;+ HasChildViewsToRefresh ✅&lt;br/&gt;+ Dirty ✅ + RefreshView ✅&quot;]
+    Middle[&quot;中间组件（OnPush）&lt;br/&gt;+ HasChildViewsToRefresh ✅&lt;br/&gt;+ Dirty ✅ + RefreshView ✅&quot;]
+    Child[&quot;目标组件（OnPush）&lt;br/&gt;调用 markForCheck()&lt;br/&gt;+ Dirty ✅ + RefreshView ✅&quot;]
+
+    Root --&gt; Parent --&gt; Middle --&gt; Child
+
+    style Root fill:#fff3cd,stroke:#ff9800
+    style Parent fill:#fff3cd,stroke:#ff9800
+    style Middle fill:#ffeeba,stroke:#ff9800
+    style Child fill:#d4edda,stroke:#28a745</div>
+<p><code>HasChildViewsToRefresh</code> 从目标组件往上一路冒泡，为 Targeted 模式的遍历算法铺了一条&quot;导航路径&quot;。中间层的 Default 组件同样获得了 <code>Dirty</code>，这意味着它也会在这次 tick 中被刷新——这是正确的行为，因为它的绑定值可能也有更新。</p>
+<h3 id="h-自动触发-markforcheck-的场景">自动触发 markForCheck() 的场景</h3>
+<p>并非只有手动调用 <code>cdr.markForCheck()</code> 才会触发这个流程。Angular 在多个地方内置了自动调用：</p>
+<p><strong><code>@Input()</code> 引用变化时</strong>：父组件刷新、执行 <code>ɵɵproperty</code> 渲染指令（instruction）传递新值时，Angular 编译器生成的 <code>markDirtyIfOnPush()</code> 调用会自动标记 OnPush 子组件：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/instructions/shared.ts（第 319-335 行）
+export function markDirtyIfOnPush(lView: LView, viewIndex: number): void {
+  // 如果子组件是 OnPush 策略，且不含 CheckAlways，则标记为 Dirty
+  const childComponentLView = getComponentLViewByIndex(viewIndex, lView);
+  if (!(childComponentLView[FLAGS] &amp; LViewFlags.CheckAlways)) {
+    childComponentLView[FLAGS] |= LViewFlags.Dirty;
+  }
+}</code></pre>
+<p><strong><code>AsyncPipe</code>（<code>async</code> 管道）</strong>：每当 Observable 或 Promise 发出新值，<code>AsyncPipe</code> 内部调用 <code>ChangeDetectorRef.markForCheck()</code>。这也是为什么在 OnPush 组件里，使用 <code>async</code> 管道代替手动订阅是推荐做法——它自动处理了标记逻辑。</p>
+<p><strong>手动调用</strong>：<code>this.cdr.markForCheck()</code> 或 <code>this.cdr.detectChanges()</code>（<code>detectChanges</code> 是立即同步执行，<code>markForCheck</code> 是标记后等待下次 tick）。</p>
+<p>⚠️ <strong>注意</strong>：<code>markForCheck()</code> <strong>不会立即刷新视图</strong>。它只是设置标志位，并通知调度器&quot;下次 tick 需要检测&quot;。实际的 DOM 更新发生在下一个变更检测周期。这个区别在高频更新场景下很重要：批量写入后调用一次 <code>markForCheck()</code>，而不是写一次调一次。</p>
+<p>💡 <strong>提示</strong>：<code>ChangeDetectorRef.detach()</code> 会清除视图的 <code>Attached</code> 标志，使该视图<strong>完全脱离</strong>变更检测树——不管是 Global 还是 Targeted 模式，都不会访问这个视图。但 <code>detectChanges()</code> 仍然有效（它是直接对这个视图执行检测，不走遍历逻辑）。这是实现自定义调度（如虚拟滚动、大型 table）的底层机制。</p>
+<hr>
+<h2 id="h-global-与-targeted-两种遍历模式">Global 与 Targeted：两种遍历模式</h2>
+<p>到目前为止，<code>ChangeDetectionMode.Global</code> 和 <code>ChangeDetectionMode.Targeted</code> 已经多次出现。现在是时候把它们讲清楚了。</p>
+<h3 id="h-两种模式的含义">两种模式的含义</h3>
+<p>这两种模式控制了 <code>detectChangesInView()</code> 如何决定是否刷新视图，以及遍历算法如何导航视图树：</p>
+<pre><code class="language-typescript">// packages/core/src/change_detection/constants.ts
+export const enum ChangeDetectionMode {
+  // Global：全量检查——处理所有 CheckAlways 视图，以及当前标记了 Dirty 的 OnPush 视图
+  Global = 0,
+
+  // Targeted：精确检查——只沿 HasChildViewsToRefresh 标记的路径向下走
+  // 跳过没有 HasChildViewsToRefresh 的子树，大幅减少遍历开销
+  Targeted = 1,
+}</code></pre>
+<p><strong>Global 模式</strong>就像是&quot;全场巡视&quot;：遍历整棵视图树，对每个视图都问一遍&quot;有 <code>CheckAlways</code> 吗？有 <code>Dirty</code> 吗？&quot;任意一个为真就刷新。这是 Zone.js 路径的默认行为，保证即便开发者完全不使用 OnPush 或 Signals，应用也能正确更新。</p>
+<p><strong>Targeted 模式</strong>则是&quot;精准导航&quot;：只跟随 <code>HasChildViewsToRefresh</code> 标志向下走，没有这个标志的子树会被整体跳过。遍历开销与&quot;被标记的视图数量&quot;成正比，而不是与&quot;总视图数量&quot;成正比，在大型应用中性能优势显著。</p>
+<h3 id="h-synchronizeonce-如何选择模式">synchronizeOnce() 如何选择模式</h3>
+<p>两种模式的选择逻辑在 <code>synchronizeOnce()</code> 里：</p>
+<pre><code class="language-typescript">// packages/core/src/application/application_ref.ts（第 635-670 行）
+private synchronizeOnce(): void {
+  this.effectScheduler.flush();
+
+  // dirtyFlags 记录了这次 tick 由什么触发：
+  // ViewTreeGlobal：由 Zone.js / 手动 tick 触发 → 需要 Global 模式
+  // ViewTreeTraversal：由 Signal 写入或 markForCheck 触发 → 只需 Targeted 模式
+  const useGlobalCheck = !!(
+    this.dirtyFlags &amp; ApplicationRefDirtyFlags.ViewTreeGlobal
+  );
+
+  for (const view of this.allViews) {
+    if (!view.dirty) continue;
+
+    const mode = useGlobalCheck
+      ? ChangeDetectionMode.Global
+      : ChangeDetectionMode.Targeted;
+
+    detectChangesInternal(view._lView, mode);
+  }
+}</code></pre>
+<p>两种模式并非互斥。在一次 <code>synchronize()</code> 的循环中，可能先以 Global 模式处理第一轮（Zone.js 触发，<code>ViewTreeGlobal</code> 标志为真），完成后 <code>dirtyFlags</code> 被清除；然后 Signal effect 的副作用写入了新值，再次触发 <code>ViewTreeTraversal</code>，进入下一轮 Targeted 模式。这就是为什么 <code>synchronize()</code> 是 <code>while</code> 循环而非单次调用。</p>
+<h3 id="h-zone-js-和-zoneless-路径的差异">Zone.js 和 Zoneless 路径的差异</h3>
+<div class="table-wrap"><table><thead><tr><th>维度</th><th>Zone.js 路径</th><th>Zoneless 路径</th></tr></thead><tbody><tr><td>触发时机</td><td><code>NgZone.onMicrotaskEmpty</code></td><td>Signal 写入、<code>markForCheck()</code>、input 变化等</td></tr><tr><td>默认检测模式</td><td><strong>Global</strong>（<code>ViewTreeGlobal</code>）</td><td><strong>Targeted</strong>（<code>ViewTreeTraversal</code>）</td></tr><tr><td>Default 策略组件</td><td>每次 tick 都刷新</td><td>不自动刷新（需 Signal 或 <code>markForCheck</code>）</td></tr><tr><td>性能特征</td><td>简单但粗粒度</td><td>精确但依赖正确标记</td></tr></tbody></table></div>
+<p>🔗 <strong>交叉引用</strong>：第2章详细分析了 <code>NgZone.onMicrotaskEmpty</code> 的触发机制和 <code>ApplicationRef.dirtyFlags</code> 位掩码的完整设计。第7章将深入 Signal 的 <code>effect</code> 调度系统。</p>
+<hr>
+<h2 id="h-signals-集成-第三种范式">Signals 集成：第三种范式</h2>
+<p>理解了 Default（全量扫描）和 OnPush（手动精确标记）之后，Signals 是第三种范式——<strong>自动精确</strong>。</p>
+<p>OnPush 需要你（或框架）显式调用 <code>markForCheck()</code> 告诉 Angular&quot;这个组件的数据可能变了&quot;。Signals 则不需要：当你写入 signal 时，Angular <strong>自动知道</strong>哪些组件读取过这个 signal，并且只刷新那些组件。两者的本质差异一目了然：</p>
+<div class="table-wrap"><table><thead><tr><th>维度</th><th>OnPush + markForCheck()</th><th>Signals（SignalView）</th></tr></thead><tbody><tr><td>唤醒的触发者</td><td>外部显式调用（开发者或 Angular 自动）</td><td>signal.set() 自动触发</td></tr><tr><td>依赖关系管理</td><td>开发者负责（知道哪些数据影响哪些视图）</td><td>框架自动追踪（模板读取建立订阅）</td></tr><tr><td>假脏过滤</td><td>无（标记即认为需要刷新）</td><td><code>consumerPollProducersForChange()</code> 过滤</td></tr><tr><td>参与 Global 扫描</td><td>是（Dirty 在 Global 模式下被检测）</td><td>否（SignalView 不受 Global 影响）</td></tr><tr><td>适用于 Zone.js 应用</td><td>是</td><td>是（通知链最终使用相同的底层机制）</td></tr><tr><td>适用于 Zoneless 应用</td><td>是（需 Targeted 模式）</td><td>是（天然 Targeted）</td></tr></tbody></table></div>
+<p>这就像是在 OnPush 的基础上，把&quot;举手示意&quot;的工作从开发者手中接管——演员读了哪几幕的台词（读取了哪些 Signal），在台词更新时（<code>signal.set()</code>），Angular 知道只需要重演读过这些台词的场景。</p>
+<h3 id="h-signalview-不参与-global-扫描的视图">SignalView：不参与 Global 扫描的视图</h3>
+<p>标记了 <code>signals: true</code> 的组件（Angular v19 的 signal-based components），其 LView 拥有 <code>SignalView</code> 标志，<strong>而不是</strong> <code>CheckAlways</code> 或初始 <code>Dirty</code>。</p>
+<p>这意味着 <code>detectChangesInView()</code> 的路径1和路径2永远不会为这类组件触发刷新。它的刷新完全依赖路径3（<code>RefreshView</code>）或路径4（<code>consumer.dirty &amp;&amp; consumerPollProducersForChange()</code>）。</p>
+<p>即便在 Zone.js 路径的 Global 模式 tick 中，SignalView 组件也<strong>不会</strong>被无条件刷新——它是 Signals 世界的居民，遵循不同的规则。</p>
+<h3 id="h-signal-的三阶段工作机制">Signal 的三阶段工作机制</h3>
+<p>Signal 与变更检测的集成精确地分为三个阶段：追踪、通知、确认。理解这三个阶段，是理解 Signals 精确更新的关键。</p>
+<div class="mermaid">sequenceDiagram
+    participant view as &quot;detectChangesInView()&lt;br/&gt;变更检测引擎&quot;
+    participant consumer as &quot;ReactiveLViewConsumer&lt;br/&gt;lView 的 Signal 消费者&quot;
+    participant template as &quot;模板函数&quot;
+    participant signal as &quot;WritableSignal&lt;br/&gt;（生产者）&quot;
+
+    Note over view,signal: 阶段1：追踪（每次 refreshView 执行时）
+    view -&gt;&gt; consumer: consumerBeforeComputation()
+    consumer -&gt;&gt; consumer: setActiveConsumer(this)&lt;br/&gt;重置 producers 链表
+    view -&gt;&gt; template: executeTemplate(RenderFlags.Update)
+    template -&gt;&gt; signal: signal() 读取值
+    signal -&gt;&gt; consumer: producerAccessed()&lt;br/&gt;建立 ReactiveLink
+
+    Note over view,signal: 阶段2：通知（signal.set() 触发时）
+    template -&gt;&gt; signal: signal.set(newValue)
+    signal -&gt;&gt; signal: version++&lt;br/&gt;epoch++
+    signal -&gt;&gt; consumer: consumerMarkDirty()
+    consumer -&gt;&gt; consumer: dirty = true
+    consumer -&gt;&gt; view: markAncestorsForTraversal()&lt;br/&gt;向上冒泡 HasChildViewsToRefresh
+
+    Note over view,signal: 阶段3：确认（下一次 detectChangesInView）
+    view -&gt;&gt; consumer: consumer.dirty == true?
+    consumer --&gt;&gt; view: true（push 通知）
+    view -&gt;&gt; signal: consumerPollProducersForChange()&lt;br/&gt;逐一比较版本号
+    signal --&gt;&gt; view: version 已变化（pull 确认）
+    view -&gt;&gt; template: refreshView() 重新执行模板</div>
+<p><strong>阶段1：追踪（每次 refreshView 时重建依赖）</strong></p>
+<p>每次 <code>refreshView()</code> 开始时，Angular 把这个视图的 <code>ReactiveLViewConsumer</code> 设置为&quot;当前活跃消费者&quot;：</p>
+<pre><code class="language-typescript">// packages/core/src/render3/instructions/change_detection.ts（refreshView 内部）
+const currentConsumer = getOrBorrowReactiveLViewConsumer(lView);
+// 激活：任何 signal() 调用都会向这个 consumer 注册依赖
+consumerBeforeComputation(currentConsumer);
+
+try {
+  executeTemplate(tView, lView, templateFn, RenderFlags.Update, context);
+} finally {
+  // 还原：关闭追踪窗口，清理不再使用的旧依赖链接
+  consumerAfterComputation(currentConsumer, prevConsumer);
+}</code></pre>
+<p>当模板函数执行时，每次读取 <code>mySignal()</code> 都会触发 <code>producerAccessed()</code>，在 signal 节点和视图 consumer 之间建立一条 <code>ReactiveLink</code>——记录 signal 的当前版本（用于后续版本比较）和指向 consumer 的引用（用于发送通知）。追踪结束后，<code>consumerAfterComputation()</code> 会清理那些这次执行中没有被访问的旧链接（条件渲染场景：<code>*ngIf=&quot;showA&quot;</code> 从 true 变为 false，那些只在 showA 时才读取的 signal 依赖会被移除）。</p>
+<p><strong>阶段2：通知（signal.set() 触发）</strong></p>
+<p>当某处代码调用 <code>mySignal.set(newValue)</code>，推进过程沿着 <code>ReactiveLink</code> 链条传播：</p>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/signal.ts（set 方法）
+set(newValue: T): void {
+  this.rawValue = newValue;
+  this.version++;           // 该 signal 的版本号自增
+  producerIncrementEpoch(); // 全局 epoch 自增（逻辑时钟）
+  producerNotifyConsumers(this);  // 通知所有订阅了此 signal 的消费者
+}</code></pre>
+<p><code>producerNotifyConsumers</code> 遍历所有 <code>ReactiveLink</code>，对每个消费者调用 <code>consumerMarkDirty()</code>。<code>ReactiveLViewConsumer</code> 的实现最终调用 <code>markAncestorsForTraversal()</code>——<strong>这与 OnPush <code>markForCheck()</code> 的第二条冒泡链完全相同</strong>。Signal 并没有发明全新的变更检测路径，它只是接管了&quot;何时标记&quot;的工作。</p>
+<p><strong>阶段3：确认（Pull 验证，防止假脏）</strong></p>
+<p><code>consumer.dirty = true</code> 只是一个&quot;可能有变化&quot;的 push 通知，它无法排除假脏场景：</p>
+<pre><code class="language-typescript">const a = signal(1);
+const b = signal(-1);
+const sum = computed(() =&gt; a() + b());  // sum = 0
+
+a.set(2);   // sum consumer 被标记 dirty
+b.set(-2);  // 取消了上面的变化，sum 依然 = 0</code></pre>
+<p>如果 push 通知直接触发刷新，依赖 <code>sum</code> 的视图会被刷新，但 <code>sum</code> 的值根本没有改变。<code>consumerPollProducersForChange()</code> 的 pull 确认解决了这个问题：</p>
+<pre><code class="language-typescript">// packages/core/primitives/signals/src/graph.ts（第 350-385 行）
+export function consumerPollProducersForChange(node: ReactiveNode): boolean {
+  for (let link = node.producers; link !== undefined; link = link.nextProducer) {
+    const producer = link.producer;
+    // 快速路径：版本号不同 → 确认有变化
+    if (link.lastReadVersion !== producer.version) return true;
+    // 慢速路径：对于 computed，强制它重新求值
+    producerUpdateValueVersion(producer);
+    if (link.lastReadVersion !== producer.version) return true;
+  }
+  return false;  // 所有 producer 版本都没变 → 假脏，不刷新
+}</code></pre>
+<p>&quot;push 通知 + pull 确认&quot;双重机制：push 是<strong>快速告知</strong>（O(1)，不需要遍历依赖图），pull 是<strong>精确验证</strong>（O(n)，n 是直接依赖数量，通常很小）。两者结合，避免假脏导致的无效渲染。</p>
+<p>Signal 的依赖关系是<strong>动态的</strong>——每次模板执行都会重建。假设模板里有 <code>{{ showDetails ? detail() : summary() }}</code>，当 <code>showDetails</code> 为 false 时，<code>detail</code> signal 的依赖链接在模板执行结束后被清理；当 <code>showDetails</code> 变为 true，下次执行时重新建立订阅。这种动态依赖追踪不需要手动管理订阅生命周期，比静态订阅（如 RxJS Subject）更精确。</p>
+<p>🔗 <strong>交叉引用</strong>：Signal 系统的完整实现（<code>ReactiveNode</code>、<code>computed</code>、<code>effect</code>、依赖图的数据结构）将在第7章详细展开。本章只涉及 Signal 与变更检测引擎的接口层。</p>
+<hr>
+<h2 id="h-expressionchangedafterithasbeencheckederror">ExpressionChangedAfterItHasBeenCheckedError</h2>
+<p>这是 Angular 开发者最常见的错误之一。它的全名让人望而生畏，但它实际上是 Angular 在<strong>帮你发现一个真实的数据流问题</strong>——一个在生产环境会静默出现、导致 UI 状态不一致的 bug。</p>
+<h3 id="h-根因-dev-模式的二次检查">根因：dev 模式的二次检查</h3>
+<p>回顾 <code>tickImpl()</code> 的结构。正常的变更检测（<code>synchronize()</code>）完成后，dev 模式下还会对每个视图再执行一次 <code>checkNoChanges()</code>：</p>
+<pre><code class="language-typescript">// packages/core/src/application/application_ref.ts（第 537-565 行）
+private tickImpl(): void {
+  this._runningTick = true;
+  try {
+    this.synchronize();  // ← 第一轮：执行正常变更检测，更新 DOM
+
+    if (ngDevMode) {
+      for (const view of this.allViews) {
+        // ← 第二轮：仅 dev 模式，不更新 DOM，只验证值是否稳定
+        view.checkNoChanges();
+      }
+    }
+  } finally {
+    this._runningTick = false;
+  }
+}</code></pre>
+<p>第二轮检查走的是 <code>checkNoChangesInternal()</code>，它重新运行一遍 <code>detectChangesInternal()</code>，但进入了特殊模式：<code>isInCheckNoChangesMode()</code> 返回 true。在这个模式下，<code>bindingUpdated()</code> 发现新旧值不同时，<strong>不是更新 LView，而是抛出错误</strong>。</p>
+<p>这个逻辑的含义是：如果两次检测之间，template 函数对同一个绑定的求值结果发生了变化，就说明有代码在&quot;变更检测进行中修改了数据&quot;——Angular 单向数据流（从数据模型流向 DOM）原则被破坏。</p>
+<h3 id="h-三种典型触发场景">三种典型触发场景</h3>
+<p><strong>场景一：在 <code>ngAfterViewInit</code> 里修改父组件的绑定值</strong></p>
+<pre><code class="language-typescript">// 错误写法：会触发 ExpressionChangedAfterChecked
+@Component({
+  template: `&lt;h1&gt;{{ title }}&lt;/h1&gt; &lt;child&gt;&lt;/child&gt;`,
+})
+class ParentComponent {
+  title = 'initial';
+}
+
+@Component({ selector: 'child' })
+class ChildComponent implements AfterViewInit {
+  constructor(private parent: ParentComponent) {}
+
+  ngAfterViewInit() {
+    // 子组件初始化时修改父组件属性
+    // 此时父组件的变更检测已经完成，title 的旧值已经写入 LView
+    this.parent.title = 'updated';  // ← 触发错误！
+  }
+}</code></pre>
+<p>修复：使用 <code>Promise.resolve()</code> 延迟到下一个微任务（下一次 tick）：</p>
+<pre><code class="language-typescript">ngAfterViewInit() {
+  Promise.resolve().then(() =&gt; { this.parent.title = 'updated'; });
+}</code></pre>
+<p><strong>场景二：绑定表达式每次调用返回新引用</strong></p>
+<pre><code class="language-typescript">// 错误写法
+@Component({
+  template: `&lt;child [items]=&quot;getItems()&quot;&gt;&lt;/child&gt;`,
+})
+class ParentComponent {
+  // 每次调用都返回一个新数组——Object.is 比较时永远不等！
+  getItems() { return ['a', 'b', 'c']; }
+}</code></pre>
+<p>修复：缓存为组件属性：</p>
+<pre><code class="language-typescript">items = ['a', 'b', 'c'];  // 稳定引用</code></pre>
+<p><strong>场景三：<code>ngDoCheck</code> 里修改了绑定</strong></p>
+<p><code>ngDoCheck</code> 在每次变更检测时都会被调用，包括第二轮检查。如果在 <code>ngDoCheck</code> 里修改了任何绑定值，第二轮检查时会再次执行 <code>ngDoCheck</code>，发现值变了，触发错误。</p>
+<div class="table-wrap"><table><thead><tr><th>场景</th><th>根因</th><th>推荐修复</th></tr></thead><tbody><tr><td><code>ngAfterViewInit</code> 修改父绑定</td><td>父组件检测已结束后才修改</td><td><code>Promise.resolve().then(...)</code> 延迟到下一 tick</td></tr><tr><td>方法返回新引用</td><td>每次调用创建新对象/数组</td><td>缓存为稳定属性</td></tr><tr><td><code>ngDoCheck</code> 修改绑定</td><td>钩子在检测中被调用</td><td>移到 <code>ngAfterViewChecked</code>，或用 <code>ChangeDetectorRef.detectChanges()</code></td></tr><tr><td>双向绑定形成反馈</td><td>A 更新 B，B 更新 A</td><td>重审数据流，打破循环</td></tr></tbody></table></div>
+<p><strong>修复方案优先级</strong>：</p>
+<ol><li><strong>优先</strong>：重设计数据流，打破循环——让变化发生在变更检测<strong>开始前</strong>，这是真正修复</li><li><strong>次选</strong>：使用 <code>markForCheck()</code> 配合 <code>async</code> 管道，或将方法调用缓存为稳定属性</li><li><strong>最后手段</strong>：<code>setTimeout</code> / <code>Promise.resolve()</code> 延迟——治标不治本，只在无法重构时使用</li></ol>
+<p>⚠️ <strong>注意</strong>：这个错误在生产环境（<code>ngDevMode = false</code>）下不会抛出。Angular 通过 tree-shaking 移除了 <code>throwErrorIfNoChangesMode()</code> 调用。但数据不同步的 bug 会以更隐蔽的方式存在（UI 显示的值可能是旧的）。发现这个错误应当视为修复数据流的机会，而不是通过 <code>setTimeout</code> 简单绕过。</p>
+<p>🔍 <strong>深入</strong>：如果你想在项目里临时禁用这个错误检查（不推荐，但有时需要渐进式迁移），可以使用 <code>provideCheckNoChangesConfig({ exhaustive: false })</code> 将检查模式改为&quot;仅检查脏视图&quot;而非全量检查。这个 API 在 Angular v17+ 可用，主要用于大型迁移场景。</p>
+<hr>
+<h2 id="h-设计思考">设计思考</h2>
+<blockquote><p><strong>设计思考</strong><br>
+<br>
+<strong>脏检查的务实哲学</strong><br>
+<br>
+2016年，Angular 2.0 发布时，细粒度响应式（Vue 的 <code>defineProperty</code>、MobX 的 observable）已经被业界验证可行。Angular 团队选择 Zone.js + 全树扫描的脏检查路线，背后有几个务实考量：<br>
+<br>
+<strong>零侵入性</strong>：开发者可以使用普通 JavaScript 对象，直接修改属性，Angular 会自己检测到变化。这大幅降低了从 AngularJS 迁移的学习成本，也让 Angular 与任意第三方 JavaScript 库的集成变得简单——不需要任何包装或 observable 化。<strong>可预测性</strong>：变更检测在已知的时间点（Zone tick 结束后）统一发生，开发者可以明确推理&quot;哪个时机 DOM 会更新&quot;。<br>
+<br>
+<strong>从 2016 到 2024 的演进轨迹</strong><br>
+<br>
+Angular 2.0（2016）上线了 Default + OnPush 双策略，确立了&quot;脏检查 + 可选精确标记&quot;的路线。OnPush 本质上是脏检查的半步进化：保留了&quot;只要调用 <code>markForCheck()</code> 就能正常工作&quot;的简单性，同时允许对数据流清晰的组件主动退出全树扫描。这种渐进式优化非常 Angular：你可以在任意时候，对任意组件单独启用 OnPush，不需要改变整个应用的架构。<br>
+<br>
+随后数年，社区对 Signals 模式的兴趣持续升温。Angular v16（2023）引入开发者预览版 Signals，v17 引入 signal-based components 实验特性，v18 引入 Zoneless 开发者预览，v19（2024）将 Zoneless 模式稳定化。这条路线之所以花了八年：Signals 的精确性要求数据从源头就以 signal 形式流动；早期缺乏编译器支持和生态工具处理混合模式；OnPush 是更现实的过渡方案。v21+ 计划将 Zoneless 设为默认模式。<br>
+<br>
+<strong>Signals 是不是 Zone.js 的终结者？</strong><br>
+<br>
+从技术路线上看，Angular 团队的答案是&quot;是&quot;——但这是一个渐进式的、向后兼容的迁移。Zone.js 的根本问题在于它的<strong>全局性</strong>：它对 <code>setTimeout</code>、<code>Promise</code>、<code>addEventListener</code> 等异步 API 进行了全量 monkey-patch，在大型应用中，任何第三方库触发的异步操作都可能意外触发一次全树检测。<br>
+<br>
+本章的源码分析已经揭示：Signal 的通知链（<code>markAncestorsForTraversal</code>）和 OnPush 的 <code>markForCheck()</code> 使用的是<strong>完全相同的底层机制</strong>。Angular 并没有为 Signals 构建全新的变更检测引擎，而是复用了 OnPush 的基础设施，让 Signal 成为了&quot;自动化的 OnPush&quot;。这意味着从 Zone.js 迁移到 Zoneless + Signals 的路径是平滑的：OnPush 组件不需要修改，Signal 组件直接参与相同的遍历算法，按组件粒度逐步迁移。<br>
+<br>
+<strong>三种策略的权衡总结</strong><br>
+<br>
+Default 策略的价值不应该被低估：它让开发者专注于业务逻辑，在组件树不深、节点不多的应用里完全够用。OnPush 的价值在于中大型应用的局部精确控制，但它要求开发者对数据流有清晰的认知。Signals 则是最高精确度但也最&quot;系统化&quot;的方案——它要求数据通过 signal 流动，不能混用普通赋值。三种策略共存，是 Angular 在&quot;易用性&quot;与&quot;性能&quot;这个经典权衡上给出的多层次答案。</p></blockquote>
+<hr>
+<h2 id="h-小结">小结</h2>
+<p>本章从 <code>ApplicationRef.tick()</code> 出发，逐层解析了 Angular 变更检测的完整机制：</p>
+<ul><li><strong>调度层</strong>（<code>tick → synchronize → synchronizeOnce</code>）负责决定何时检测、检测多少轮、处理 Signal effect 的级联效应。<code>synchronize()</code> 的稳定性循环保证应用在每次 tick 后达到收敛状态。</li></ul>
+<ul><li><strong>执行层</strong>（<code>detectChangesInView → refreshView → bindingUpdated</code>）负责具体的视图刷新和 DOM 比较。<code>detectChangesInView()</code> 的四条路径是整个算法的核心决策点，分别对应 Default、OnPush、移植视图和 Signals 四种场景。</li></ul>
+<ul><li><strong>三种策略本质上是三种唤醒机制</strong>：Default 由 Zone.js 全局广播唤醒（每次都），OnPush 由 <code>markForCheck()</code> 手动精确唤醒（显式请求），Signals 由响应式图自动精确唤醒（读取建立订阅，写入自动通知）。</li></ul>
+<ul><li><strong><code>markForCheck()</code> 的双轨冒泡</strong>（<code>Dirty</code> 链 + <code>HasChildViewsToRefresh</code> 链）是 OnPush 和 Signals 共用的底层路径标记机制。理解它是排查变更检测异常的关键。</li></ul>
+<ul><li><strong><code>ExpressionChangedAfterChecked</code> 是数据流健康的早期预警</strong>，修复优先级：重设计数据流 &gt; <code>markForCheck()/async</code> 管道 &gt; <code>setTimeout</code>（最后手段）。</li></ul>
+<ul><li><strong>Signals 不是变更检测的替代品，而是触发机制的升级</strong>。<code>refreshView()</code> 仍然是最终执行模板更新的地方；Signal 改变的是&quot;谁来告诉 Angular 何时该执行 refreshView&quot;。这意味着你对变更检测的理解（LViewFlags、双轨冒泡、bindingUpdated 等）在 Signals 时代依然有效，不会过时。</li></ul>
+<p>性能优化的路径：<strong>Default → OnPush → Signals</strong>，越往后精确度越高，代码改动和心智成本也越大。对于新项目，Signals + Zoneless 是 Angular 官方推荐的方向；对于存量项目，OnPush 是最实用的渐进式优化手段。决定使用哪种策略之前，先用 Angular DevTools 的 profiler 测量，找到真正的性能瓶颈，再有针对性地优化，而不是无差别地给所有组件加 <code>OnPush</code>。</p>
+<h3 id="h-思考题">思考题</h3>
+<ol><li>在一个 OnPush 组件中，父组件通过 <code>@Input()</code> 传递了一个对象，父组件随后修改了这个对象的某个<strong>属性</strong>（但对象引用没有改变），子组件的 OnPush 视图会刷新吗？为什么？如果想让子组件检测到这种变化，有哪些方案？</li></ol>
+<ol><li><code>ChangeDetectorRef.detach()</code> 之后，再调用 <code>markForCheck()</code>，视图会参与下次 tick 的变更检测吗？查阅 <code>detectChangesInView()</code> 中 <code>Attached</code> 标志的检查逻辑，分析其行为。（提示：<code>Attached</code> 标志影响的是 <code>viewAttachedToChangeDetector()</code> 的返回值，它被 <code>markAncestorsForTraversal()</code> 用于决定是否继续冒泡。）</li></ol>
+<ol><li>一个 Signals 组件（<code>SignalView</code>）在 <code>ngAfterViewInit</code> 里调用 <code>this.count.set(1)</code>（<code>count</code> 是 template 中读取过的 signal），会触发 <code>ExpressionChangedAfterItHasBeenCheckedError</code> 吗？结合 Signal 三阶段机制和 dev 模式二次检查的时序，分析其原因。</li></ol>
+    <div class="chapter-nav"><a href="ch05.html">← 上一章：第5章：Ivy 渲染引擎——LView 的生命</a><a href="ch07.html">下一章：第7章：Signals——细粒度响应式的实现 →</a></div>
+  </main>
+  
+<aside id="toc-right">
+  <div class="toc-title">本章目录</div>
+  <ul class="toc-list"><li><a href="#h-变更检测全景调用链">变更检测全景调用链</a></li>
+<li><a href="#h-lviewflags-变更检测的-通行证">LViewFlags：变更检测的&quot;通行证&quot;</a></li>
+<li><a href="#h-默认策略-脏检查的本质">默认策略：脏检查的本质</a></li>
+<li><a href="#h-onpush-策略-精确标记与双轨冒泡">OnPush 策略：精确标记与双轨冒泡</a></li>
+<li><a href="#h-global-与-targeted-两种遍历模式">Global 与 Targeted：两种遍历模式</a></li>
+<li><a href="#h-signals-集成-第三种范式">Signals 集成：第三种范式</a></li>
+<li><a href="#h-expressionchangedafterithasbeencheckederror">ExpressionChangedAfterItHasBeenCheckedError</a></li>
+<li><a href="#h-设计思考">设计思考</a></li>
+<li><a href="#h-小结">小结</a></li></ul>
+</aside>
+</div>
+<button id="back-to-top" title="返回顶部">↑</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+<script>
+(function () {
+  'use strict';
+  function updateProgress() {
+    var el = document.getElementById('progress-bar');
+    if (!el) return;
+    var st = window.pageYOffset || document.documentElement.scrollTop;
+    var dh = document.documentElement.scrollHeight - window.innerHeight;
+    el.style.width = (dh > 0 ? Math.min(100, st / dh * 100) : 0) + '%';
+  }
+  function updateBackToTop() {
+    var btn = document.getElementById('back-to-top');
+    if (!btn) return;
+    btn.classList.toggle('visible', (window.pageYOffset || document.documentElement.scrollTop) > 300);
+  }
+  function updateTocActive() {
+    var hs = Array.from(document.querySelectorAll('#main h2[id]'));
+    var ls = Array.from(document.querySelectorAll('#toc-right .toc-list a'));
+    if (!hs.length || !ls.length) return;
+    var active = -1;
+    hs.forEach(function (h, i) { if (h.getBoundingClientRect().top <= 120) active = i; });
+    ls.forEach(function (a, i) { a.classList.toggle('active', i === active); });
+  }
+  window.addEventListener('scroll', function () {
+    updateProgress(); updateBackToTop(); updateTocActive();
+  }, { passive: true });
+  var btn = document.getElementById('back-to-top');
+  if (btn) btn.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof hljs !== 'undefined') hljs.highlightAll();
+    updateProgress(); updateTocActive();
+  });
+})();
+</script>
+</body>
+</html>

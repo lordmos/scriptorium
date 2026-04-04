@@ -16,12 +16,12 @@
 
   需要加载的上下文:
   ┌─────────────────────────────────────────────────┐
-  │  drafts/chXX-draft.md       — 待审查初稿        │
+  │  output/chapters/draft/chXX-draft.md       — 待审查初稿        │
   │  {{源码根目录}}/{{文件列表}} — 验证代码准确性     │
-  │  meta/chapter-summaries.md   — 检查跨章一致性    │
-  │  meta/glossary.md            — 检查术语一致性    │
-  │  meta/metaphor-registry.md  — 检查比喻一致性     │
-  │  meta/style-guide.md         — 检查写作风格      │
+  │  output/memory/chapter-summaries.md   — 检查跨章一致性    │
+  │  output/memory/glossary.md            — 检查术语一致性    │
+  │  output/memory/metaphor-registry.md  — 检查比喻一致性     │
+  │  output/memory/style-guide.md         — 检查写作风格      │
   │  source-map.md               — 定位源码文件      │
   └─────────────────────────────────────────────────┘
 
@@ -56,7 +56,7 @@
 ### 架构总览
 
 ```
-                    drafts/chXX-draft.md
+                    output/chapters/draft/chXX-draft.md
                            │
               ┌────────────┼────────────┐
               ▼            ▼            ▼
@@ -75,7 +75,7 @@
               │            │            │
               └────────────┼────────────┘
                            ▼
-                   reviews/chXX-review.md
+                   output/reviews/chXX-review.md
                       （合并报告）
 ```
 
@@ -94,15 +94,15 @@ Agent类型: explore（适合大量源码搜索和比对）
   ✅ 设计决策的分析是否有理有据
 
 File Pointers:
-  📖 读取: drafts/chXX-draft.md          — 待审初稿
+  📖 读取: output/chapters/draft/chXX-draft.md          — 待审初稿
   📖 读取: source-map.md                 — 定位源码文件
   📖 读取: {{源码根目录}}/{{文件列表}}    — 实际源码
-  ✏️ 写入: reviews/chXX-r1-code.md       — 源码审查报告
+  ✏️ 写入: output/reviews/chXX-r1.md       — 源码审查报告
 
 不读取:
-  ✗ meta/chapter-summaries.md  — R1不关心跨章一致性
-  ✗ meta/glossary.md           — R1不检查术语使用
-  ✗ meta/style-guide.md        — R1不审查写作风格
+  ✗ output/memory/chapter-summaries.md  — R1不关心跨章一致性
+  ✗ output/memory/glossary.md           — R1不检查术语使用
+  ✗ output/memory/style-guide.md        — R1不审查写作风格
 
 上下文预算:
   初稿: ~15K tokens
@@ -118,7 +118,7 @@ File Pointers:
 # R1 源码审查报告 — 第{{章节号}}章
 
 审查时间: {{时间戳}}
-对应初稿: drafts/ch{{章节号}}-draft.md
+对应初稿: output/chapters/draft/ch{{章节号}}-draft.md
 参考源码: {{源码文件列表}}
 
 ## 审查结果
@@ -163,12 +163,12 @@ Agent类型: explore（适合跨文件搜索和比对）
   ✅ 知识递进是否合理（不重复解释已讲过的概念）
 
 File Pointers:
-  📖 读取: drafts/chXX-draft.md          — 待审初稿
-  📖 读取: meta/chapter-summaries.md     — 前序章节摘要
-  📖 读取: meta/glossary.md              — 术语表
-  📖 读取: meta/metaphor-registry.md    — 比喻注册表
-  📖 读取: meta/cross-references.md     — 交叉引用表
-  ✏️ 写入: reviews/chXX-r2-consistency.md — 一致性审查报告
+  📖 读取: output/chapters/draft/chXX-draft.md          — 待审初稿
+  📖 读取: output/memory/chapter-summaries.md     — 前序章节摘要
+  📖 读取: output/memory/glossary.md              — 术语表
+  📖 读取: output/memory/metaphor-registry.md    — 比喻注册表
+  📖 读取: output/memory/cross-references.md     — 交叉引用表
+  ✏️ 写入: output/reviews/chXX-r2.md — 一致性审查报告
 
 不读取:
   ✗ 源码文件        — R2不验证代码
@@ -245,9 +245,9 @@ Agent类型: general-purpose（需要深度理解和判断）
   ✅ 代码与文字的比例是否合理
 
 File Pointers:
-  📖 读取: drafts/chXX-draft.md     — 待审初稿
-  📖 读取: meta/style-guide.md      — 写作风格指南
-  ✏️ 写入: reviews/chXX-r3-content.md — 内容审查报告
+  📖 读取: output/chapters/draft/chXX-draft.md     — 待审初稿
+  📖 读取: output/memory/style-guide.md      — 写作风格指南
+  ✏️ 写入: output/reviews/chXX-r3.md — 内容审查报告
 
 不读取:
   ✗ 源码文件    — R3不验证代码准确性
@@ -309,13 +309,13 @@ File Pointers:
 并发安全的三个条件:
 
 1. 读取无冲突
-   三个Reviewer都读取同一份 drafts/chXX-draft.md
+   三个Reviewer都读取同一份 output/chapters/draft/chXX-draft.md
    但全部是只读操作 → 无竞争
 
 2. 写入无冲突
-   R1 写入: reviews/chXX-r1-code.md
-   R2 写入: reviews/chXX-r2-consistency.md
-   R3 写入: reviews/chXX-r3-content.md
+   R1 写入: output/reviews/chXX-r1.md
+   R2 写入: output/reviews/chXX-r2.md
+   R3 写入: output/reviews/chXX-r3.md
    三个输出文件完全不同 → 无竞争
 
 3. 无共享可变状态
@@ -347,9 +347,9 @@ R3 内容审查  │    —    │    —      │  读取 ✅   │ 读取  │
 
 ```
 触发条件:
-  reviews/chXX-r1-code.md         存在且有 R1_CODE_REVIEW_COMPLETE
-  reviews/chXX-r2-consistency.md  存在且有 R2_CONSISTENCY_REVIEW_COMPLETE
-  reviews/chXX-r3-content.md      存在且有 R3_CONTENT_REVIEW_COMPLETE
+  output/reviews/chXX-r1.md         存在且有 R1_CODE_REVIEW_COMPLETE
+  output/reviews/chXX-r2.md  存在且有 R2_CONSISTENCY_REVIEW_COMPLETE
+  output/reviews/chXX-r3.md      存在且有 R3_CONTENT_REVIEW_COMPLETE
 
   三个条件全部满足 → 触发合并
 ```
@@ -423,7 +423,7 @@ R3 内容审查  │    —    │    —      │  读取 ✅   │ 读取  │
 合并报告判定为"需修改":
   → 将合并报告 + 原draft发送给作家(#4)
   → 作家针对❌和⚠️项进行修改
-  → 输出新版draft: drafts/chXX-draft-v2.md
+  → 输出新版draft: output/chapters/draft/chXX-draft-v2.md
   → 重新审查（仅重审相关维度）
   → 最大重试次数: {{最大审查重试次数，默认2}}
 ```
@@ -556,8 +556,8 @@ API调用成本:
 示例: 添加R4 性能审查
 
 R4 性能审查:
-  📖 读取: drafts/chXX-draft.md + 性能基准数据
-  ✏️ 写入: reviews/chXX-r4-performance.md
+  📖 读取: output/chapters/draft/chXX-draft.md + 性能基准数据
+  ✏️ 写入: output/reviews/chXX-r4-performance.md
   审查项: 代码示例的性能影响描述是否准确，是否遗漏重要的性能考量
   完成标记: <!-- R4_PERFORMANCE_REVIEW_COMPLETE -->
 

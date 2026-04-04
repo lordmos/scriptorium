@@ -44,20 +44,20 @@
 
 ### ━━ PHASE 1：大纲定稿 ━━
 
-**目标文件**：`outline.md`、`source-map.md`
+**目标文件**：`output/memory/outline.md`、`output/memory/source-map.md`
 
 **Step 1.1 — 以架构师身份分析源码**
 
 切换到 `agents/02-architect.md` 中定义的角色，执行：
 - 扫描源码目录，识别核心模块和关键文件
-- 生成 `outline.md`（建议8-12章，每章含标题 + 2-3句目的说明）
-- 生成 `source-map.md`（每章映射到具体源码文件/目录）
+- 生成 `output/memory/outline.md`（建议8-12章，每章含标题 + 2-3句目的说明）
+- 生成 `output/memory/source-map.md`（每章映射到具体源码文件/目录）
 
 **Step 1.2 — 以读者代言人身份审核大纲**
 
 切换到 `agents/03-reader-advocate.md` 中定义的角色，执行：
-- 读取 `outline.md`，从目标读者视角审核学习曲线是否合理
-- 产出具体改进建议（内联修改 outline.md 或附建议列表）
+- 读取 `output/memory/outline.md`，从目标读者视角审核学习曲线是否合理
+- 产出具体改进建议（内联修改 `output/memory/outline.md` 或附建议列表）
 
 **Step 1.3 — 向用户展示大纲并请求确认**
 
@@ -65,7 +65,7 @@
 ```
 ✅ Phase 1 完成。以下是书籍大纲（共 N 章）：
 
-[展示 outline.md 内容]
+[展示 output/memory/outline.md 内容]
 
 请确认是否继续，或提出修改意见。确认后我将进入 Phase 2。
 ```
@@ -76,34 +76,34 @@
 
 ### ━━ PHASE 2：共享资源构建 ━━
 
-**目标文件**：`style-guide.md`、`glossary.md`、`metaphor-registry.md`
+**目标文件**：`output/memory/style-guide.md`、`output/memory/glossary.md`、`output/memory/metaphor-registry.md`
 
-以主编排身份，基于 `outline.md` 和 `source-map.md` 直接创建：
+以主编排身份，基于 `output/memory/outline.md` 和 `output/memory/source-map.md` 直接创建：
 
-- `style-guide.md`：根据目标读者定义写作风格（使用 `templates/style-guide.md`）
-- `glossary.md`：从 source-map.md 提取核心术语，写初始定义（使用 `templates/glossary.md`）
-- `metaphor-registry.md`：初始为空（使用 `templates/metaphor-registry.md`）
+- `output/memory/style-guide.md`：根据目标读者定义写作风格（使用 `templates/style-guide.md`）
+- `output/memory/glossary.md`：从 source-map.md 提取核心术语，写初始定义（使用 `templates/glossary.md`）
+- `output/memory/metaphor-registry.md`：初始为空（使用 `templates/metaphor-registry.md`）
 
-完成后更新 checkpoint.md，**直接进入 Phase 3（无需用户确认）**。
+完成后更新 `output/memory/checkpoint.md`，**直接进入 Phase 3（无需用户确认）**。
 
 ---
 
 ### ━━ PHASE 3：逐章写作 ━━
 
-**目标文件**：`research/chNN-report.md`、`chapters/chNN-draft.md`
+**目标文件**：`output/research/chNN-report.md`、`output/chapters/draft/chNN-draft.md`
 
-按 `outline.md` 逐章执行，每章两步：
+按 `output/memory/outline.md` 逐章执行，每章两步：
 
 **Step 3.A — 研究员调研**
 
 切换到 `agents/04-researcher.md` 中定义的角色：
 ```
 输入（File Pointers）：
-  - source-map.md（第 N 章对应部分）
-  - outline.md（第 N 章部分）
+  - output/memory/source-map.md（第 N 章对应部分）
+  - output/memory/outline.md（第 N 章部分）
   - [第 N 章对应的所有源码文件]
 
-输出：research/chNN-report.md
+输出：output/research/chNN-report.md
 完成后在文件末尾添加：<!-- RESEARCH_COMPLETE -->
 ```
 
@@ -112,68 +112,81 @@
 切换到 `agents/05-writer.md` 中定义的角色：
 ```
 输入（File Pointers）：
-  - research/chNN-report.md
-  - outline.md（第 N 章部分）
-  - style-guide.md
-  - glossary.md（当前版本）
-  - metaphor-registry.md（当前版本）
+  - output/research/chNN-report.md
+  - output/memory/outline.md（第 N 章部分）
+  - output/memory/style-guide.md
+  - output/memory/glossary.md（当前版本）
+  - output/memory/metaphor-registry.md（当前版本）
 
-输出：chapters/chNN-draft.md
+输出：output/chapters/draft/chNN-draft.md
 完成后：
   - 在文件末尾添加：<!-- DRAFT_COMPLETE -->
-  - 将本章新增的比喻追加到 metaphor-registry.md
-  - 将新术语追加到 glossary.md
+  - 将本章新增的比喻追加到 output/memory/metaphor-registry.md
+  - 将新术语追加到 output/memory/glossary.md
 ```
 
-**批量执行**：按 outline.md 中的章节顺序循环，每完成一章更新 checkpoint.md。
+**批量执行**：按 outline.md 中的章节顺序循环，每完成一章更新 `output/memory/checkpoint.md`。
 
 ---
 
 ### ━━ PHASE 4：三审并行 ━━
 
-**目标文件**：`reviews/chNN-r1.md`、`reviews/chNN-r2.md`、`reviews/chNN-r3.md`、`chapters/chNN-final.md`
+**目标文件**：`output/reviews/chNN-r1.md`、`output/reviews/chNN-r2.md`、`output/reviews/chNN-r3.md`、`output/chapters/final/chNN-final.md`
 
 每章草稿完成后，**依次**扮演三个审查员（或提示用户可在三个会话并行加速）：
 
 **R1 — 代码审查员**（切换到 `agents/06-code-reviewer.md`）：
 - 检查代码片段准确性、API版本、示例可运行性
-- 输出：`reviews/chNN-r1.md`
+- 输出：`output/reviews/chNN-r1.md`
 
 **R2 — 一致性审查员**（切换到 `agents/07-consistency-reviewer.md`）：
-- 读取 `glossary.md`、`metaphor-registry.md`、已完成章节摘要
+- 读取 `output/memory/glossary.md`、`output/memory/metaphor-registry.md`、已完成章节摘要
 - 检查跨章术语、比喻、数据一致性
-- 输出：`reviews/chNN-r2.md`
+- 输出：`output/reviews/chNN-r2.md`
 
 **R3 — 内容审查员**（切换到 `agents/08-content-reviewer.md`）：
 - 检查可读性、逻辑结构、篇幅合理性
-- 输出：`reviews/chNN-r3.md`
+- 输出：`output/reviews/chNN-r3.md`
 
 **综合修订**（以作家身份）：
-- 读取三份审查报告，修订 `chapters/chNN-draft.md`
-- 输出：`chapters/chNN-final.md`，末尾添加 `<!-- FINAL_COMPLETE -->`
+- 读取三份审查报告，修订 `output/chapters/draft/chNN-draft.md`
+- 输出：`output/chapters/final/chNN-final.md`，末尾添加 `<!-- FINAL_COMPLETE -->`
+- 每完成一章将摘要追加到 `output/memory/chapter-summaries.md`
 
 ---
 
 ### ━━ PHASE 5：装帧发布 ━━
 
-**目标文件**：`output/book-final.md`（或多文件格式）
+**目标文件**：`output/publish/*.html`
 
-所有章节 final 版本完成后，切换到 `agents/10-bookbinder.md` 中定义的角色：
+所有章节 final 版本完成后，**先询问用户配色主题偏好**，再切换到 `agents/10-bookbinder.md` 角色执行：
+
 ```
+询问用户：
+  Phase 5 即将开始，请选择电子书配色方案：
+  ① Warm Paper（默认）② GitHub Light  ③ Dark Mode  ④ Minimal
+  （参见 scripts/build.js 中的 THEME 配置）
+```
+
+收到选择后，将对应主题更新到 `scripts/build.js` 的 `THEME` 配置块，然后运行：
+
+```bash
+node scripts/build.js
+```
+
 输入（File Pointers）：
-  - outline.md
-  - chapters/ch01-final.md ~ chapters/chNN-final.md
-  - style-guide.md
+  - `output/chapters/final/*.md`（所有定稿章节）
+  - `output/memory/outline.md`（目录结构）
 
-输出：output/book-final.md
-```
+输出：`output/publish/index.html` + 各章 HTML
 
 完成后向用户报告：
 ```
 🎉 书籍编写完成！
 
-产出文件：output/book-final.md
+产出文件：output/publish/（可直接用浏览器打开 index.html）
 总章节数：N 章
+配色主题：{{用户选择的主题}}
 审查轮次：每章经过 R1（代码）+ R2（一致性）+ R3（内容）三重审查
 
 [可附简短统计：总字数估算、关键术语数量等]
@@ -184,11 +197,11 @@
 ## 进度追踪规则
 
 **每完成一个步骤**必须：
-1. 更新 `checkpoint.md` — 勾选对应步骤
+1. 更新 `output/memory/checkpoint.md` — 勾选对应步骤
 2. 向用户打印一行进度消息，格式：`✅ [Phase N · 步骤说明] 完成 → 下一步：[下一步说明]`
 
 **跨 session 恢复**：
-- 让用户说"请读 checkpoint.md，继续工作"
+- 让用户说"请读 output/memory/checkpoint.md，继续工作"
 - 扫描文件完成标记（`<!-- *_COMPLETE -->`）确认实际进度
 - 从断点继续，无需重新执行已完成步骤
 
@@ -218,7 +231,7 @@
 |------|----------|
 | Agent 产出质量不达标 | 自行以对应 Agent 身份重写，不打扰用户 |
 | 源码某模块看不懂 | 在 research report 中标注不确定项，继续执行，最后汇总给用户 |
-| 用户中途修改大纲 | 更新 outline.md，检查已完成章节是否需要补充 research，调整 checkpoint.md |
+| 用户中途修改大纲 | 更新 `output/memory/outline.md`，检查已完成章节是否需要补充 research，调整 `output/memory/checkpoint.md` |
 | 连续失败 ≥3 次 | 标记任务为 `blocked`，向用户报告具体问题和建议 |
 
 ---
@@ -228,26 +241,32 @@
 ```
 你负责创建和管理以下目录结构：
 
-outline.md              ← Phase 1 产出
-source-map.md           ← Phase 1 产出
-style-guide.md          ← Phase 2 产出
-glossary.md             ← Phase 2 产出，Phase 3 持续更新
-metaphor-registry.md    ← Phase 2 初始化，Phase 3 持续更新
-checkpoint.md           ← 全程维护
-research/
-  chNN-report.md        ← Phase 3 Step A 产出
-chapters/
-  chNN-draft.md         ← Phase 3 Step B 产出
-  chNN-final.md         ← Phase 4 产出
-reviews/
-  chNN-r1.md            ← Phase 4 R1 产出
-  chNN-r2.md            ← Phase 4 R2 产出
-  chNN-r3.md            ← Phase 4 R3 产出
-output/
-  book-final.md         ← Phase 5 产出
+output/memory/
+  outline.md              ← Phase 1 产出
+  source-map.md           ← Phase 1 产出
+  style-guide.md          ← Phase 2 产出
+  glossary.md             ← Phase 2 产出，Phase 3 持续更新
+  metaphor-registry.md    ← Phase 2 初始化，Phase 3 持续更新
+  chapter-summaries.md    ← Phase 3 每章完成后追加
+  checkpoint.md           ← 全程维护
+output/research/
+  chNN-report.md          ← Phase 3 Step A 产出
+output/chapters/
+  draft/
+    chNN-draft.md         ← Phase 3 Step B 产出
+  final/
+    chNN-final.md         ← Phase 4 产出
+output/reviews/
+  chNN-r1.md              ← Phase 4 R1 产出
+  chNN-r2.md              ← Phase 4 R2 产出
+  chNN-r3.md              ← Phase 4 R3 产出
+output/publish/
+  index.html              ← Phase 5 产出
+  chNN.html               ← Phase 5 产出
 
 不要修改：
   agents/               ← 框架核心，只读
   framework/            ← 框架核心，只读
   templates/            ← 模板，只读（复制后填写）
+  scripts/              ← 构建脚本，启动前按需配置颜色主题
 ```

@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第9章：路由系统——URL 与组件树的映射 | Angular 源码深度解析</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: #FEFCF8;
+  color: #2C2C2C;
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.85;
+}
+/* Progress bar */
+#progress-bar {
+  position: fixed; top: 0; left: 0; width: 0%; height: 3px;
+  background: #C7553A; z-index: 2000; transition: width 0.08s linear;
+}
+/* Layout */
+#layout { display: flex; min-height: 100vh; }
+/* Left sidebar */
+#sidebar {
+  position: fixed; top: 3px; left: 0;
+  width: 260px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-right: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100;
+}
+.sidebar-header { padding: 22px 18px 14px; border-bottom: 1px solid #E8E2D8; }
+.sidebar-title {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  font-size: 1em; font-weight: 700; color: #1A1A1A; line-height: 1.4; margin-bottom: 5px;
+}
+.sidebar-subtitle { font-size: 0.7em; color: #999; line-height: 1.4; }
+.sidebar-nav { padding: 10px 8px 24px; }
+.sidebar-nav a {
+  display: block; padding: 6px 12px; border-radius: 5px;
+  color: #444; font-size: 0.82em; text-decoration: none;
+  line-height: 1.45; margin-bottom: 2px; word-break: break-all;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar-nav a:hover { background: #EDE7DD; color: #1A1A1A; }
+.sidebar-nav a.active { background: #E8DDD0; color: #C7553A; font-weight: 600; }
+/* Main content */
+#main { margin-left: 260px; margin-right: 224px; padding: 48px 52px 80px; min-height: 100vh; }
+/* Right TOC */
+#toc-right {
+  position: fixed; top: 3px; right: 0;
+  width: 224px; height: calc(100vh - 3px);
+  background: #F8F4EE; border-left: 1px solid #E8E2D8;
+  overflow-y: auto; z-index: 100; padding: 22px 14px;
+}
+.toc-title {
+  font-size: 0.68em; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #aaa; margin-bottom: 10px;
+}
+.toc-list { list-style: none; }
+.toc-list li { margin-bottom: 3px; }
+.toc-list li a {
+  display: block; padding: 3px 8px; font-size: 0.77em; color: #666;
+  text-decoration: none; border-left: 2px solid transparent;
+  line-height: 1.4; word-break: break-all;
+  transition: color 0.15s, border-color 0.15s;
+}
+.toc-list li a:hover { color: #C7553A; }
+.toc-list li a.active { color: #C7553A; border-left-color: #C7553A; font-weight: 600; }
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Noto Serif SC", "STSong", "SimSun", Georgia, serif;
+  color: #1A1A1A; line-height: 1.4;
+  margin-top: 1.8em; margin-bottom: 0.55em;
+}
+h1 { font-size: 2.1em; margin-top: 0; padding-bottom: 0.35em; border-bottom: 2px solid #C7553A; }
+h2 { font-size: 1.55em; padding-bottom: 0.28em; border-bottom: 1px solid #E8E2D8; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1.08em; }
+h5 { font-size: 1em; }
+h6 { font-size: 0.95em; color: #666; }
+p { margin-bottom: 1em; }
+strong { color: #1A1A1A; font-weight: 700; }
+em { font-style: italic; }
+del { text-decoration: line-through; color: #999; }
+/* Links */
+a { color: #4A7C9B; text-decoration: none; }
+a:hover { text-decoration: underline; color: #3a6c8b; }
+/* Code */
+code {
+  font-family: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Courier New", monospace;
+  font-size: 0.875em; background: #F5F2ED; padding: 0.15em 0.38em;
+  border-radius: 3px; border: 1px solid #E0D9CF; word-break: break-all;
+}
+pre {
+  background: #F5F2ED; padding: 18px 22px; border-radius: 8px;
+  overflow-x: auto; margin: 1.4em 0; border: 1px solid #E0D9CF; line-height: 1.6;
+}
+pre code { background: none; padding: 0; border: none; border-radius: 0; font-size: 0.84em; word-break: normal; }
+.hljs { background: #F5F2ED !important; }
+/* Blockquote */
+blockquote {
+  margin: 1.4em 0; padding: 14px 20px;
+  border-left: 4px solid #C7553A;
+  background: linear-gradient(to right, #FFF9F5, #FEFCF8);
+  border-radius: 0 6px 6px 0;
+}
+blockquote p { margin: 0; color: #555; font-style: italic; }
+/* Lists */
+ul, ol { padding-left: 1.8em; margin-bottom: 1em; }
+li { margin-bottom: 0.38em; }
+li p { margin: 0; }
+/* Tables */
+.table-wrap { overflow-x: auto; margin: 1.4em 0; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+th, td { padding: 9px 13px; border: 1px solid #E8E2D8; text-align: left; vertical-align: top; }
+th { background: #F5F2ED; font-weight: 600; color: #1A1A1A; white-space: nowrap; }
+tr:nth-child(even) td { background: #FDFAF5; }
+/* HR */
+hr { border: none; border-top: 1px solid #E8E2D8; margin: 2.2em 0; }
+/* Images */
+img { max-width: 100%; height: auto; border-radius: 4px; display: block; margin: 1em auto; }
+/* Mermaid */
+.mermaid {
+  margin: 1.6em 0; padding: 20px;
+  background: #FDFAF5; border: 1px solid #E8E2D8; border-radius: 8px;
+  text-align: center; overflow-x: auto;
+}
+/* Chapter nav */
+.chapter-nav {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 4em; padding-top: 1.8em; border-top: 2px solid #E8E2D8; gap: 12px;
+}
+.chapter-nav a {
+  display: inline-flex; align-items: center; padding: 10px 16px;
+  background: #F5F2ED; border: 1px solid #E8E2D8; border-radius: 6px;
+  color: #4A7C9B; font-size: 0.85em; text-decoration: none; max-width: 46%;
+  word-break: break-all; line-height: 1.4;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.chapter-nav a:hover { background: #EDE7DD; border-color: #C7553A; color: #C7553A; text-decoration: none; }
+.chapter-nav span { flex: 1; }
+/* Back to top */
+#back-to-top {
+  position: fixed; bottom: 28px; right: 240px;
+  width: 42px; height: 42px; background: #C7553A; color: #fff;
+  border: none; border-radius: 50%; cursor: pointer;
+  font-size: 18px; font-weight: bold; display: none;
+  align-items: center; justify-content: center; z-index: 500;
+  box-shadow: 0 2px 12px rgba(199,85,58,0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+#back-to-top.visible { display: flex; }
+#back-to-top:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(199,85,58,0.5); }
+/* Index page */
+.index-hero {
+  text-align: center; padding: 44px 0 52px;
+  border-bottom: 1px solid #E8E2D8; margin-bottom: 52px;
+}
+.index-hero h1 { font-size: 2.6em; border: none; margin-bottom: 14px; padding: 0; }
+.index-hero .subtitle { font-size: 1.08em; color: #666; font-style: italic; margin: 0; }
+.index-intro { margin-bottom: 48px; }
+.index-intro p { font-size: 1.05em; margin-bottom: 1.2em; }
+.index-toc { margin-bottom: 48px; }
+.chapter-list { padding-left: 0; list-style: none; }
+.chapter-list li {
+  margin-bottom: 10px; padding: 13px 20px;
+  background: #F8F4EE; border-radius: 8px; border: 1px solid #E8E2D8;
+  transition: background 0.15s, border-color 0.15s;
+}
+.chapter-list li:hover { background: #EDE7DD; border-color: #C7553A; }
+.chapter-list li a { color: #1A1A1A; font-size: 1em; font-weight: 500; text-decoration: none; }
+.chapter-list li a:hover { color: #C7553A; text-decoration: none; }
+.index-audience { margin-bottom: 48px; }
+.index-audience ul { padding-left: 0; list-style: none; }
+.index-audience li { padding: 10px 0; border-bottom: 1px solid #EEE9E0; font-size: 0.95em; }
+/* Responsive */
+@media (max-width: 1200px) {
+  #toc-right { display: none; }
+  #main { margin-right: 0; }
+  #back-to-top { right: 24px; }
+}
+@media (max-width: 900px) { #main { padding: 32px 28px 60px; } }
+@media (max-width: 768px) {
+  #sidebar { display: none; }
+  #main { margin-left: 0; padding: 24px 18px 60px; }
+  h1 { font-size: 1.75em; }
+  h2 { font-size: 1.35em; }
+}
+@media print {
+  #sidebar, #toc-right, #progress-bar, #back-to-top, .chapter-nav { display: none !important; }
+  #main { margin: 0; padding: 0; max-width: 100%; }
+}
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div id="layout">
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">📖 Angular 源码深度解析</div>
+      <div class="sidebar-subtitle">深入 Angular 17+ 运行时、编译器与响应式系统的源码之旅</div>
+    </div>
+    <div class="sidebar-nav">
+      <a href="index.html">📚 目录首页</a>
+<a href="ch01.html">第1章：宏观架构——Angular 的世界观</a>
+<a href="ch02.html">第2章：从零启动——bootstrapApplication 的旅程</a>
+<a href="ch03.html">第3章：依赖注入——框架的神经系统</a>
+<a href="ch04.html">第4章：模板编译器——从 HTML 到指令序列</a>
+<a href="ch05.html">第5章：Ivy 渲染引擎——LView 的生命</a>
+<a href="ch06.html">第6章：变更检测——Angular 如何知道界面需要更新</a>
+<a href="ch07.html">第7章：Signals——细粒度响应式的实现</a>
+<a href="ch08.html">第8章：组件模型——从装饰器到运行时对象</a>
+<a href="ch09.html" class="active">第9章：路由系统——URL 与组件树的映射</a>
+<a href="ch10.html">第10章：服务端渲染与水合——让 Angular 应用「秒开」</a>
+
+    </div>
+  </nav>
+  <main id="main">
+    <h1 id="h-第9章-路由系统-url-与组件树的映射">第9章：路由系统——URL 与组件树的映射</h1>
+<p>你点击了一个链接，URL 变了，页面的一部分更新了。这个过程看起来行云流水，但如果你打开 Angular Router 的源码，会发现这个看似简单的操作背后，是一台精密运转的状态机。</p>
+<p>从用户点击 <code>&lt;a routerLink=&quot;/dashboard&quot;&gt;</code> 到 <code>DashboardComponent</code> 出现在屏幕上，Angular Router 精确地执行了这些步骤：将 URL 字符串解析成内部树状结构，对路由配置数组做深度优先匹配，依序执行守卫和预加载解析器，最后通知 <code>RouterOutlet</code> 销毁旧组件、激活新组件。任意一步出错，导航就会取消，页面保持不动。</p>
+<p>这台状态机的核心叫 <code>NavigationTransition</code>，它的驱动力是一条 RxJS Observable 管道：每一个导航阶段都是管道上的一个操作符，串联在一起，形成一条从 URL 变化到 DOM 更新的完整执行链。理解了这条管道，你就掌握了 Angular Router 的工作原理，也就能回答工程中那些令人困惑的问题：守卫为什么按这个顺序执行？懒加载到底在哪个时机触发 <code>import()</code>？<code>ActivatedRoute</code> 里的 <code>params$</code> 何时才会推送新值？</p>
+<p>本章将沿着一次导航请求的完整生命周期，把这台状态机的每一个齿轮展示给你看。</p>
+<hr>
+<blockquote><p>⚠️ <strong>版本说明</strong>：本章源码引用基于 Angular main 分支（约 v19.x）。函数签名和行号可能随版本演进，建议以函数名在当前版本中搜索定位。</p></blockquote>
+<h2 id="h-router-架构总览">Router 架构总览</h2>
+<p>在深入状态机之前，我们先建立宏观认知：Angular Router 究竟由哪些部分组成，各自承担什么职责？</p>
+<p>Router 的职责可以分为三层：</p>
+<ol><li><strong>URL 层</strong>：将浏览器地址栏的字符串解析成内部数据结构（<code>UrlTree</code>），以及反向序列化；处理浏览器历史记录（<code>History API</code>）和哈希路由。</li><li><strong>匹配与状态层</strong>：将 <code>UrlTree</code> 与路由配置数组匹配，生成一棵 <code>RouterStateSnapshot</code>（组件树的快照）；管理当前激活状态（<code>RouterState</code>）。</li><li><strong>激活层</strong>：将新的 <code>RouterState</code> 应用到视图——通知 <code>RouterOutlet</code> 销毁旧组件、创建新组件，更新 <code>ActivatedRoute</code> 中的 Observable 值。</li></ol>
+<div class="mermaid">classDiagram
+    direction TB
+    class Router {
+        +navigateByUrl(url)
+        +navigate(commands)
+        +scheduleNavigation()
+        +events: Observable
+    }
+    class NavigationTransitions {
+        +transitions$: BehaviorSubject
+        +setupNavigations()
+        +handleNavigationRequest()
+    }
+    class RouterOutlet {
+        +name: string
+        +activateWith(route, injector)
+        +deactivate()
+        +activated: ComponentRef
+    }
+    class ActivatedRoute {
+        +params: Observable~Params~
+        +queryParams: Observable~Params~
+        +data: Observable~Data~
+        +url: Observable~UrlSegment[]~
+        +snapshot: ActivatedRouteSnapshot
+    }
+    class UrlTree {
+        +root: UrlSegmentGroup
+        +queryParams: Params
+        +fragment: string
+    }
+    class RouterConfigLoader {
+        +loadChildren(injector, route)
+        +loadComponent(injector, route)
+    }
+
+    Router --&gt; NavigationTransitions : scheduleNavigation()
+    Router --&gt; ActivatedRoute : currentRoute
+    NavigationTransitions --&gt; RouterConfigLoader : 懒加载
+    RouterOutlet --&gt; ActivatedRoute : inject
+    NavigationTransitions ..&gt; UrlTree : 解析/生成</div>
+<p>核心流程是：<code>Router</code> 接收导航请求，将其交给 <code>NavigationTransitions</code> 处理；<code>NavigationTransitions</code> 内部维护一个 <code>BehaviorSubject&lt;NavigationTransition&gt;</code>，每次新导航就向其推送一个新的 transition 对象，外层 <code>switchMap</code> 自动取消前一次未完成的导航——这是 Angular Router 防止导航竞态的核心机制。</p>
+<p>🔗 <code>NavigationTransitions</code> 依赖 <code>RouterConfigLoader</code> 实现懒加载，而 <code>RouterConfigLoader</code> 内部使用 <code>EnvironmentInjector</code> 来创建懒加载模块的独立注入器树——这和第3章分析的 <code>R3Injector</code> 是同一套机制。</p>
+<h2 id="h-导航状态机">导航状态机</h2>
+<p><strong>这一节是本章的核心。</strong> 一次导航从触发到完成，要经历七个阶段，每个阶段都对应 Observable 管道中的一个或多个操作符。</p>
+<div class="mermaid">stateDiagram-v2
+    [*] --&gt; Idle
+    Idle --&gt; Scheduling : scheduleNavigation()
+    Scheduling --&gt; Idle : 相同 URL&lt;br/&gt;且 onSameUrlNavigation=ignore
+    Scheduling --&gt; Navigating : BehaviorSubject.next(transition)
+    Navigating --&gt; UrlRecognition : switchMap 启动
+    UrlRecognition --&gt; Idle : URL 无法匹配&lt;br/&gt;→ NavigationError
+    UrlRecognition --&gt; GuardsCheck : RoutesRecognized 事件
+    GuardsCheck --&gt; Idle : 守卫返回 false&lt;br/&gt;→ NavigationCancel
+    GuardsCheck --&gt; Idle : 守卫返回 UrlTree&lt;br/&gt;→ NavigationCancel + 新导航
+    GuardsCheck --&gt; Resolving : GuardsCheckEnd 事件
+    Resolving --&gt; Loading : ResolveEnd 事件
+    Loading --&gt; Activation : 懒加载完成
+    Activation --&gt; Complete : NavigationEnd 事件
+    Activation --&gt; Idle : 激活出错&lt;br/&gt;→ NavigationError
+    Complete --&gt; Idle</div>
+<p>让我们沿着这条管道，逐段拆解每个阶段做了什么。</p>
+<h3 id="h-管道的骨架-switchmap-与导航取消">管道的骨架：switchMap 与导航取消</h3>
+<p>导航管道位于 <code>navigation_transition.ts</code> 的 <code>setupNavigations()</code> 方法中。整条管道以 <code>transitions$</code>（一个 <code>BehaviorSubject</code>）为源头，关键结构如下：</p>
+<pre><code class="language-typescript">// packages/router/src/navigation_transition.ts（setupNavigations 核心结构）
+this.transitions$.pipe(
+  filter(t =&gt; t !== null),
+  // 外层 switchMap：新导航到来时，自动取消（unsubscribe）旧管道
+  switchMap(overallTransitionState =&gt; {
+    return combineLatest([...]).pipe(
+      switchMap(t =&gt; {
+        // 内层主管道：recognize → checkGuards → resolveData → activate
+        return of(t).pipe(
+          mergeMap(t =&gt; recognize(t)),    // [1] URL 识别
+          mergeMap(t =&gt; checkGuards(t)),  // [2] 守卫检查
+          mergeMap(t =&gt; resolveData(t)),  // [3] 数据解析
+          // ... [4] 懒加载组件
+          // ... [5] 激活路由
+        );
+      }),
+    );
+  }),
+).subscribe();</code></pre>
+<p>外层 <code>switchMap</code> 的语义至关重要：当用户在第一次导航还未完成时触发第二次导航，<code>switchMap</code> 会取消对第一条管道的订阅，RxJS 自动调用其 <code>unsubscribe</code>，所有未完成的操作符都会停止。这就是&quot;新导航自动取消旧导航&quot;的底层保障。</p>
+<p>💡 <strong>提示</strong>：<code>switchMap</code> 能取消 Observable 订阅，但无法取消已发出的 Promise（如 <code>fetch</code> 请求）。如果你的 resolver 内部使用 <code>async/await</code> 而非 Observable，即使导航被取消，HTTP 请求仍会继续（结果只是被忽略）。这是一个值得注意的实践细节。</p>
+<h3 id="h-各阶段事件流">各阶段事件流</h3>
+<p>每个阶段都会通过 <code>events$</code> 发出对应的路由事件，这是 Router 对外通信的主要方式：</p>
+<div class="table-wrap"><table><thead><tr><th>阶段</th><th>路由事件</th></tr></thead><tbody><tr><td>开始</td><td><code>NavigationStart</code></td></tr><tr><td>URL 识别完成</td><td><code>RoutesRecognized</code></td></tr><tr><td>守卫检查开始</td><td><code>GuardsCheckStart</code></td></tr><tr><td>守卫检查结束</td><td><code>GuardsCheckEnd</code></td></tr><tr><td>解析开始</td><td><code>ResolveStart</code></td></tr><tr><td>解析结束</td><td><code>ResolveEnd</code></td></tr><tr><td>懒加载</td><td><code>RouteConfigLoadStart</code> / <code>RouteConfigLoadEnd</code></td></tr><tr><td>组件激活</td><td><code>ActivationStart</code> / <code>ActivationEnd</code></td></tr><tr><td>完成</td><td><code>NavigationEnd</code></td></tr><tr><td>取消</td><td><code>NavigationCancel</code></td></tr><tr><td>出错</td><td><code>NavigationError</code></td></tr></tbody></table></div>
+<p>订阅 <code>router.events</code> 并过滤特定事件类型，是实现路由级 loading indicator 的标准做法。</p>
+<p>从 <code>GuardsCheck</code> 阶段开始，每一步失败都会让导航进入 <code>Cancelled</code> 状态并发出 <code>NavigationCancel</code> 事件；守卫返回一个 <code>UrlTree</code> 时，Angular 会在取消当前导航的同时，立即发起一次新的跳转导航。</p>
+<h2 id="h-url-识别与路由匹配">URL 识别与路由匹配</h2>
+<h3 id="h-urltree-url-的内部表示">UrlTree：URL 的内部表示</h3>
+<p>Angular Router 并不直接操作 URL 字符串，而是先将其解析成一棵树状数据结构——<code>UrlTree</code>：</p>
+<pre><code class="language-typescript">// packages/router/src/url_tree.ts（核心数据结构）
+class UrlTree {
+  constructor(
+    public root: UrlSegmentGroup,          // 根分组
+    public queryParams: Params = {},       // ?key=value 查询参数
+    public fragment: string | null = null  // #fragment 片段
+  ) {}
+}
+
+class UrlSegmentGroup {
+  constructor(
+    public segments: UrlSegment[],                      // 路径段数组
+    public children: {[outlet: string]: UrlSegmentGroup} // outlet名 → 子分组
+  ) {}
+}
+
+class UrlSegment {
+  constructor(
+    public path: string,                          // 如 'team'、'33'
+    public parameters: {[name: string]: string}   // 矩阵参数 ;id=33
+  ) {}
+}</code></pre>
+<p>以 URL <code>/team/33/(user/victor//support:help)?debug=true</code> 为例，其对应的 <code>UrlTree</code> 树形结构是：</p>
+<div class="mermaid">flowchart TD
+    ROOT[&quot;UrlTree&lt;br/&gt;queryParams: {debug:'true'}&quot;]
+    PRI[&quot;primary: UrlSegmentGroup&lt;br/&gt;segments: [team, 33]&quot;]
+    PRI2[&quot;primary: UrlSegmentGroup&lt;br/&gt;segments: [user, victor]&quot;]
+    SUP[&quot;support: UrlSegmentGroup&lt;br/&gt;segments: [help]&quot;]
+
+    ROOT --&gt; PRI
+    PRI --&gt; PRI2
+    PRI --&gt; SUP</div>
+<p><code>children</code> 对象的 key 是 outlet 名称——<code>primary</code> 是默认主 outlet，<code>support</code> 是命名 outlet。这棵树天然地反映了 Angular 路由的多 outlet 结构。</p>
+<h3 id="h-路由匹配算法-深度优先">路由匹配算法：深度优先</h3>
+<p>路由匹配由 <code>Recognizer</code> 类负责（<code>recognize.ts</code>），核心是对路由配置数组的深度优先遍历：</p>
+<pre><code class="language-typescript">// packages/router/src/recognize.ts（processSegmentAgainstRoute 精简）
+// 遍历路由配置数组，对每个 route 执行：
+// 1. outlet 不匹配 → 跳过
+// 2. 有 redirectTo → 处理重定向（最多执行 31 次，防止循环）
+// 3. 执行 matchWithChecks(segmentGroup, route, segments)
+//    ① match()：基础路径匹配（正则 / 通配符）
+//    ② runCanMatchGuards()：执行 canMatch 守卫
+// 4. 匹配成功 → getChildConfig() 获取子路由配置
+//    如果有 loadChildren → 触发懒加载（见第五节）
+// 5. 递归处理子路由段</code></pre>
+<p>匹配规则取决于 <code>pathMatch</code> 配置：</p>
+<ul><li><strong><code>pathMatch: 'prefix'</code>（默认）</strong>：当前路由只需匹配 URL 的前缀部分，剩余段继续匹配子路由。适合有子路由的路径配置。</li><li><strong><code>pathMatch: 'full'</code></strong>：URL 必须被完全消耗（无剩余段）。通常用于空路径重定向：<code>{ path: '', redirectTo: '/home', pathMatch: 'full' }</code>。如果不加 <code>pathMatch: 'full'</code>，这条规则会匹配所有 URL 的前缀（因为所有 URL 都以空字符串开头）。</li></ul>
+<p>通配符路由 <code>{ path: '**', component: NotFoundComponent }</code> 匹配所有剩余路径段，因此必须放在路由数组的最后——路由匹配是按数组顺序先定义先匹配的。</p>
+<p>⚠️ <strong>注意</strong>：<code>canMatch</code> 守卫在路由匹配阶段（<code>recognize</code>）就已执行，早于 <code>canActivate</code>。它的用途是决定&quot;这条路由配置是否参与匹配&quot;——可以让同一 URL 根据条件匹配到不同的路由配置，而不仅仅是允许/拒绝访问。这是 <code>canMatch</code> 与 <code>canActivate</code> 最本质的区别。</p>
+<h2 id="h-守卫执行顺序">守卫执行顺序</h2>
+<p>守卫是 Angular Router 中最容易混淆的部分，主要因为几种守卫的执行顺序和方向并不相同。我们用&quot;列车调度中心&quot;的比喻来理解：每次导航是一趟列车，<code>NavigationTransition</code> 是调度中心，守卫就是一道道关卡——检票员（<code>CanActivate</code>）、离站确认员（<code>CanDeactivate</code>）、乘客区域检查员（<code>CanActivateChild</code>）各司其职，任一关卡拒绝，列车就返回原站。</p>
+<h3 id="h-完整执行顺序">完整执行顺序</h3>
+<div class="mermaid">flowchart TD
+    A[&quot;触发导航&quot;] --&gt; B
+
+    subgraph RECOG[&quot;recognize 阶段&quot;]
+        B[&quot;① canMatch&lt;br/&gt;（路由匹配时，逐条路由执行）&quot;]
+    end
+
+    subgraph GUARDS[&quot;checkGuards 阶段&quot;]
+        C[&quot;② CanDeactivate&lt;br/&gt;（当前激活组件，并发执行）&quot;]
+        D[&quot;③ CanActivateChild&lt;br/&gt;（父路由 → 子路由方向）&quot;]
+        E[&quot;④ CanActivate&lt;br/&gt;（由深到浅，每个路由检查自身）&quot;]
+        C --&gt; D
+        D --&gt; E
+    end
+
+    subgraph RESOLVE[&quot;resolveData 阶段&quot;]
+        F[&quot;⑤ Resolve&lt;br/&gt;（路由级别顺序执行，&lt;br/&gt;单路由内并发执行）&quot;]
+    end
+
+    B --&gt; C
+    E --&gt; F
+    F --&gt; G[&quot;组件激活&quot;]
+
+    style D fill:#ffeaa7
+    style E fill:#fdcb6e</div>
+<p>⚠️ <strong>关键细节：CanActivateChild 与 CanActivate 的方向相反</strong></p>
+<p>底层机制源于两个相互配合的设计：① <code>checks</code> 数组按&quot;从深到浅&quot;（最内层路由在前）排列；② <code>runCanActivateChild</code> 内部对 <code>check.path</code>（从根到此路由的完整路径数组）调用 <code>.reverse()</code>，使 CanActivateChild 从外（根）到内执行。两者叠加，产生了整体上 CanActivateChild 从外到内、CanActivate 从内到外的相反方向。</p>
+<h3 id="h-源码中的执行逻辑">源码中的执行逻辑</h3>
+<pre><code class="language-typescript">// packages/router/src/operators/check_guards.ts
+// CanActivate 的执行：concatMap 保证路由间顺序执行
+function runCanActivateChecks(futureSnapshot, checks, forwardEvent?) {
+  return from(checks).pipe(
+    concatMap((check: CanActivate) =&gt; {
+      return concat(
+        // ① 发出激活事件（用于路由动画）
+        fireChildActivationStart(check.route.parent, forwardEvent),
+        fireActivationStart(check.route, forwardEvent),
+        // ② CanActivateChild：遍历 path（从根到此路由），path.reverse() 使方向从外到内
+        runCanActivateChild(futureSnapshot, check.path),
+        // ③ CanActivate：检查当前路由本身
+        runCanActivate(futureSnapshot, check.route),
+      );
+    }),
+    first((result) =&gt; result !== true, true), // 第一个返回非 true 值（false 或 UrlTree）时立即中止后续守卫
+  );
+}
+
+// CanDeactivate 的执行：mergeMap 并发执行所有待注销路由的守卫
+function runCanDeactivateChecks(checks, futureRSS, currRSS) {
+  return from(checks).pipe(
+    mergeMap((check) =&gt; runCanDeactivate(...)),  // 并发！
+    first((result) =&gt; result !== true, true),    // 一旦某守卫返回 false 或 UrlTree，整个链立即中止
+  );
+}</code></pre>
+<p><code>checks</code> 数组中的路由按从内（最深子路由）到外（父路由）的顺序排列。这样对每个 <code>check</code>，<code>runCanActivateChild</code> 在 <code>check.path</code>（从根到此路由的完整路径）上<strong>从外到内</strong>执行各父路由的 <code>canActivateChild</code>，而 <code>runCanActivate</code> 只检查 <code>check.route</code> 本身。由于 <code>checks</code> 是从深到浅排列的，<code>CanActivate</code> 整体上先检查内层路由、后检查外层路由，与 <code>CanActivateChild</code> 的方向相反。</p>
+<h3 id="h-执行轨迹示例">执行轨迹示例</h3>
+<p>以导航到 <code>/admin/users</code> 为例，路由配置如下，<code>checks</code> 数组从深到浅排列为 <code>[users 节点, admin 节点]</code>：</p>
+<pre><code class="language-typescript">// 路由配置
+const routes = [
+  {
+    path: 'admin',
+    canActivate: [adminGuard],
+    canActivateChild: [membershipGuard],
+    children: [{ path: 'users', canActivate: [usersGuard] }]
+  }
+];
+
+// 守卫执行轨迹（checks = [users路由, admin路由]）：
+//
+// check[0]：users 路由（深）
+//   ① membershipGuard：admin 的 CanActivateChild
+//      （path=[admin,users]，slice 后=[admin]，reverse 后=[admin]，从外到内）
+//   ② usersGuard：users 路由的 CanActivate（自身）
+//
+// check[1]：admin 路由（浅）
+//   ③ adminGuard：admin 路由的 CanActivate（自身）
+//
+// 最终顺序：membershipGuard → usersGuard → adminGuard</code></pre>
+<h3 id="h-守卫返回值类型">守卫返回值类型</h3>
+<p>所有守卫（无论是函数式还是类式）的返回值都通过 <code>wrapIntoObservable()</code> 统一处理，支持：</p>
+<pre><code class="language-typescript">// packages/router/src/operators/check_guards.ts
+// 守卫可以返回以下任意类型，框架统一转为 Observable：
+type GuardResult =
+  | boolean              // 同步允许/拒绝
+  | UrlTree              // 重定向到另一个 URL
+  | Observable&lt;boolean | UrlTree&gt;
+  | Promise&lt;boolean | UrlTree&gt;
+  | Signal&lt;boolean&gt;;     // Angular v19+</code></pre>
+<p>返回 <code>UrlTree</code> 是守卫实现重定向的标准方式：Router 会取消当前导航，并立即发起一次新的 <code>navigateByUrl(urlTree)</code> 调用。</p>
+<h3 id="h-函数式守卫-推荐">函数式守卫（推荐）</h3>
+<p>Angular v14+ 引入的函数式守卫已成为推荐写法，相比类守卫代码量更少、无需注册为 provider，也更易于摇树优化（tree-shaking）：</p>
+<pre><code class="language-typescript">// 现代写法：函数式守卫（推荐）
+export const authGuard: CanActivateFn = (route, state) =&gt; {
+  const authService = inject(AuthService); // inject() 可在守卫函数中使用
+  return authService.isLoggedIn()
+    ? true
+    : inject(Router).createUrlTree(['/login']);
+};
+
+// 路由配置
+const routes: Routes = [
+  { path: 'admin', component: AdminComponent, canActivate: [authGuard] }
+];</code></pre>
+<p>函数式守卫在路由守卫的注入上下文中执行，可以直接调用 <code>inject()</code>，无需类和构造函数注入。</p>
+<h2 id="h-懒加载实现">懒加载实现</h2>
+<p>懒加载（lazy loading）是现代前端应用的标配优化手段，Angular Router 通过动态 <code>import()</code> 实现代码分割。关键是理解两种懒加载的触发时机不同。</p>
+<h3 id="h-loadchildren-在-recognize-阶段加载">loadChildren：在 recognize 阶段加载</h3>
+<p><code>loadChildren</code> 用于懒加载路由模块或路由数组，在 URL <strong>识别阶段</strong>（<code>recognize</code>）触发，早于任何守卫：</p>
+<pre><code class="language-typescript">// packages/router/src/recognize.ts（getChildConfig 精简）
+if (route.loadChildren) {
+  if (route._loadedRoutes !== undefined) {
+    // 已缓存：直接返回（每条路由只加载一次，后续导航复用缓存不再触发 import()）
+    return {routes: route._loadedRoutes, injector: route._loadedInjector};
+  }
+  // ① 先执行 canLoad 守卫（已废弃，建议改用 canMatch）
+  const shouldLoad = await runCanLoadGuards(injector, route, segments, ...);
+  if (shouldLoad) {
+    // ② 调用 RouterConfigLoader.loadChildren() → 触发 import()
+    const cfg = await this.configLoader.loadChildren(injector, route);
+    route._loadedRoutes = cfg.routes;     // 缓存路由配置
+    route._loadedInjector = cfg.injector; // 缓存注入器（NgModule 场景）
+    return cfg;
+  }
+}</code></pre>
+<p>对于 NgModule 式懒加载，<code>RouterConfigLoader</code> 会为懒加载模块创建独立的 <code>EnvironmentInjector</code>，挂载到应用注入器树上。这棵注入器子树会在路由销毁时一同销毁。</p>
+<p>对于 standalone 路由数组式懒加载：</p>
+<pre><code class="language-typescript">// standalone 路由懒加载（推荐，无独立注入器）
+const routes: Routes = [
+  {
+    path: 'admin',
+    loadChildren: () =&gt; import('./admin/routes').then(m =&gt; m.ADMIN_ROUTES)
+  }
+];</code></pre>
+<p>standalone 方式不创建独立注入器，共用父级 <code>EnvironmentInjector</code>，更轻量。</p>
+<h3 id="h-loadcomponent-在守卫之后加载">loadComponent：在守卫之后加载</h3>
+<p><code>loadComponent</code> 用于懒加载单个 standalone 组件，触发时机在守卫和解析器<strong>都通过之后</strong>，在组件激活之前：</p>
+<pre><code class="language-typescript">// packages/router/src/navigation_transition.ts（loadComponents 精简）
+const loadComponents = (route: ActivatedRouteSnapshot): Array&lt;Promise&lt;void&gt;&gt; =&gt; {
+  const loaders: Array&lt;Promise&lt;void&gt;&gt; = [];
+  if (route.routeConfig?.loadComponent &amp;&amp; !route.routeConfig._loadedComponent) {
+    loaders.push(
+      // 守卫通过后才触发 import()
+      this.configLoader.loadComponent(injector, route.routeConfig)
+        .then(comp =&gt; { route.component = comp; })
+    );
+  }
+  for (const child of route.children) {
+    loaders.push(...loadComponents(child)); // 递归处理嵌套懒加载组件
+  }
+  return loaders;
+};</code></pre>
+<p>两种懒加载时机的对比：</p>
+<div class="table-wrap"><table><thead><tr><th>对比项</th><th><code>loadChildren</code></th><th><code>loadComponent</code></th></tr></thead><tbody><tr><td>触发阶段</td><td><code>recognize</code>（守卫之前）</td><td><code>loadComponents</code>（守卫之后）</td></tr><tr><td>加载内容</td><td>路由配置 + 可选注入器</td><td>组件类</td></tr><tr><td>独立注入器</td><td>NgModule 场景有（standalone 无）</td><td>无</td></tr><tr><td>加载时机</td><td>URL 匹配即开始下载</td><td>守卫通过后才下载</td></tr></tbody></table></div>
+<p>⚠️ <strong>鉴权场景的时机选择</strong></p>
+<p>两种方案在需要鉴权的路由上有重要的实践差异：</p>
+<ul><li><strong><code>loadChildren + canMatch</code></strong>：<code>canMatch</code> 在 recognize 阶段执行，与 <code>loadChildren</code> 的 <code>import()</code> 同阶段——若使用 <code>canActivate</code> 而非 <code>canMatch</code>，未登录用户访问时路由配置已开始下载，造成带宽浪费；改用 <code>canMatch</code> 可在守卫拒绝时跳过整条路由，但一旦 <code>canMatch</code> 通过，下载随即触发。</li><li><strong><code>loadComponent + canActivate</code></strong>：<code>canActivate</code> 守卫在守卫阶段执行，<code>loadComponent</code> 的 <code>import()</code> 在守卫全部通过之后才触发——守卫拒绝时不会发起任何网络请求，是鉴权场景下更高效的选择。</li></ul>
+<h3 id="h-预加载策略">预加载策略</h3>
+<p>预加载（preloading）允许在用户空闲时提前加载懒加载路由，提升导航速度：</p>
+<pre><code class="language-typescript">// 应用配置
+bootstrapApplication(AppComponent, {
+  providers: [
+    provideRouter(routes,
+      withPreloading(PreloadAllModules) // 空闲时预加载所有懒加载路由
+    )
+  ]
+});</code></pre>
+<p>内置策略有 <code>NoPreloading</code>（默认，不预加载）和 <code>PreloadAllModules</code>（全量预加载）。自定义预加载策略实现 <code>PreloadingStrategy</code> 接口即可，常见做法是通过路由的 <code>data</code> 字段打标签，只预加载标记了 <code>preload: true</code> 的路由。</p>
+<h2 id="h-routeroutlet-与组件激活">RouterOutlet 与组件激活</h2>
+<p><code>RouterOutlet</code> 是 Router 与 DOM 之间的桥梁——它是一个指令（directive），负责在当前位置动态创建和销毁路由匹配的组件。</p>
+<h3 id="h-注册与激活">注册与激活</h3>
+<p><code>RouterOutlet</code> 在 <code>ngOnInit</code> 时向 <code>ChildrenOutletContexts</code> 服务注册自己：</p>
+<pre><code class="language-typescript">// packages/router/src/directives/router_outlet.ts（ngOnInit 精简）
+ngOnInit(): void {
+  // ① 向父级 outlet 上下文注册自己（让 ActivateRoutes 能找到它）
+  this.parentContexts.onChildOutletCreated(this.name, this);
+
+  // ② 如果此时路由已经激活（RouterOutlet 在 *ngIf 后显示的场景），
+  //    补执行激活（&quot;懒激活&quot;逻辑）
+  const context = this.parentContexts.getContext(this.name);
+  if (context?.route) {
+    this.activateWith(context.route, context.injector);
+  }
+}</code></pre>
+<p>当导航完成、<code>ActivateRoutes.activate()</code> 被调用时，它会找到注册的 <code>RouterOutlet</code>，调用 <code>activateWith()</code> 动态创建组件：</p>
+<pre><code class="language-typescript">// packages/router/src/directives/router_outlet.ts（activateWith 精简）
+activateWith(activatedRoute: ActivatedRoute, environmentInjector: EnvironmentInjector): void {
+  const snapshot = activatedRoute.snapshot;
+  const component = snapshot.component!;
+
+  // 创建局部注入器，提供 ActivatedRoute 和子 outlet 上下文
+  const injector = new OutletInjector(activatedRoute, childContexts, location.injector);
+
+  // 动态创建路由组件
+  this.activated = this.location.createComponent(component, {
+    injector,
+    environmentInjector,
+  });
+  this.changeDetector.markForCheck();
+  this.activateEvents.emit(this.activated.instance); // (activate) 事件
+}</code></pre>
+<p><code>OutletInjector</code> 是一个自定义注入器，让路由组件内部可以通过 <code>inject(ActivatedRoute)</code> 获取当前路由数据。</p>
+<h3 id="h-组件销毁与-ngondestroy">组件销毁与 ngOnDestroy</h3>
+<p>路由切换时，<code>RouterOutlet</code> 先调用 <code>deactivate()</code> 销毁旧组件，再调用 <code>activateWith()</code> 创建新组件：</p>
+<pre><code class="language-typescript">// packages/router/src/directives/router_outlet.ts（deactivate 精简）
+deactivate(): void {
+  if (this.activated) {
+    const c = this.activated;
+    // 销毁组件，此时旧组件的 ngOnDestroy 被触发
+    c.destroy();
+    this.activated = null;
+    this.deactivateEvents.emit(c.instance); // (deactivate) 事件
+  }
+}</code></pre>
+<p>🔗 <code>deactivate()</code> 调用 <code>ComponentRef.destroy()</code> 时，Angular 按第8章分析的生命周期顺序销毁组件树——先子组件、后父组件（LView 逆序遍历），<code>ngOnDestroy</code> 依次被调用。NgModule 懒加载路由的 <code>EnvironmentInjector</code>，也在对应 <code>RouterOutlet</code> 完成 <code>deactivate</code> 后随之销毁。</p>
+<h3 id="h-命名-routeroutlet">命名 RouterOutlet</h3>
+<p>Angular 支持在同一页面使用多个命名 outlet，实现辅助路由（secondary routes）：</p>
+<pre><code class="language-html">
+&lt;router-outlet&gt;&lt;/router-outlet&gt;
+
+
+&lt;router-outlet name=&quot;sidebar&quot;&gt;&lt;/router-outlet&gt;</code></pre>
+<pre><code class="language-typescript">// 路由配置
+const routes: Routes = [
+  { path: 'chat', component: ChatComponent, outlet: 'sidebar' }
+];</code></pre>
+<p>URL 会编码为 <code>/(sidebar:chat)</code> 形式，<code>UrlTree</code> 中 <code>root.children['sidebar']</code> 就是侧边栏的段组。命名 outlet 的 <code>name</code> 属性是静态的，不支持动态绑定——这是源码中明确的设计限制。</p>
+<p>🔍 <strong>深入</strong>：<code>ChildrenOutletContexts</code> 是一棵树形结构，每个 <code>RouterOutlet</code> 在 <code>activateWith</code> 时，通过 <code>OutletInjector</code> 为子组件提供独立的 <code>ChildrenOutletContexts</code>。嵌套路由的层级完全靠这个机制隔离，父组件内的 <code>&lt;router-outlet&gt;</code> 操作的是父级的 <code>ChildrenOutletContexts</code>，不会干扰根级的 outlets。</p>
+<h2 id="h-activatedroute-路由数据的容器">ActivatedRoute——路由数据的容器</h2>
+<p>每个被路由激活的组件，都能通过 <code>inject(ActivatedRoute)</code> 获取当前路由的所有信息。</p>
+<h3 id="h-observable-字段">Observable 字段</h3>
+<p><code>ActivatedRoute</code> 的核心字段都是 Observable（底层是 <code>BehaviorSubject</code>），这意味着它们会在路由参数变化时自动推送新值：</p>
+<pre><code class="language-typescript">// packages/router/src/router_state.ts（ActivatedRoute 核心字段）
+export class ActivatedRoute {
+  url: Observable&lt;UrlSegment[]&gt;;          // 路由的 URL 段
+  params: Observable&lt;Params&gt;;            // 路由参数（:id 等）
+  queryParams: Observable&lt;Params&gt;;       // 查询参数（?key=value）
+  fragment: Observable&lt;string | null&gt;;   // 片段（#hash）
+  data: Observable&lt;Data&gt;;                // resolve 数据 + 路由静态 data
+  paramMap: Observable&lt;ParamMap&gt;;        // params 的 Map 视图
+  queryParamMap: Observable&lt;ParamMap&gt;;   // queryParams 的 Map 视图
+
+  // 当前时刻的快照（同步，不随时间变化）
+  snapshot: ActivatedRouteSnapshot;
+}</code></pre>
+<p>这些 Observable 在 <code>advanceActivatedRoute()</code> 中被更新。Angular 做了一个 <code>shallowEqual</code> 优化：只有当新值与旧值不相等时，才调用 <code>BehaviorSubject.next()</code> 推送——避免同路由参数未变化时触发不必要的订阅回调。</p>
+<h3 id="h-何时用-observable-何时用-snapshot">何时用 Observable，何时用 snapshot</h3>
+<div class="table-wrap"><table><thead><tr><th>场景</th><th>推荐方式</th></tr></thead><tbody><tr><td>组件在同一路由下参数变化时需要重新加载数据</td><td>订阅 <code>params$</code> 或 <code>paramMap</code></td></tr><tr><td>只在组件初始化时读一次路由参数</td><td><code>snapshot.params</code></td></tr><tr><td>在 resolver 中读取路由参数</td><td><code>snapshot.params</code>（resolver 每次导航都重新执行）</td></tr><tr><td>在守卫中做路由条件判断</td><td>直接使用 <code>route</code> 参数（<code>ActivatedRouteSnapshot</code>）</td></tr></tbody></table></div>
+<p>一个常见的陷阱是在 <code>ngOnInit</code> 中用 <code>snapshot.params.id</code> 读取参数，然后发现当用户点击从 <code>/user/1</code> 导航到 <code>/user/2</code> 时，组件没有更新——因为 Angular 复用了同一个组件实例，不会再次调用 <code>ngOnInit</code>，而 <code>snapshot</code> 也不会自动更新。订阅 <code>activatedRoute.params</code> 才是处理这种&quot;参数变化复用&quot;场景的正确方式。</p>
+<h3 id="h-路由数据继承">路由数据继承</h3>
+<p>子路由默认不继承父路由的 <code>params</code> 和 <code>data</code>，触发继承的条件有三种：① 开启全局配置 <code>paramsInheritanceStrategy: 'always'</code>；② 子路由路径为空路径（<code>path: ''</code>）；③ 父路由无组件且无 <code>loadComponent</code>（纯容器路由，<code>router_state.ts</code> L263-269）。可以通过 <code>withRouterConfig({ paramsInheritanceStrategy: 'always' })</code> 开启全量继承。</p>
+<p>这是一个常见 bug 来源——在嵌套路由中，<code>snapshot.params</code> 可能读不到父路由的 <code>:id</code>，需要向上遍历 <code>snapshot.parent</code>，或确认父路由是否满足上述继承条件之一。</p>
+<h2 id="h-设计思考">设计思考</h2>
+<blockquote><p><strong>设计思考：为什么用 Observable 管道而非 Promise 链？</strong><br>
+<br>
+导航状态机最核心的需求是&quot;新导航取消旧导航&quot;。用 Promise 链实现这一点相当繁琐——需要手动维护一个&quot;当前导航 ID&quot;，在每一步之前检查 ID 是否仍然有效。而 RxJS 的 <code>switchMap</code> 语义天然支持这个模式：切换到新 Observable 时，旧 Observable 被自动取消订阅。每一个导航阶段都是一个操作符，&quot;导航被取消&quot;等价于 Observable 被 unsubscribe——这是声明式地描述状态机行为，比命令式的 if/else 更清晰，也更难出错。</p></blockquote>
+<blockquote><p><strong>设计思考：守卫顺序设计的逻辑</strong><br>
+<br>
+守卫顺序遵循&quot;先确认能否离开，再确认能否进入&quot;的原则，这和现实世界的逻辑一致：你不会在没确认旧房间门能否打开之前就去开新房间的门。<code>CanDeactivate</code> 先于 <code>CanActivate</code> 执行，确保了&quot;离开&quot;操作得到确认后才开始&quot;进入&quot;的检查流程。<br>
+<br>
+<code>CanActivateChild</code> 和 <code>CanActivate</code> 方向相反的设计，源于两者的语义不同：<code>CanActivateChild</code> 问的是&quot;我（父路由）是否允许我的子路由激活？&quot;，父路由有权优先否决；<code>CanActivate</code> 问的是&quot;我（子路由）自己是否可以激活？&quot;，子路由的自检可以在父路由的许可确认后再进行。</p></blockquote>
+<blockquote><p><strong>设计思考：函数式守卫的演进</strong><br>
+<br>
+Angular v14 引入函数式守卫，背后是整个框架向&quot;函数 + inject()&quot;范式迁移的大趋势（与 standalone 组件同步推进）。类守卫需要声明一个类、实现接口、注册为 provider，引入了不必要的间接层。函数式守卫直接使用 <code>inject()</code> 获取依赖，配合 TypeScript 的类型系统，代码量更少，也更易于摇树优化（tree-shaking）。</p></blockquote>
+<h2 id="h-小结">小结</h2>
+<p>一次导航请求的完整旅程：</p>
+<ul><li><strong>URL 解析</strong>：<code>DefaultUrlSerializer</code>（内置 URL 序列化器，负责 URL 字符串 ↔ UrlTree 的双向转换）将字符串解析为 <code>UrlTree</code>（<code>UrlSegment</code> → <code>UrlSegmentGroup</code> → <code>UrlTree</code>）</li><li><strong>路由识别</strong>：<code>Recognizer</code> 对路由配置做深度优先匹配，<code>canMatch</code> 守卫在此阶段执行，<code>loadChildren</code> 在此阶段触发懒加载</li><li><strong>守卫检查</strong>：顺序为 <code>CanDeactivate</code> → <code>CanActivateChild</code>（父→子）→ <code>CanActivate</code>（由深到浅，每个路由检查自身），任一返回 false 即取消导航</li><li><strong>数据解析</strong>：<code>Resolve</code> 在守卫全部通过后执行，路由间顺序、路由内并发</li><li><strong>组件激活</strong>：<code>RouterOutlet.activateWith()</code> 动态创建组件，<code>advanceActivatedRoute()</code> 更新 <code>ActivatedRoute</code> 的 Observable</li><li><strong>状态机骨架</strong>：外层 <code>switchMap</code> 保证新导航自动取消旧导航，整条链路是 Observable 管道</li></ul>
+<p><code>ActivatedRoute</code> 的 Observable 字段在路由参数变化时自动推送新值；<code>snapshot</code> 适合单次读取，但在同路由参数变化场景下需要改用 Observable 订阅。</p>
+<p>🔗 路由懒加载为每个 NgModule 路由创建独立的 <code>EnvironmentInjector</code>，构成第3章分析的注入器树的一个子节点。理解注入器树对调试&quot;懒加载模块内的服务为什么是新实例&quot;至关重要。</p>
+<p>💡 <strong>前向引用</strong>：路由识别和组件激活在服务端渲染（SSR）场景下需要同步完成——第10章将分析 <code>platform-server</code> 如何处理导航、懒加载策略如何影响首屏性能，以及 <code>TransferState</code> 如何避免客户端重复执行 Resolve。</p>
+<hr>
+<h2 id="h-思考题">思考题</h2>
+<p><strong>1. 守卫顺序实践题</strong></p>
+<p>有如下路由配置：</p>
+<pre><code class="language-typescript">const routes = [
+  {
+    path: 'workspace',
+    canActivate: [workspaceGuard],
+    canActivateChild: [membershipGuard],
+    children: [
+      {
+        path: 'project/:id',
+        canActivate: [projectGuard],
+        component: ProjectComponent
+      }
+    ]
+  }
+];</code></pre>
+<p>当用户从 <code>/workspace/project/1</code> 导航到 <code>/workspace/project/2</code> 时（假设 <code>workspace</code> 路由被复用，只有 <code>project</code> 路由需要重新激活），守卫执行的顺序是什么？<code>workspaceGuard</code>、<code>membershipGuard</code>、<code>projectGuard</code> 各执行几次？</p>
+<p><strong>2. loadChildren 与 loadComponent 的时机差异</strong></p>
+<p>假设有一个需要鉴权的懒加载路由，你有两种选择：</p>
+<ul><li>方案 A：<code>loadChildren: () =&gt; import('./admin.routes')</code> + <code>canMatch: [authGuard]</code></li><li>方案 B：<code>loadComponent: () =&gt; import('./admin.component')</code> + <code>canActivate: [authGuard]</code></li></ul>
+<p>从加载时机和用户体验的角度，两种方案有什么区别？哪种方案在未登录用户访问时，不会触发 <code>import()</code> 的网络请求？</p>
+<p><strong>3. ActivatedRoute 的 Observable 陷阱</strong></p>
+<p>一个 <code>UserDetailComponent</code> 路由为 <code>/users/:id</code>，组件在 <code>ngOnInit</code> 中使用 <code>this.route.snapshot.params['id']</code> 加载用户数据。当用户在 <code>/users/1</code> 页面点击&quot;查看用户2&quot;链接（导航到 <code>/users/2</code>）时，数据没有刷新。请分析原因，并给出两种修复方案：一种使用 Observable 订阅，一种利用 <code>withComponentInputBinding()</code>。</p>
+    <div class="chapter-nav"><a href="ch08.html">← 上一章：第8章：组件模型——从装饰器到运行时对象</a><a href="ch10.html">下一章：第10章：服务端渲染与水合——让 Angular 应用「秒开」 →</a></div>
+  </main>
+  
+<aside id="toc-right">
+  <div class="toc-title">本章目录</div>
+  <ul class="toc-list"><li><a href="#h-router-架构总览">Router 架构总览</a></li>
+<li><a href="#h-导航状态机">导航状态机</a></li>
+<li><a href="#h-url-识别与路由匹配">URL 识别与路由匹配</a></li>
+<li><a href="#h-守卫执行顺序">守卫执行顺序</a></li>
+<li><a href="#h-懒加载实现">懒加载实现</a></li>
+<li><a href="#h-routeroutlet-与组件激活">RouterOutlet 与组件激活</a></li>
+<li><a href="#h-activatedroute-路由数据的容器">ActivatedRoute——路由数据的容器</a></li>
+<li><a href="#h-设计思考">设计思考</a></li>
+<li><a href="#h-小结">小结</a></li>
+<li><a href="#h-思考题">思考题</a></li></ul>
+</aside>
+</div>
+<button id="back-to-top" title="返回顶部">↑</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+<script>
+(function () {
+  'use strict';
+  function updateProgress() {
+    var el = document.getElementById('progress-bar');
+    if (!el) return;
+    var st = window.pageYOffset || document.documentElement.scrollTop;
+    var dh = document.documentElement.scrollHeight - window.innerHeight;
+    el.style.width = (dh > 0 ? Math.min(100, st / dh * 100) : 0) + '%';
+  }
+  function updateBackToTop() {
+    var btn = document.getElementById('back-to-top');
+    if (!btn) return;
+    btn.classList.toggle('visible', (window.pageYOffset || document.documentElement.scrollTop) > 300);
+  }
+  function updateTocActive() {
+    var hs = Array.from(document.querySelectorAll('#main h2[id]'));
+    var ls = Array.from(document.querySelectorAll('#toc-right .toc-list a'));
+    if (!hs.length || !ls.length) return;
+    var active = -1;
+    hs.forEach(function (h, i) { if (h.getBoundingClientRect().top <= 120) active = i; });
+    ls.forEach(function (a, i) { a.classList.toggle('active', i === active); });
+  }
+  window.addEventListener('scroll', function () {
+    updateProgress(); updateBackToTop(); updateTocActive();
+  }, { passive: true });
+  var btn = document.getElementById('back-to-top');
+  if (btn) btn.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof hljs !== 'undefined') hljs.highlightAll();
+    updateProgress(); updateTocActive();
+  });
+})();
+</script>
+</body>
+</html>
