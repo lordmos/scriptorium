@@ -278,7 +278,7 @@ Using this framework requires the following knowledge and capabilities:
 
 | Book Title | Target Source Code | Author |
 |------------------|---------|------|
-| [Deep Dive into Angular Dependency Injection (example)](examples/angular-di/) | [angular/angular](https://github.com/angular/angular) | [@lordmos](https://github.com/lordmos) |
+| [Angular Source Code Deep Dive (example)](examples/) | [angular/angular](https://github.com/angular/angular) | [@lordmos](https://github.com/lordmos) |
 
 ---
 
