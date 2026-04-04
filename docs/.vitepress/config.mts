@@ -218,6 +218,7 @@ function escapeMustache(md: any) {
 export default defineConfig({
   title: 'Scriptorium',
   description: 'Multi-Agent Technical Book Writing Framework',
+  base: '/tech-editorial/',
 
   // Source files contain repo-relative cross-language links that don't map to VitePress URLs
   ignoreDeadLinks: true,
