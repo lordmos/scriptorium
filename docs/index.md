@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: "Tech Editorial"
+  name: "Scriptorium"
   text: "多Agent技术书籍编写框架"
   tagline: 通过 12 个 AI Agent 的协同配合，覆盖从大纲设计到最终出版的全流程。Agent 是无状态的，文件系统是有状态的。
   image:

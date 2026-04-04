@@ -6,8 +6,9 @@
 [![Last Commit](https://img.shields.io/github/last-commit/lordmos/tech-editorial?style=flat-square)](https://github.com/lordmos/tech-editorial/commits)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 [![Multi-Agent](https://img.shields.io/badge/Multi--Agent-12%20Agents-blueviolet?style=flat-square)]()
+[![Docs](https://img.shields.io/badge/文档站-在线阅读-4a9eff?style=flat-square&logo=vitepress&logoColor=white)](https://lordmos.github.io/tech-editorial/)
 
-# 📚 技术书籍多Agent编辑部框架
+# 📚 Scriptorium — 技术书籍多Agent编辑部框架
 
 > **"源码阅读系列"技术书籍的多Agent协作编写框架**
 

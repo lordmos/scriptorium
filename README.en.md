@@ -14,8 +14,9 @@
 [![Last Commit](https://img.shields.io/github/last-commit/lordmos/tech-editorial?style=flat-square)](https://github.com/lordmos/tech-editorial/commits)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 [![Multi-Agent](https://img.shields.io/badge/Multi--Agent-12%20Agents-blueviolet?style=flat-square)]()
+[![Docs](https://img.shields.io/badge/Docs-lordmos.github.io-4a9eff?style=flat-square&logo=vitepress&logoColor=white)](https://lordmos.github.io/tech-editorial/)
 
-# 📚 Multi-Agent Editorial Framework for Technical Books
+# 📚 Scriptorium — Multi-Agent Editorial Framework for Technical Books
 
 > **A multi-agent collaborative writing framework for the "Source Code Reading" series of technical books**
 

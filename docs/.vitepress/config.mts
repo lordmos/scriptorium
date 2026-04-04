@@ -216,7 +216,7 @@ function escapeMustache(md: any) {
 // ─── Main config ─────────────────────────────────────────────────────────────
 
 export default defineConfig({
-  title: 'Tech Editorial',
+  title: 'Scriptorium',
   description: 'Multi-Agent Technical Book Writing Framework',
 
   // Source files contain repo-relative cross-language links that don't map to VitePress URLs
