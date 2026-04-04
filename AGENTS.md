@@ -103,32 +103,26 @@ Recovery from interruption: `framework/recovery.md`
 
 ---
 
-## 🤖 How to Invoke an Agent
+## 🤖 Starting a New Book
 
-**Standard pattern (act as Orchestrator):**
-
-```
-Step 1  Read the agent spec:  agents/04-researcher.md
-Step 2  Load file pointers:   source-map.md, outline.md, [relevant source files]
-Step 3  Execute the task:     as described in the spec
-Step 4  Write output to:      research/ch03-report.md  (path from spec)
-Step 5  Update:               checkpoint.md (mark ch03 research done)
-                              audit-log.md  (record this invocation)
-```
-
-**Example prompt to invoke the Researcher for Chapter 3:**
+**This is all you need to say:**
 
 ```
-Please act as the Researcher Agent defined in agents/04-researcher.md.
-
-File Pointers:
-- source-map.md (chapter-to-source mapping)
-- outline.md (Chapter 3 section)
-- [paste or reference relevant source code paths]
-
-Task: Research Chapter 3 "{{chapter title}}" and produce a full research report.
-Output path: research/ch03-research-report.md
+The source code for [project name] is in [directory path].
+Please read QUICK_START.md, then ask me any questions you have.
+If you have no questions, start your work.
 ```
+
+The AI reads `QUICK_START.md` and runs the full 5-phase pipeline autonomously.
+You only need to: ① answer startup questions  ② approve the outline  ③ read the final manuscript.
+
+**Resume after interruption:**
+
+```
+Please read checkpoint.md and continue where we left off.
+```
+
+Full orchestrator briefing: `QUICK_START.md`
 
 ---
 

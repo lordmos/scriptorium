@@ -12,6 +12,16 @@
 
 # Agent #0 — Orchestrator (Director / Producer)
 
+## One-Sentence Startup
+
+When the user says **"The source code for XX is in YY directory — please read QUICK_START.md and ask me questions"**, your complete working manual is:
+
+**→ `QUICK_START.md` (project root)**
+
+Read it, collect the necessary information from the user, then **run the full 5-phase pipeline autonomously**. You are not guiding the user through manual steps — you are doing all the work for them.
+
+---
+
 ## Role Card
 
 | Dimension | Description |

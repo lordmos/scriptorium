@@ -11,6 +11,26 @@ license: MIT
 
 # Tech-Editorial: 5-Phase Workflow Execution Guide
 
+## How to Start
+
+**One-sentence startup** — say this to your AI tool:
+
+```
+The source code for [project name] is in [directory path].
+Please read QUICK_START.md, then ask me any questions.
+If you have no questions, start your work.
+```
+
+**Resume after interruption:**
+```
+Please read checkpoint.md and continue where we left off.
+```
+
+The AI reads `QUICK_START.md` and runs the full pipeline autonomously.
+The sections below are the detailed reference for each phase.
+
+---
+
 ## Phase 1 — Outline Finalization
 
 ### Step 1.1 — Architect Analyzes Source Code
