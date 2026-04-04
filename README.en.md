@@ -17,6 +17,10 @@
 [![Docs](https://img.shields.io/badge/Docs-lordmos.github.io-4a9eff?style=flat-square&logo=vitepress&logoColor=white)](https://lordmos.github.io/tech-editorial/)
 [![Powered by Meridian](https://img.shields.io/badge/Powered%20by-Meridian-f97316?style=flat-square)](https://github.com/lordmos/meridian)
 
+<p align="center">
+  <img src=".github/assets/hero.svg" alt="Scriptorium" width="120"/>
+</p>
+
 # 📚 Scriptorium — Multi-Agent Editorial Framework for Technical Books
 
 > **A multi-agent collaborative writing framework for the "Source Code Reading" series of technical books**

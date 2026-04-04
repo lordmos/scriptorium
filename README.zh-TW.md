@@ -19,6 +19,10 @@
 [![Docs](https://img.shields.io/badge/文件站-在線閱讀-4a9eff?style=flat-square&logo=vitepress&logoColor=white)](https://lordmos.github.io/tech-editorial/zh-TW/)
 [![Powered by Meridian](https://img.shields.io/badge/Powered%20by-Meridian-f97316?style=flat-square)](https://github.com/lordmos/meridian)
 
+<p align="center">
+  <img src=".github/assets/hero.svg" alt="Scriptorium" width="120"/>
+</p>
+
 # 📚 Scriptorium — 技術書籍多Agent編輯部框架
 
 > **"源碼閱讀系列"技術書籍的多Agent協作編寫框架**

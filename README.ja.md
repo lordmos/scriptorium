@@ -19,6 +19,10 @@
 [![Docs](https://img.shields.io/badge/ドキュメント-lordmos.github.io-4a9eff?style=flat-square&logo=vitepress&logoColor=white)](https://lordmos.github.io/tech-editorial/ja/)
 [![Powered by Meridian](https://img.shields.io/badge/Powered%20by-Meridian-f97316?style=flat-square)](https://github.com/lordmos/meridian)
 
+<p align="center">
+  <img src=".github/assets/hero.svg" alt="Scriptorium" width="120"/>
+</p>
+
 # 📚 Scriptorium — 技術書籍マルチエージェント編集部フレームワーク
 
 > **「ソースコード読解シリーズ」技術書籍のマルチエージェント協調執筆フレームワーク**
