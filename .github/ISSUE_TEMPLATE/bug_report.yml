@@ -1,0 +1,29 @@
+name: 🐛 Bug Report / 问题报告
+description: 报告框架文档中的错误、歧义或设计问题
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢提交问题！请尽量详细描述。
+        *Thanks for reporting! Please be as specific as possible.*
+  - type: input
+    id: file
+    attributes:
+      label: 相关文件 / Related File
+      placeholder: "e.g., agents/05-writer.md"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述 / Problem Description
+      placeholder: "描述发现的问题..."
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: 建议修改 / Suggested Fix
+      placeholder: "你认为应该如何修改？（可选）"

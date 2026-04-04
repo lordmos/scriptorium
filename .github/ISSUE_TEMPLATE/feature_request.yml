@@ -1,0 +1,29 @@
+name: 💡 Feature Request / 功能建议
+description: 建议新的 Agent 角色、工作流阶段或框架改进
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你遇到了什么问题？/ What problem are you solving?
+      placeholder: "使用框架时遇到的困难或缺失的功能..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: 建议的解决方案 / Proposed Solution
+      placeholder: "描述你希望看到的改进..."
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: 类别 / Category
+      options:
+        - 新 Agent 角色 / New Agent Role
+        - 工作流改进 / Workflow Improvement
+        - 模板优化 / Template Enhancement
+        - 文档改进 / Documentation
+        - 其他 / Other

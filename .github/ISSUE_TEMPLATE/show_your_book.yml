@@ -1,0 +1,62 @@
+name: 📚 Show Your Book / 分享你的项目
+description: 展示你用 tech-editorial 框架创作的技术书籍项目
+title: "[Show] "
+labels: ["showcase"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🎉 欢迎分享！
+        告诉社区你在用 tech-editorial 做什么，你的项目会被展示在 README 的 Showcase 区域。
+        
+        *Share what you're building with tech-editorial! Your project may be featured in the README showcase.*
+  - type: input
+    id: book-title
+    attributes:
+      label: 书名 / Book Title
+      placeholder: "《Vue 3 源码深度解析》"
+    validations:
+      required: true
+  - type: input
+    id: target-repo
+    attributes:
+      label: 目标源码仓库 / Target Source Repo
+      placeholder: "https://github.com/vuejs/core"
+    validations:
+      required: true
+  - type: dropdown
+    id: ai-model
+    attributes:
+      label: 使用的 AI 模型 / AI Model Used
+      options:
+        - Claude 3.5 Sonnet
+        - Claude 3 Opus
+        - GPT-4o
+        - GPT-4 Turbo
+        - Gemini 1.5 Pro
+        - 其他 / Other
+    validations:
+      required: true
+  - type: dropdown
+    id: phase
+    attributes:
+      label: 当前进度 / Current Phase
+      options:
+        - Phase 1 - 大纲定稿中 / Outlining
+        - Phase 2 - 共享资源构建 / Building Resources
+        - Phase 3 - 逐章写作中 / Writing Chapters
+        - Phase 4 - 统稿审计 / Final Audit
+        - Phase 5 - 装帧发布 / Publishing
+        - 已完成 / Completed
+  - type: textarea
+    id: sample
+    attributes:
+      label: 示例输出或链接 / Sample Output or Link
+      placeholder: "分享一段章节内容、链接到你的仓库，或截图..."
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: 同意展示 / Consent to Feature
+      options:
+        - label: 我同意将此项目展示在 tech-editorial README 的 Showcase 区域
+          required: true
