@@ -50,7 +50,9 @@
 
 進捗管理：[`templates/checkpoint.md`](templates/checkpoint.md)　　チェックポイント回復：[`framework/recovery.md`](framework/recovery.md)
 
-## 3. 適用シナリオ
+**中断後の再開**：AI アシスタントに伝えるだけ → `checkpoint.md を読んで、前回の続きから作業を再開してください。`
+
+
 
 本フレームワークは以下の種類の技術書籍プロジェクトに適しています：
 

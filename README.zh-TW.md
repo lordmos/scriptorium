@@ -50,7 +50,9 @@
 
 進度追蹤：[`templates/checkpoint.md`](templates/checkpoint.md)　　斷點恢復：[`framework/recovery.md`](framework/recovery.md)
 
-## 3. 適用場景
+**中斷後恢復**：告訴 AI 助手 → `請讀 checkpoint.md，繼續上次未完成的工作。`
+
+
 
 本框架適用於以下類型的技術書籍項目：
 

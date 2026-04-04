@@ -46,9 +46,11 @@ Five phases — launch your AI assistant directly from the Agent spec files:
 | Phase 4 | Triple Review (parallel) | [`agents/06-code-reviewer.md`](agents/06-code-reviewer.md), [`agents/07-consistency-reviewer.md`](agents/07-consistency-reviewer.md), [`agents/08-content-reviewer.md`](agents/08-content-reviewer.md) |
 | Phase 5 | Publish | [`agents/10-bookbinder.md`](agents/10-bookbinder.md) |
 
-Progress tracking: [`templates/checkpoint.md`](templates/checkpoint.md)　　Checkpoint recovery: [`framework/recovery.md`](framework/recovery.md)
+Progress tracking: [`templates/checkpoint.md`](templates/checkpoint.md)　　Recovery: [`framework/recovery.md`](framework/recovery.md)
 
-## 3. Use Cases
+**After an interruption, tell your AI**: `Please read checkpoint.md and continue where we left off.`
+
+
 
 This framework is suited for the following types of technical book projects:
 
