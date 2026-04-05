@@ -1,8 +1,8 @@
 <!--
   Translation status:
   Source file : agents/00-system-overview.md
-  Source commit: 7685751
-  Translated  : 2026-04-04
+  Source commit: 2b88d15
+  Translated  : 2026-04-05
   Status      : up-to-date
 -->
 
@@ -266,7 +266,6 @@ chapters/chXX-final.md 存在      → 该章定稿
 | RE 工程師讀者 | [`agents/09-reader-panel.md`](./09-reader-panel.md) |
 | RH 愛好者讀者 | [`agents/09-reader-panel.md`](./09-reader-panel.md) |
 | #11 裝幀工人 Bookbinder | [`agents/10-bookbinder.md`](./10-bookbinder.md) |
-| #12 品質檢查員 Quality Inspector | [`agents/11-quality-inspector.md`](./11-quality-inspector.md) |
 | #12 品質檢查員 Quality Inspector | [`agents/11-quality-inspector.md`](./11-quality-inspector.md) |
 
 ### 模板文件

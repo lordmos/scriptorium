@@ -1,8 +1,8 @@
 <!--
   Translation status:
   Source file : agents/00-system-overview.md
-  Source commit: 7685751
-  Translated  : 2026-04-04
+  Source commit: 2b88d15
+  Translated  : 2026-04-05
   Status      : up-to-date
 -->
 
