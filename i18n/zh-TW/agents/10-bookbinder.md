@@ -20,7 +20,7 @@
 | Agent類型 | general-purpose |
 | 參與階段 | Phase 5（發佈與裝幀） |
 | 核心輸入 | `chapters/*.md`（所有定稿章節） |
-| 核心輸出 | `publish/*.html`（HTML電子書） |
+| 核心輸出 | `publish/*.html`（HTML電子書）；`publish/book.epub`（EPUB電子書） |
 
 ## 核心職責
 
@@ -29,6 +29,7 @@
 3. **代碼高亮處理** — 根據編程語言自動着色代碼塊
 4. **排版設計** — 應用護眼配色、CJK排版優化、響應式佈局
 5. **導航系統構建** — 生成側邊欄目錄、章節導航、滾動進度條
+6. **EPUB生成** — 將定稿Markdown章節打包爲符合EPUB 3.x標準的電子書文件（`.epub`）
 
 ## 輸入文件
 
@@ -48,6 +49,7 @@ publish/
 ├── ch02.html           # 第2章
 ├── ...
 ├── chNN.html           # 第N章
+├── book.epub           # EPUB電子書（含全部章節）
 └── assets/             # 静态资源（如需要）
     ├── style.css        # 样式表（或内联）
     └── script.js        # 交互脚本（或内联）
@@ -104,15 +106,71 @@ publish/
 | 中英文间距 | 自动添加thin space |
 | 标点挤压 | 连续标点适当压缩 |
 
-### 5. 导航系统
+### 5. 導航系統
 
-| 组件 | 功能 |
+| 組件 | 功能 |
 |------|------|
-| 侧边栏目录 | 全书章节目录，点击跳转，高亮当前章节 |
-| 章节内导航 | 章节内小节目录，滚动高亮 |
-| 上/下章导航 | 页面底部的前后章节链接 |
-| 滚动进度条 | 页面顶部的阅读进度指示条 |
-| 返回顶部 | 滚动后出现的返回顶部按钮 |
+| 側邊欄目錄 | 全書章節目錄，點擊跳轉，高亮當前章節 |
+| 章節內導航 | 章節內小節目錄，滾動高亮 |
+| 上/下章導航 | 頁面底部的前後章節鏈接 |
+| 滾動進度條 | 頁面頂部的閱讀進度指示條 |
+| 返回頂部 | 滾動後出現的返回頂部按鈕 |
+
+### 6. EPUB生成規格
+
+輸出符合 **EPUB 3.x** 標準的 `.epub` 文件（向下兼容 EPUB 2 NCX）。
+
+#### EPUB 內部結構
+
+```
+book.epub  (ZIP歸檔)
+├── mimetype                      # 必須第一個寫入，不壓縮
+├── META-INF/
+│   └── container.xml             # 指向 OPF 包文檔
+└── OEBPS/
+    ├── content.opf               # 包文檔（元數據 + 清單 + 書脊）
+    ├── nav.xhtml                 # EPUB 3 導航文檔（目錄）
+    ├── toc.ncx                   # EPUB 2 兼容目錄
+    ├── style.css                 # 統一樣式表
+    ├── ch01.xhtml                # 第1章（XHTML格式）
+    ├── ch02.xhtml                # 第2章
+    ├── ...
+    └── images/                   # 圖片/SVG資源（如有）
+```
+
+#### Mermaid 圖表處理（EPUB 特殊要求）
+
+EPUB 閱讀器普遍不支持 JavaScript，因此 Mermaid 圖表**必須在構建時預渲染爲 SVG**：
+
+| 情境 | 處理方式 |
+|------|----------|
+| 系統已安裝 `mmdc`（Mermaid CLI） | 調用 `mmdc -i input.mmd -o output.svg` 預渲染 |
+| 未安裝 `mmdc` | 將 Mermaid 代碼塊以 `<pre class="mermaid-source">` 形式保留，並添加提示注釋 |
+
+> 建議：如需生成 EPUB，提前全局安裝 `npm install -g @mermaid-js/mermaid-cli`
+
+#### EPUB 構建方式（零npm依賴）
+
+- 使用 Node.js 生成所有 XHTML 章節文件及 OPF/NCX/NAV 文檔
+- 調用系統 `zip` 命令打包（macOS/Linux 內置；Windows 需 WSL 或 Git Bash）：
+
+  ```bash
+  # 先寫入 mimetype（不壓縮），再添加其餘文件
+  zip -X book.epub mimetype
+  zip -rg book.epub META-INF/ OEBPS/
+  ```
+
+- 最終產物：`output/publish/book.epub`
+
+#### EPUB 元數據（content.opf）
+
+| 字段 | 來源 |
+|------|------|
+| `dc:title` | `{{項目名稱}}` |
+| `dc:language` | `{{語言代碼}}`（如 `zh-TW`、`en`） |
+| `dc:identifier` | 自動生成 UUID |
+| `dc:creator` | `{{作者名稱}}`（可選） |
+| `dc:date` | 構建時自動填寫 |
 
 ## SVG配色方案
 
@@ -159,15 +217,19 @@ publish/
 
 ## 質量標準
 
-- [ ] 所有 ` ```mermaid ` 块已通过 Mermaid.js 正确渲染
-- [ ] 所有Markdown章节正确转换为HTML
-- [ ] ASCII图表全部转换为SVG（无遗漏）
-- [ ] 代码块正确高亮
-- [ ] 护眼配色方案正确应用
-- [ ] CJK排版规范（衬线标题 + 无衬线正文）
-- [ ] 导航系统功能完整
-- [ ] 响应式布局（适配桌面和平板）
-- [ ] 构建脚本无npm依赖
+- [ ] 所有 ` ```mermaid ` 塊已通過 Mermaid.js 正確渲染
+- [ ] 所有Markdown章節正確轉換爲HTML
+- [ ] ASCII圖表全部轉換爲SVG（無遺漏）
+- [ ] 代碼塊正確高亮
+- [ ] 護眼配色方案正確應用
+- [ ] CJK排版規範（襯線標題 + 無襯線正文）
+- [ ] 導航系統功能完整
+- [ ] 響應式佈局（適配桌面和平板）
+- [ ] 構建腳本無npm依賴
+- [ ] （EPUB模式）`book.epub` 已生成並通過 EPUB 3.x 合規性檢查
+- [ ] （EPUB模式）所有章節已轉換爲有效 XHTML
+- [ ] （EPUB模式）`content.opf`、`nav.xhtml`、`toc.ncx` 均正確生成
+- [ ] （EPUB模式）Mermaid 圖表已預渲染爲 SVG 或以代碼形式優雅降級
 
 ## 完成标记
 
@@ -175,32 +237,40 @@ publish/
 <!-- BOOKBINDING_COMPLETE -->
 ```
 
-## 调度模板概要
+## 調度模板概要
 
 ```
 你是一位精通排版設計的電子書工匠。
 
 ## 任務
-將所有Markdown章節轉換爲美觀的HTML電子書。
+將所有Markdown章節轉換爲美觀的電子書（HTML 和/或 EPUB，取決於用戶選擇）。
 
 ## 輸入
 - 定稿章節：{{工作目錄}}/chapters/*.md
 - 大綱（目錄結構）：{{工作目錄}}/outline-final.md
 
 ## 輸出
-- HTML文件：{{工作目錄}}/publish/*.html
+- HTML文件（HTML模式）：{{工作目錄}}/publish/*.html
+- EPUB文件（EPUB模式）：{{工作目錄}}/publish/book.epub
 - 構建腳本：{{工作目錄}}/build.js
 
 ## 要求
-1. Markdown → HTML轉換
-2. **Mermaid 圖表渲染**：` ```mermaid ` 块通过引入 Mermaid.js（CDN）渲染为交互式图表
-3. ASCII图表 → SVG自动转换（兼容存量内容，支持{{SVG检测类型数}}种类型）
-4. 代码高亮
-5. 护眼配色（暖白背景、柔和文字）
-6. CJK排版（衬线标题、无衬线正文）
-7. 导航系统（侧边栏、章节导航、进度条）
-8. 零npm依赖的Node.js构建脚本
-9. 完成后添加 <!-- BOOKBINDING_COMPLETE -->
+0. 在開始生成前，**依次詢問用戶**：
+   a) 輸出格式：① HTML（默認）② EPUB ③ 兩者都要
+   b) 配色方案：① Warm Paper（默認）② GitHub Light ③ Dark Mode ④ Minimal
+   根據選擇，在構建腳本中配置對應 OUTPUT_FORMAT 和 THEME 變量
+1. Markdown → HTML/XHTML轉換
+2. **Mermaid 圖表渲染**：
+   - HTML模式：` ```mermaid ` 塊通過引入 Mermaid.js（CDN）渲染爲交互式圖表
+   - EPUB模式：調用 mmdc 預渲染爲 SVG；未安裝 mmdc 時優雅降級爲代碼塊
+3. ASCII圖表 → SVG自動轉換（兼容存量內容，支持{{SVG檢測類型數}}種類型）
+4. 代碼高亮
+5. 護眼配色（暖白背景、柔和文字）
+6. CJK排版（襯線標題、無襯線正文）
+7. 導航系統（側邊欄、章節導航、進度條）—— HTML模式
+8. EPUB 3.x 結構（OPF + NAV + NCX + XHTML章節）—— EPUB模式，系統 zip 命令打包
+9. 零npm依賴的Node.js構建腳本
+10. 完成後添加 <!-- BOOKBINDING_COMPLETE -->
 ```
 
 ## 項目配置變量
@@ -218,3 +288,5 @@ publish/
 | `{{色板色1邊框}}` ~ `{{色板色8邊框}}` | SVG卡片邊框色 | 對應加深色 |
 | `{{SVG檢測類型數}}` | 支持的ASCII圖表檢測類型數 | 8 |
 | `{{工作目錄}}` | 產出物根目錄 | — |
+| `{{語言代碼}}` | EPUB元數據語言標識（`dc:language`） | `zh-TW` |
+| `{{作者名稱}}` | EPUB元數據作者（`dc:creator`，可選） | — |

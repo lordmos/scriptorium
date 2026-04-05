@@ -8,7 +8,7 @@
 | Agent类型 | general-purpose |
 | 参与阶段 | Phase 5（发布与装帧） |
 | 核心输入 | `output/chapters/final/*.md`（所有定稿章节） |
-| 核心输出 | `output/publish/*.html`（HTML电子书） |
+| 核心输出 | `output/publish/*.html`（HTML电子书）；`output/publish/book.epub`（EPUB电子书） |
 
 ## 核心职责
 
@@ -17,6 +17,7 @@
 3. **代码高亮处理** — 根据编程语言自动着色代码块
 4. **排版设计** — 应用护眼配色、CJK排版优化、响应式布局
 5. **导航系统构建** — 生成侧边栏目录、章节导航、滚动进度条
+6. **EPUB生成** — 将定稿Markdown章节打包为符合EPUB 3.x标准的电子书文件（`.epub`）
 
 ## 输入文件
 
@@ -36,6 +37,7 @@ output/publish/
 ├── ch02.html           # 第2章
 ├── ...
 ├── chNN.html           # 第N章
+├── book.epub           # EPUB电子书（含全部章节）
 └── assets/             # 静态资源（如需要）
     ├── style.css        # 样式表（或内联）
     └── script.js        # 交互脚本（或内联）
@@ -102,6 +104,62 @@ output/publish/
 | 滚动进度条 | 页面顶部的阅读进度指示条 |
 | 返回顶部 | 滚动后出现的返回顶部按钮 |
 
+### 6. EPUB生成规格
+
+输出符合 **EPUB 3.x** 标准的 `.epub` 文件（向下兼容 EPUB 2 NCX）。
+
+#### EPUB 内部结构
+
+```
+book.epub  (ZIP归档)
+├── mimetype                      # 必须第一个写入，不压缩
+├── META-INF/
+│   └── container.xml             # 指向 OPF 包文档
+└── OEBPS/
+    ├── content.opf               # 包文档（元数据 + 清单 + 书脊）
+    ├── nav.xhtml                 # EPUB 3 导航文档（目录）
+    ├── toc.ncx                   # EPUB 2 兼容目录
+    ├── style.css                 # 统一样式表
+    ├── ch01.xhtml                # 第1章（XHTML格式）
+    ├── ch02.xhtml                # 第2章
+    ├── ...
+    └── images/                   # 图片/SVG资源（如有）
+```
+
+#### Mermaid 图表处理（EPUB 特殊要求）
+
+EPUB 阅读器普遍不支持 JavaScript，因此 Mermaid 图表**必须在构建时预渲染为 SVG**：
+
+| 情境 | 处理方式 |
+|------|----------|
+| 系统已安装 `mmdc`（Mermaid CLI） | 调用 `mmdc -i input.mmd -o output.svg` 预渲染 |
+| 未安装 `mmdc` | 将 Mermaid 代码块以 `<pre class="mermaid-source">` 形式保留，并添加提示注释 |
+
+> 建议：如需生成 EPUB，提前全局安装 `npm install -g @mermaid-js/mermaid-cli`
+
+#### EPUB 构建方式（零npm依赖）
+
+- 使用 Node.js 生成所有 XHTML 章节文件及 OPF/NCX/NAV 文档
+- 调用系统 `zip` 命令打包（macOS/Linux 内置；Windows 需 WSL 或 Git Bash）：
+
+  ```bash
+  # 先写入 mimetype（不压缩），再添加其余文件
+  zip -X book.epub mimetype
+  zip -rg book.epub META-INF/ OEBPS/
+  ```
+
+- 最终产物：`output/publish/book.epub`
+
+#### EPUB 元数据（content.opf）
+
+| 字段 | 来源 |
+|------|------|
+| `dc:title` | `{{项目名称}}` |
+| `dc:language` | `{{语言代码}}`（如 `zh-CN`、`en`） |
+| `dc:identifier` | 自动生成 UUID |
+| `dc:creator` | `{{作者名称}}`（可选） |
+| `dc:date` | 构建时自动填写 |
+
 ## SVG配色方案
 
 用于ASCII图表转SVG时的卡片/节点配色：
@@ -160,13 +218,33 @@ output/publish/
 - [ ] 导航系统功能完整
 - [ ] 响应式布局（适配桌面和平板）
 - [ ] 构建脚本无npm依赖
+- [ ] （EPUB模式）`book.epub` 已生成并通过 EPUB 3.x 合规性检查
+- [ ] （EPUB模式）所有章节已转换为有效 XHTML
+- [ ] （EPUB模式）`content.opf`、`nav.xhtml`、`toc.ncx` 均正确生成
+- [ ] （EPUB模式）Mermaid 图表已预渲染为 SVG 或以代码形式优雅降级
 
 ## 配色主题选择（Phase 5 启动前必询问）
 
-在开始装帧工作之前，**主编排必须询问用户偏好的配色风格**：
+在开始装帧工作之前，**主编排必须依次询问用户以下两个问题**：
+
+**第一步：选择输出格式**
 
 ```
-Phase 5 即将开始。在生成 HTML 电子书之前，请选择配色方案：
+Phase 5 即将开始。请选择输出格式：
+
+① HTML（默认）— 多页HTML电子书，支持浏览器在线阅读，Mermaid 交互渲染
+② EPUB          — 标准 EPUB 3.x 文件，适用于 Kindle、Apple Books、Kobo 等阅读器
+③ 两者都要      — 同时生成 HTML 和 EPUB
+
+（默认选 ①，若用户说"继续"或"默认"则生成 HTML）
+```
+
+> ⚠️ 若选择 ② 或 ③，提示用户确认是否已安装 `mmdc`（`npm install -g @mermaid-js/mermaid-cli`），以便 Mermaid 图表在 EPUB 中正确预渲染为 SVG。
+
+**第二步：选择配色方案**
+
+```
+请选择配色方案：
 
 ① Warm Paper（默认）— 暖白底色 #FEFCF8，柔和深棕文字，仿纸质书感
 ② GitHub Light    — 纯白背景，标准深灰文字，简洁科技感
@@ -176,7 +254,7 @@ Phase 5 即将开始。在生成 HTML 电子书之前，请选择配色方案：
 （默认选 ①，若用户说"继续"或"默认"则使用 Warm Paper）
 ```
 
-收到用户选择后，将对应主题配置写入 `scripts/build.js` 的 `THEME` 配置块（参见文件内注释），然后运行：
+收到用户选择后，将对应配置写入 `scripts/build.js` 的 `THEME` 和 `OUTPUT_FORMAT` 配置块，然后运行：
 
 ```bash
 node scripts/build.js
@@ -198,32 +276,34 @@ node scripts/build.js
 你是一位精通排版设计的电子书工匠。
 
 ## 任务
-将所有Markdown章节转换为美观的HTML电子书。
+将所有Markdown章节转换为美观的电子书（HTML 和/或 EPUB，取决于用户选择）。
 
 ## 输入
 - 定稿章节：{{工作目录}}/output/chapters/final/*.md
 - 大纲（目录结构）：{{工作目录}}/output/memory/outline.md
 
 ## 输出
-- HTML文件：{{工作目录}}/output/publish/*.html
+- HTML文件（HTML模式）：{{工作目录}}/output/publish/*.html
+- EPUB文件（EPUB模式）：{{工作目录}}/output/publish/book.epub
 - 构建脚本：{{工作目录}}/build.js
 
 ## 要求
-0. 在开始生成前，**询问用户偏好的配色风格**，提供以下选项：
-   - 暖纸（Warm Paper）：默认，护眼暖白背景 `#FEFCF8`
-   - GitHub Light：清爽白底蓝链接风格
-   - 深色（Dark Mode）：深灰底浅字
-   - 极简（Minimal）：纯白底，黑白配色
-   根据用户选择，在构建脚本中配置对应 THEME 变量
-1. Markdown → HTML转换
-2. **Mermaid 图表渲染**：` ```mermaid ` 块通过引入 Mermaid.js（CDN）渲染为交互式图表
+0. 在开始生成前，**依次询问用户**：
+   a) 输出格式：① HTML（默认）② EPUB ③ 两者都要
+   b) 配色方案：① Warm Paper（默认）② GitHub Light ③ Dark Mode ④ Minimal
+   根据选择，在构建脚本中配置对应 OUTPUT_FORMAT 和 THEME 变量
+1. Markdown → HTML/XHTML转换
+2. **Mermaid 图表渲染**：
+   - HTML模式：` ```mermaid ` 块通过引入 Mermaid.js（CDN）渲染为交互式图表
+   - EPUB模式：调用 mmdc 预渲染为 SVG；未安装 mmdc 时优雅降级为代码块
 3. ASCII图表 → SVG自动转换（兼容存量内容，支持{{SVG检测类型数}}种类型）
 4. 代码高亮
 5. 护眼配色（暖白背景、柔和文字）
 6. CJK排版（衬线标题、无衬线正文）
-7. 导航系统（侧边栏、章节导航、进度条）
-8. 零npm依赖的Node.js构建脚本
-9. 完成后添加 <!-- BOOKBINDING_COMPLETE -->
+7. 导航系统（侧边栏、章节导航、进度条）—— HTML模式
+8. EPUB 3.x 结构（OPF + NAV + NCX + XHTML章节）—— EPUB模式，系统 zip 命令打包
+9. 零npm依赖的Node.js构建脚本
+10. 完成后添加 <!-- BOOKBINDING_COMPLETE -->
 ```
 
 ## 项目配置变量
@@ -241,3 +321,5 @@ node scripts/build.js
 | `{{色板色1边框}}` ~ `{{色板色8边框}}` | SVG卡片边框色 | 对应加深色 |
 | `{{SVG检测类型数}}` | 支持的ASCII图表检测类型数 | 8 |
 | `{{工作目录}}` | 产出物根目录 | — |
+| `{{语言代码}}` | EPUB元数据语言标识（`dc:language`） | `zh-CN` |
+| `{{作者名称}}` | EPUB元数据作者（`dc:creator`，可选） | — |
