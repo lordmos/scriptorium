@@ -16,9 +16,11 @@
 //      Windows: use WSL or Git Bash)
 //
 //  For Mermaid diagrams in EPUB:
-//    Install mermaid-cli globally for pre-rendering:
+//    Install mermaid-cli globally for pre-rendering to PNG:
 //    npm install -g @mermaid-js/mermaid-cli
 //    Without it, Mermaid blocks are preserved as <pre> with a note.
+//    PNG is used (not SVG) because EPUB readers apply their own CSS to
+//    SVG <foreignObject> HTML, causing unpredictable text colours.
 //
 //  Input:  output/chapters/final/chXX-final.md
 //  Output: output/publish/{{书名}}.epub
@@ -67,50 +69,53 @@ const MMDC_PATH = (() => {
   try { return execSync('which mmdc', { stdio: 'pipe' }).toString().trim(); } catch { return null; }
 })();
 
-function renderMermaidToSvg(src) {
+// Module-level state: PNG files generated during chapter processing.
+// Populated by renderMermaidToPng(); consumed by buildContentOpf().
+let mermaidCount    = 0;
+const mermaidPngFiles = [];   // relative hrefs: ['images/mermaid-01.png', …]
+
+// Renders a Mermaid diagram to PNG and saves it into the EPUB images/ folder.
+// Returns the image href (e.g. 'images/mermaid-01.png'), or null on failure.
+//
+// Why PNG (not SVG)?
+//   SVG output from mmdc embeds node/edge labels as HTML inside <foreignObject>.
+//   Every EPUB reader handles <foreignObject> CSS differently — some ignore SVG
+//   <style> rules entirely, others apply their own colour overrides. The result
+//   is unpredictable text contrast across readers and reading modes.
+//   PNG output avoids all of this: Chromium (Puppeteer) rasterises the diagram
+//   at full colour fidelity before it ever reaches the EPUB reader, so what you
+//   see during build is exactly what the reader displays.
+function renderMermaidToPng(src) {
   const sanitized = sanitizeSequenceDiagram(src);
   if (!MMDC_PATH) return null;
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mmd-'));
   try {
     const inFile  = path.join(tmpDir, 'diagram.mmd');
-    const outFile = path.join(tmpDir, 'diagram.svg');
+    const outFile = path.join(tmpDir, 'diagram.png');
     const cfgFile = path.join(tmpDir, 'mmd-config.json');
     fs.writeFileSync(inFile, sanitized, 'utf8');
 
-    // Write an explicit Mermaid config so that system dark-mode CSS cannot
-    // override text/node colors inside the headless browser used by mmdc.
-    // --theme default alone is insufficient on dark-mode machines (mmdc ≥ 10).
-    // Use theme:'base' — unlike 'default', 'base' is 100% controlled by
-    // themeVariables and does NOT inherit any CSS cascade from the headless
-    // browser, so dark-mode OS settings can never override our colors.
     fs.writeFileSync(cfgFile, JSON.stringify({
-      theme: 'base',
+      theme: 'base',      // zero CSS inheritance — all colours come from themeVariables
       themeVariables: {
-        // Canvas / overall background
         background:            THEME.pageBg,
-        // Primary nodes (flowchart, sequence, class …)
-        primaryColor:          '#C8E6FA',   // light steel-blue fill — clearly visible
-        primaryTextColor:      '#111111',   // near-black text — maximum contrast
+        primaryColor:          '#C8E6FA',   // light steel-blue node fill
+        primaryTextColor:      '#111111',   // near-black text
         primaryBorderColor:    '#2B7BC2',
-        // Secondary / tertiary nodes
-        secondaryColor:        '#D4EDDA',   // light green
+        secondaryColor:        '#D4EDDA',
         secondaryTextColor:    '#111111',
         secondaryBorderColor:  '#388E3C',
-        tertiaryColor:         '#FFF3CD',   // light amber
+        tertiaryColor:         '#FFF3CD',
         tertiaryTextColor:     '#111111',
         tertiaryBorderColor:   '#856404',
-        // Edges / connectors
         lineColor:             '#444444',
         edgeLabelBackground:   THEME.pageBg,
-        // Subgraph / cluster
         clusterBkg:            THEME.pageBg,
         clusterBorder:         '#AAAAAA',
-        // Sequence-diagram participants
         actorBkg:              '#C8E6FA',
         actorTextColor:        '#111111',
         actorBorder:           '#2B7BC2',
         actorLineColor:        '#444444',
-        // Title / labels
         titleColor:            THEME.textColor,
         fontFamily:            'Georgia, "Times New Roman", serif',
         fontSize:              '16px',
@@ -118,44 +123,18 @@ function renderMermaidToSvg(src) {
     }), 'utf8');
 
     execSync(
-      `"${MMDC_PATH}" -i "${inFile}" -o "${outFile}" -c "${cfgFile}" --backgroundColor "${THEME.pageBg}" --quiet`,
+      `"${MMDC_PATH}" -i "${inFile}" -o "${outFile}" -c "${cfgFile}"` +
+      ` --backgroundColor "${THEME.pageBg}" --scale 2 --quiet`,
       { stdio: 'pipe', timeout: 30000 }
     );
 
-    const svgRaw = fs.readFileSync(outFile, 'utf8');
-    const m = svgRaw.match(/<svg[\s\S]*<\/svg>/i);
-    if (!m) return null;
-
-    // EPUB readers do NOT apply SVG <style> rules to HTML inside <foreignObject>.
-    // Node/edge labels are rendered as <div>/<span>/<p> inside foreignObject,
-    // so their text color is inherited from the EPUB reader's own CSS (which
-    // may be white in dark-mode readers). Fix: inject explicit color inline.
-    const textColor = THEME.textColor;
-    const nodeBg    = '#C8E6FA';
-    const svg = m[0]
-      // Inject color into every <div inside foreignObject
-      .replace(/(<div\b[^>]*\bstyle=")([^"]*")/g,
-        (_, before, rest) => `${before}color:${textColor};${rest}`)
-      // Inject color into every <span inside foreignObject
-      .replace(/(<span\b[^>]*\bstyle=")([^"]*")/g,
-        (_, before, rest) => `${before}color:${textColor};${rest}`)
-      // Also cover <div> / <span> with no style attr at all
-      .replace(/<div\b([^>]*?)(?=\s*>)/g, (match, attrs) =>
-        attrs.includes('style=') ? match : `<div${attrs} style="color:${textColor};"`)
-      .replace(/<span\b([^>]*?)(?=\s*>)/g, (match, attrs) =>
-        attrs.includes('style=') ? match : `<span${attrs} style="color:${textColor};"`)
-      // Also inject color on <p> elements (edge labels use <p> tags)
-      .replace(/<p\b([^>]*?)(?=\s*>)/g, (match, attrs) =>
-        attrs.includes('style=') ? match
-          : `<p${attrs} style="color:${textColor};"`)
-      // Ensure node rects have the explicit fill (in case scoped CSS is stripped)
-      .replace(/(<(?:rect|polygon|ellipse|circle)\b[^>]*\bclass="[^"]*label-container[^"]*"[^>]*\bstyle=")([^"]*")/g,
-        (_, before, rest) => `${before}fill:${nodeBg};${rest}`)
-      .replace(/(<(?:rect|polygon|ellipse|circle)\b[^>]*\bclass="[^"]*label-container[^"]*"(?!\s+style=)[^>]*?)(\s*\/>|>)/g,
-        (_, before, end) => `${before} style="fill:${nodeBg};"${end}`);
-    return svg;
+    mermaidCount++;
+    const imgName = `mermaid-${String(mermaidCount).padStart(2, '0')}.png`;
+    const imgHref = `images/${imgName}`;
+    fs.copyFileSync(outFile, path.join(IMAGES, imgName));
+    mermaidPngFiles.push(imgHref);
+    return imgHref;
   } catch (e) {
-    // Print first stderr line so build output gives a useful hint
     const hint = (e.stderr || '').toString().split('\n').find(l => l.trim()) || e.message || '';
     if (hint) console.warn(`  ⚠  mmdc failed: ${hint.trim()}`);
     return null;
@@ -302,9 +281,9 @@ function mdToXhtml(md) {
     if (codeMatch) {
       const { lang, code } = codeBlocks[+codeMatch[1]];
       if (lang === 'mermaid') {
-        const svg = renderMermaidToSvg(code);
-        if (svg) {
-          result.push(`<div class="diagram">${svg}</div>`);
+        const href = renderMermaidToPng(code);
+        if (href) {
+          result.push(`<div class="diagram"><img src="${href}" alt="Diagram" /></div>`);
         } else {
           result.push(
             `<div class="mermaid-note">`,
@@ -594,6 +573,10 @@ function buildContentOpf(chapters) {
   const manifestItems = chapters.map(ch =>
     `    <item id="${ch.id}" href="${ch.xhtmlFile}" media-type="application/xhtml+xml"/>`
   ).join('\n');
+  const mermaidItems = mermaidPngFiles.map((href, i) => {
+    const id = `mermaid-img-${String(i + 1).padStart(2, '0')}`;
+    return `    <item id="${id}" href="${href}" media-type="image/png"/>`;
+  }).join('\n');
   const spineItems = chapters.map(ch =>
     `    <itemref idref="${ch.id}"/>`
   ).join('\n');
@@ -615,7 +598,7 @@ function buildContentOpf(chapters) {
     <item id="cover-image" href="images/cover.svg" media-type="image/svg+xml" properties="cover-image"/>
     <item id="stylesheet"  href="../style.css"     media-type="text/css"/>
 ${manifestItems}
-  </manifest>
+${mermaidItems ? mermaidItems + '\n' : ''}  </manifest>
   <spine toc="ncx">
     <itemref idref="cover-page" linear="no"/>
 ${spineItems}
@@ -647,6 +630,10 @@ function build() {
   console.log(`   Author : ${BOOK_AUTHOR}`);
   console.log(`   Output : ${EPUB_OUT}\n`);
 
+  // Reset Mermaid PNG state for this build run
+  mermaidCount = 0;
+  mermaidPngFiles.length = 0;
+
   // Clean temp dir; ensure output dir exists
   if (fs.existsSync(BUILD_DIR)) fs.rmSync(BUILD_DIR, { recursive: true });
   mkdirp(META_INF); mkdirp(OEBPS); mkdirp(IMAGES);
@@ -656,7 +643,7 @@ function build() {
     console.log('  ℹ  mmdc not found — Mermaid blocks will be preserved as <pre>');
     console.log('     Install: npm install -g @mermaid-js/mermaid-cli\n');
   } else {
-    console.log(`  ✓  mmdc found — Mermaid diagrams will be pre-rendered to SVG\n`);
+    console.log(`  ✓  mmdc found — Mermaid diagrams will be pre-rendered to PNG\n`);
   }
 
   // Static files

@@ -130,52 +130,60 @@ output/publish/
 
 #### Mermaid 图表处理（EPUB 特殊要求）
 
-EPUB 阅读器普遍不支持 JavaScript，因此 Mermaid 图表**必须在构建时预渲染为 SVG**：
+EPUB 阅读器普遍不支持 JavaScript，因此 Mermaid 图表**必须在构建时预渲染为 PNG**：
 
 | 情境 | 处理方式 |
 |------|----------|
-| 系统已安装 `mmdc`（Mermaid CLI） | 使用 `-c config.json`（含 `theme: 'base'` + 完整 `themeVariables`）预渲染（见坑 1） |
+| 系统已安装 `mmdc`（Mermaid CLI） | 输出 `.png`（非 `.svg`）——Chromium 光栅化时 CSS 完全正确，无需任何后处理（见坑 1） |
 | 未安装 `mmdc` | 将 Mermaid 代码块以 `<pre class="mermaid-source">` 形式保留，并添加提示注释 |
 
 > 建议：如需生成 EPUB，提前全局安装 `npm install -g @mermaid-js/mermaid-cli`
 
-> ⚠️ **Mermaid config 文件中必须使用 `theme: 'base'`**：`theme: 'default'` 有 CSS 层叠，深色模式下即使设置 `themeVariables` 也可能造成对比度不足。`base` 主题完全由 `themeVariables` 控制（见坑 1）。
+> ⚠️ **为什么用 PNG 而非 SVG**：Mermaid 将节点文字渲染为 SVG `<foreignObject>` 内的 HTML。每款 EPUB 阅读器对 `<foreignObject>` 内 CSS 的处理方式各不相同，导致颜色不可控。PNG 由 Chromium 光栅化后嵌入，阅读器不再干预，颜色绝对可控——见坑 1。
 
 ## ⚠️ EPUB 构建避坑清单
 
 以下为实践中踩过的坑，**构建脚本实现时必须规避**：
 
-### 坑 1：Mermaid 文字颜色不可见 / 对比度极低
+### 坑 1：Mermaid 文字不可见或对比度极低
 
-- **现象**：生成的 EPUB 中 Mermaid 图表文字为白色或与节点背景颜色过于接近，在浅色背景下完全不可见
-- **根因一**：`theme: 'default'` 有自身 CSS 变量层叠，headless Chrome 的暗色模式仍可能部分覆盖 `themeVariables`
-- **根因二**：`primaryColor` 等未显式设置的变量会 fallback 到 `default` 主题默认值，可能与 `primaryTextColor` 对比度极低
-- **修复**：使用 `theme: 'base'`（而非 `'default'`）。`base` 主题完全由 `themeVariables` 控制，不继承任何 CSS 层叠，专为程序化渲染设计
+**根因**：Mermaid 将节点/边标签渲染为 SVG `<foreignObject>` 内的 HTML（`<div>/<span>/<p>`）。每款 EPUB 阅读器对 `<foreignObject>` 内 CSS 的处理方式各不相同——部分阅读器忽略 SVG `<style>` 块的选择器，部分阅读器用自己的 CSS 覆盖，深色模式下文字可能变为白色。这是阅读器行为差异，无论怎么调整 Mermaid theme 或 themeVariables 都无法根治。
+
+**修复**：输出 **PNG**（而非 SVG）。mmdc 直接以 `.png` 为输出后缀即可触发 Chromium 光栅化——此时 CSS 完全正确、foreignObject 内的文字颜色由 Chromium 决定，与 EPUB 阅读器无关。
 
 ```js
-// ✓ 正确：使用 theme:'base' + 完整的高对比度 themeVariables
-const cfgFile = path.join(tmpDir, 'mmd-config.json');
+// ✓ 正确：输出 PNG，Chromium 光栅化，颜色完全可控
+execSync(
+  `mmdc -i "${inFile}" -o "${outFile}.png" -c "${cfgFile}"` +
+  ` --backgroundColor "${THEME.pageBg}" --scale 2 --quiet`
+);
+// 保存到 EPUB images/ 目录，以 <img> 标签嵌入
+fs.copyFileSync(`${outFile}.png`, path.join(IMAGES, imgName));
+result.push(`<div class="diagram"><img src="images/${imgName}" alt="Diagram" /></div>`);
+
+// ✗ 错误：输出 SVG，阅读器对 <foreignObject> 内 HTML 的 CSS 处理不一致
+execSync(`mmdc -i "${inFile}" -o "${outFile}.svg" ...`);
+result.push(`<div class="diagram">${svgContent}</div>`);
+```
+
+同时仍建议使用 `theme: 'base'` + 完整 `themeVariables` 保障节点填充色/边框色（避免根因二：`theme:'default'` 被 headless Chrome 暗色模式覆盖）：
+```js
 fs.writeFileSync(cfgFile, JSON.stringify({
-  theme: 'base',          // 关键：base 不继承 CSS，完全由 themeVariables 控制
+  theme: 'base',
   themeVariables: {
     background:           THEME.pageBg,
-    primaryColor:         '#C8E6FA',   // 浅蓝填充 — 与深色文字对比明显
-    primaryTextColor:     '#111111',   // 近黑色文字 — 最大对比度
+    primaryColor:         '#C8E6FA',   primaryTextColor:   '#111111',
     primaryBorderColor:   '#2B7BC2',
     secondaryColor:       '#D4EDDA',   secondaryTextColor: '#111111',
     tertiaryColor:        '#FFF3CD',   tertiaryTextColor:  '#111111',
     lineColor:            '#444444',
+    actorBkg:             '#C8E6FA',   actorTextColor:     '#111111',
     edgeLabelBackground:  THEME.pageBg,
     clusterBkg:           THEME.pageBg,
-    actorBkg:             '#C8E6FA',   actorTextColor:     '#111111',
     titleColor:           THEME.textColor,
     fontSize:             '16px',
   },
 }), 'utf8');
-execSync(`mmdc -i "${inFile}" -o "${outFile}" -c "${cfgFile}" --backgroundColor "${THEME.pageBg}" --quiet`);
-
-// ✗ 错误：theme:'default' 有 CSS 层叠，对比度无法保证
-fs.writeFileSync(cfgFile, JSON.stringify({ theme: 'default', themeVariables: { ... } }));
 ```
 
 ### 坑 2：SVG 内 `<br />` 被破坏为 `<br / />`（无效 XML）
@@ -342,7 +350,7 @@ pre { white-space: pre-wrap; word-break: break-all; }
 - [ ] （EPUB模式）`content.opf`、`nav.xhtml`、`toc.ncx` 均正确生成
 - [ ] （EPUB模式）每章 XHTML 的 `<title>` 与 nav/ncx 条目均使用真实章节标题（非文件名）
 - [ ] （EPUB模式）封面 SVG（`cover.svg`）已生成，`cover.xhtml` 为书脊第一项
-- [ ] （EPUB模式）Mermaid 图表已以 `-c config.json`（`theme: 'base'` + `themeVariables`）预渲染为 SVG，或以代码形式优雅降级
+- [ ] （EPUB模式）Mermaid 图表已预渲染为 **PNG**（`-o diagram.png`）并以 `<img>` 嵌入，或以代码形式优雅降级
 
 ## 配色主题选择（Phase 5 启动前必询问）
 
@@ -416,7 +424,7 @@ node scripts/build.js
 1. Markdown → HTML/XHTML转换
 2. **Mermaid 图表渲染**：
    - HTML模式：` ```mermaid ` 块通过引入 Mermaid.js（CDN）渲染为交互式图表
-   - EPUB模式：必须通过 `-c config.json`（`theme: 'base'` + 完整 `themeVariables`）调用 `mmdc` 预渲染为 SVG；`base` 主题无 CSS 层叠，高对比度有保障；未安装 mmdc 时优雅降级为代码块
+   - EPUB模式：调用 `mmdc` 输出 **PNG**（`-o diagram.png`）并以 `<img>` 嵌入；PNG 由 Chromium 光栅化，颜色完全可控，不受阅读器 CSS 干预（见坑 1）；未安装 mmdc 时优雅降级为代码块
 3. ASCII图表 → SVG自动转换（兼容存量内容，支持{{SVG检测类型数}}种类型）
 4. 代码高亮
 5. 护眼配色（暖白背景、柔和文字）

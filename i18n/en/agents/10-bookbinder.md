@@ -142,16 +142,16 @@ Outputs a `.epub` file compliant with the **EPUB 3.x** standard (with EPUB 2 NCX
 
 #### Mermaid Diagram Handling (EPUB-specific)
 
-EPUB readers generally do not support JavaScript, so Mermaid diagrams **must be pre-rendered to SVG at build time**:
+EPUB readers generally do not support JavaScript, so Mermaid diagrams **must be pre-rendered to PNG at build time**:
 
 | Scenario | Handling |
 |----------|----------|
-| `mmdc` (Mermaid CLI) is installed | Use `-c config.json` with `theme: 'base'` + explicit `themeVariables` (see Pitfall 1) to pre-render |
+| `mmdc` (Mermaid CLI) is installed | Output `.png` (not `.svg`) — Chromium rasterises with correct CSS, zero post-processing needed (see Pitfall 1) |
 | `mmdc` is not installed | Preserve Mermaid code as `<pre class="mermaid-source">` with a fallback comment |
 
 > Recommendation: Install `npm install -g @mermaid-js/mermaid-cli` before generating EPUB.
 
-> ⚠️ **Always use `theme: 'base'` in the Mermaid config file**: `--theme default` has its own CSS cascade that dark-mode headless Chrome can partially override, causing low-contrast or white text. The `base` theme is 100% controlled by your `themeVariables`. See Pitfall 1.
+> ⚠️ **Why PNG instead of SVG**: Mermaid renders node/edge labels as HTML inside SVG `<foreignObject>`. Every EPUB reader handles `<foreignObject>` CSS differently — some ignore SVG `<style>` rules, others apply their own overrides, producing unpredictable text colours. PNG is rasterised by Chromium before reaching the reader, so what you see during the build is exactly what the reader displays. See Pitfall 1.
 
 ## ⚠️ EPUB Build Pitfalls
 
@@ -159,35 +159,43 @@ These are real bugs caught in practice. **The build script must avoid them**:
 
 ### Pitfall 1: Mermaid Text Invisible or Low-Contrast
 
-- **Symptom**: Mermaid diagram text is white/invisible, or text and node background colors are so similar they're unreadable
-- **Root cause 1**: `theme: 'default'` has its own CSS variable cascade; headless Chrome's dark mode can still partially override `themeVariables`
-- **Root cause 2**: Unset variables (e.g. `secondaryColor`) fall back to `default` theme values that may have very low contrast with your `primaryTextColor`
-- **Fix**: Use `theme: 'base'` instead of `'default'`. The `base` theme is 100% controlled by `themeVariables` — it inherits no CSS cascade and is designed for programmatic rendering.
+**Root cause**: Mermaid renders node/edge labels as HTML (`<div>/<span>/<p>`) inside SVG `<foreignObject>`. Every EPUB reader handles CSS inside `<foreignObject>` differently — some ignore SVG `<style>` block selectors entirely, others apply their own overrides, and dark-mode readers may turn text white. This is reader behaviour variance; no Mermaid theme or themeVariables setting can fix it at the SVG level.
+
+**Fix**: Output **PNG** instead of SVG. Passing `-o diagram.png` to mmdc triggers Chromium rasterisation — CSS is applied correctly at render time, and the result is a flat image the EPUB reader displays as-is.
 
 ```js
-// ✓ Correct: theme:'base' + explicit high-contrast themeVariables
-const cfgFile = path.join(tmpDir, 'mmd-config.json');
+// ✓ Correct: PNG output — Chromium rasterises with full CSS fidelity
+execSync(
+  `mmdc -i "${inFile}" -o "${outFile}.png" -c "${cfgFile}"` +
+  ` --backgroundColor "${THEME.pageBg}" --scale 2 --quiet`
+);
+// Save to EPUB images/ directory, embed as <img>
+fs.copyFileSync(`${outFile}.png`, path.join(IMAGES, imgName));
+result.push(`<div class="diagram"><img src="images/${imgName}" alt="Diagram" /></div>`);
+
+// ✗ Wrong: SVG output — reader's handling of <foreignObject> HTML CSS is unpredictable
+execSync(`mmdc -i "${inFile}" -o "${outFile}.svg" ...`);
+result.push(`<div class="diagram">${svgContent}</div>`);
+```
+
+Still use `theme: 'base'` + full `themeVariables` to control shape fill/border colours (guards against headless Chrome dark-mode overriding `themeVariables` in `theme:'default'`):
+```js
 fs.writeFileSync(cfgFile, JSON.stringify({
-  theme: 'base',          // key: no CSS inheritance — everything from themeVariables
+  theme: 'base',
   themeVariables: {
     background:           THEME.pageBg,
-    primaryColor:         '#C8E6FA',   // light-blue fill — clearly visible
-    primaryTextColor:     '#111111',   // near-black — maximum contrast
+    primaryColor:         '#C8E6FA',   primaryTextColor:   '#111111',
     primaryBorderColor:   '#2B7BC2',
     secondaryColor:       '#D4EDDA',   secondaryTextColor: '#111111',
     tertiaryColor:        '#FFF3CD',   tertiaryTextColor:  '#111111',
     lineColor:            '#444444',
+    actorBkg:             '#C8E6FA',   actorTextColor:     '#111111',
     edgeLabelBackground:  THEME.pageBg,
     clusterBkg:           THEME.pageBg,
-    actorBkg:             '#C8E6FA',   actorTextColor: '#111111',
     titleColor:           THEME.textColor,
     fontSize:             '16px',
   },
 }), 'utf8');
-execSync(`mmdc -i "${inFile}" -o "${outFile}" -c "${cfgFile}" --backgroundColor "${THEME.pageBg}" --quiet`);
-
-// ✗ Wrong: theme:'default' has CSS cascade — contrast cannot be guaranteed
-fs.writeFileSync(cfgFile, JSON.stringify({ theme: 'default', themeVariables: { ... } }));
 ```
 
 ### Pitfall 2: `<br />` in SVG Corrupted to `<br / />` (Invalid XML)
@@ -350,7 +358,7 @@ Used for card/node coloring when converting ASCII diagrams to SVG:
 - [ ] (EPUB mode) `content.opf`, `nav.xhtml`, and `toc.ncx` correctly generated
 - [ ] (EPUB mode) Each chapter XHTML `<title>` and nav/ncx entries use the real chapter title (not the filename)
 - [ ] (EPUB mode) Cover SVG (`cover.svg`) generated; `cover.xhtml` is the first item in the spine
-- [ ] (EPUB mode) Mermaid diagrams pre-rendered to SVG using `-c config.json` with explicit `themeVariables`, or gracefully degraded to code blocks
+- [ ] (EPUB mode) Mermaid diagrams pre-rendered to **PNG** (`-o diagram.png`) and embedded as `<img>`, or gracefully degraded to code blocks
 
 ## Completion Marker
 
@@ -383,7 +391,7 @@ Convert all Markdown chapters into a beautiful e-book (HTML and/or EPUB, dependi
 1. Markdown → HTML/XHTML conversion
 2. **Mermaid diagram rendering**:
    - HTML mode: ` ```mermaid ` blocks rendered as interactive charts via Mermaid.js (CDN)
-   - EPUB mode: **must use `-c config.json` with `theme: 'base'` and explicit `themeVariables`** to pre-render Mermaid as SVG; `base` theme has no CSS cascade so contrast is guaranteed; gracefully degrade to code blocks if mmdc is unavailable
+   - EPUB mode: output **PNG** (`-o diagram.png`) — Chromium rasterises with full CSS fidelity so colours are reader-independent (see Pitfall 1); gracefully degrade to code blocks if mmdc is unavailable
 3. ASCII diagrams → SVG auto-conversion (for legacy content; supports {{SVG检测类型数}} types)
 4. Code syntax highlighting
 5. Eye-friendly color scheme (warm white background, soft text)
