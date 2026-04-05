@@ -368,7 +368,7 @@ Phase 5 即将开始。请选择输出格式：
 （默认选 ①，若用户说"继续"或"默认"则生成 HTML）
 ```
 
-> ⚠️ 若选择 ② 或 ③，提示用户确认是否已安装 `mmdc`（`npm install -g @mermaid-js/mermaid-cli`），以便 Mermaid 图表在 EPUB 中正确预渲染为 SVG。
+> ⚠️ 若选择 ② 或 ③，提示用户确认是否已安装 `mmdc`（`npm install -g @mermaid-js/mermaid-cli`），以便 Mermaid 图表在 EPUB 中正确预渲染为 **PNG**。
 
 **第二步：选择配色方案**
 
