@@ -293,7 +293,8 @@ Step 4.4  敏感性全面排查
 
 | Agent | 角色代号 | 职责 |
 |-------|---------|------|
-| 装帧工人 | #11 | Markdown→HTML全流程转换 |
+| 装帧工人 | #11 | Markdown→HTML全流程转换，EPUB生成 |
+| 质检员 | #12 | EPUB产出物程序化质检，路由修复工单 |
 
 ### 执行步骤
 
@@ -320,6 +321,20 @@ Step 5.5  样式美化
           ├── 应用CSS样式: output/publish/style.css
           ├── 响应式布局
           └── 代码块样式、引用样式、表格样式
+
+Step 5.6  EPUB 质量检查（仅 EPUB 模式）
+          ├── 读取: output/publish/{{epub文件名}}.epub
+          ├── 执行 7 项检查:
+          │     1. EPUB ZIP 结构（mimetype 第一且不压缩）
+          │     2. XHTML XML 有效性（逐文件解析，报告错误位置）
+          │     3. Mermaid SVG 文字颜色（检查白色文字）
+          │     4. CSS 合规性（无 overflow-x:auto，th/td 含 word-break）
+          │     5. 章节标题一致性（<title> == 第一个 <h1>）
+          │     6. 封面完整性（cover.xhtml 和 cover.svg 存在，书脊第一项为封面）
+          │     7. 导航完整性（nav.xhtml 和 toc.ncx 存在且条目完整）
+          ├── 输出: output/publish/qa-report.md
+          ├── 通过: 报告末尾追加 <!-- QA_PASSED -->
+          └── 失败: 报告末尾追加 <!-- QA_FAILED -->，路由修复工单给 #11 或 #4
 ```
 
 ### 产出清单
@@ -330,6 +345,8 @@ Step 5.5  样式美化
 | `output/publish/ch01.html` ~ `output/publish/ch{{章节数}}.html` | 各章HTML |
 | `output/publish/style.css` | 全书样式表 |
 | `output/publish/assets/` | 图表、图片等静态资源 |
+| `output/publish/{{epub文件名}}.epub` | EPUB电子书（EPUB模式） |
+| `output/publish/qa-report.md` | EPUB质检报告（EPUB模式） |
 
 ### Phase 5 交接清单
 
@@ -338,6 +355,7 @@ Step 5.5  样式美化
 - [ ] 代码高亮渲染正常
 - [ ] 在主流浏览器中显示正常
 - [ ] 响应式布局在移动端正常
+- [ ] （EPUB模式）`qa-report.md` 最后一行含 `<!-- QA_PASSED -->`
 
 ---
 
@@ -405,6 +423,9 @@ Step 5.5  样式美化
 <!-- READER_PANEL_COMPLETE -->
 <!-- CHAPTER_FINAL -->
 <!-- HTML_COMPLETE -->
+<!-- BOOKBINDING_COMPLETE -->
+<!-- QA_PASSED -->
+<!-- QA_FAILED -->
 ```
 
 ### 标记流转
@@ -453,7 +474,7 @@ done
 | 2→3 | output/memory/下5个文件全部创建 | 文件存在检查 |
 | 3→4 | 所有章节4步流水线完成 | checkpoint.md全✅ |
 | 4→5 | output/chapters/final/下所有章节定稿 + 审计报告无❌ | 文件存在 + 标记检测 |
-| 5→发布 | output/publish/下所有HTML + 导航可用 | 文件存在 + 浏览器验证 |
+| 5→发布 | output/publish/下所有HTML + 导航可用；（EPUB模式）qa-report.md含`QA_PASSED` | 文件存在 + 浏览器验证 + 标记检测 |
 
 ---
 
@@ -473,3 +494,4 @@ done
 | RE | 读者-{{读者画像_工程师}} | 3 | explore |
 | RH | 读者-{{读者画像_高手}} | 3 | explore |
 | #11 | 装帧工人 | 5 | general-purpose |
+| #12 | 质检员 | 5 | general-purpose |

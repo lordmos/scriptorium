@@ -97,6 +97,7 @@ File Pointers 的價值：
 | 編號 | 名稱 | 角色隱喻 | Agent 類型 | 職責 | 詳細文檔 |
 |------|------|----------|-----------|------|---------|
 | #11 | 裝幀工人 Bookbinder | 排版設計師 | `general-purpose` | Markdown→HTML 轉換，Mermaid 圖渲染，ASCII 圖→SVG 渲染，零依賴構建腳本 | [→ 10-bookbinder.md](./10-bookbinder.md) |
+| #12 | 品質檢查員 Quality Inspector | 出廠檢驗師 | `general-purpose` | EPUB 產出物 7 項程序化品質檢查（ZIP 結構 / XML 有效性 / SVG 顏色 / CSS 合規 / 標題一致 / 封面 / 導航），路由修復工單 | [→ 11-quality-inspector.md](./11-quality-inspector.md) |
 
 ---
 
@@ -147,14 +148,20 @@ File Pointers 的價值：
   │       ↓                                                     │
   │  Phase 4  统稿与最终审计（Orchestrator + 审查组复审）        │
   │       ↓                                                     │
-  │  Phase 5  HTML装帧与发布                                    │
+  │  Phase 5  HTML 裝幀與發布                                   │
   │  ┌─────────────┐                                            │
   │  │ 📚 #11      │  Markdown→HTML · ASCII→SVG                │
-  │  │ 装帧工人    │  零依赖构建脚本                            │
+  │  │ 裝幀工人    │  零依賴構建腳本                            │
   │  │ Bookbinder  │                                            │
+  │  └──────┬──────┘                                            │
+  │         │ EPUB 產出物                                       │
+  │  ┌──────▼──────┐                                            │
+  │  │ 🔍 #12      │  7 項程序化品質檢查                        │
+  │  │ 品質檢查員  │  ZIP/XML/SVG 色/CSS/標題/封面/導航         │
+  │  │ Inspector   │  路由修復工單 → #11 或 #4                  │
   │  └─────────────┘                                            │
   └─────────────────────────────────────────────────────────────┘
-  图例: #N = Agent编号  R1/R2/R3 = 审查员  RS/RE/RH = 读者评审员
+  圖例: #N = Agent 編號  R1/R2/R3 = 審查員  RS/RE/RH = 讀者評審員
 ```
 
 ### 架構解讀
@@ -259,6 +266,8 @@ chapters/chXX-final.md 存在      → 该章定稿
 | RE 工程師讀者 | [`agents/09-reader-panel.md`](./09-reader-panel.md) |
 | RH 愛好者讀者 | [`agents/09-reader-panel.md`](./09-reader-panel.md) |
 | #11 裝幀工人 Bookbinder | [`agents/10-bookbinder.md`](./10-bookbinder.md) |
+| #12 品質檢查員 Quality Inspector | [`agents/11-quality-inspector.md`](./11-quality-inspector.md) |
+| #12 品質檢查員 Quality Inspector | [`agents/11-quality-inspector.md`](./11-quality-inspector.md) |
 
 ### 模板文件
 

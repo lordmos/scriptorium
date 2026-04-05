@@ -97,6 +97,7 @@ The value of File Pointers:
 | Code | Name | Role Metaphor | Agent Type | Responsibilities | Reference |
 |------|------|---------------|-----------|------------------|-----------|
 | #11 | Bookbinder | Typesetter / Designer | `general-purpose` | Markdown→HTML conversion, Mermaid diagram rendering, ASCII→SVG rendering, zero-dependency build script | [→ 10-bookbinder.md](./10-bookbinder.md) |
+| #12 | Quality Inspector | Factory QA Inspector | `general-purpose` | 7 programmatic checks on EPUB output (ZIP structure / XML validity / SVG color / CSS compliance / title consistency / cover / navigation); routes fix tickets | [→ 11-quality-inspector.md](./11-quality-inspector.md) |
 
 ---
 
@@ -147,14 +148,19 @@ The value of File Pointers:
   │       ↓                                                     │
   │  Phase 4  统稿与最终审计（Orchestrator + 审查组复审）        │
   │       ↓                                                     │
-  │  Phase 5  HTML装帧与发布                                    │
+  │  Phase 5  HTML Typesetting & Publishing                     │
   │  ┌─────────────┐                                            │
   │  │ 📚 #11      │  Markdown→HTML · ASCII→SVG                │
-  │  │ 装帧工人    │  零依赖构建脚本                            │
-  │  │ Bookbinder  │                                            │
+  │  │ Bookbinder  │  Zero-dependency build script              │
+  │  └──────┬──────┘                                            │
+  │         │ EPUB output                                       │
+  │  ┌──────▼──────┐                                            │
+  │  │ 🔍 #12      │  7 programmatic QA checks                 │
+  │  │ Quality     │  ZIP/XML/SVG color/CSS/titles/cover/nav    │
+  │  │ Inspector   │  Routes fix tickets → #11 or #4            │
   │  └─────────────┘                                            │
   └─────────────────────────────────────────────────────────────┘
-  图例: #N = Agent编号  R1/R2/R3 = 审查员  RS/RE/RH = 读者评审员
+  Legend: #N = Agent number  R1/R2/R3 = Reviewers  RS/RE/RH = Reader panel
 ```
 
 ### Architecture Interpretation
@@ -259,6 +265,7 @@ This gives the pipeline **checkpoint recovery** capability: after an interruptio
 | RE Engineer Reader | [`agents/09-reader-panel.md`](./09-reader-panel.md) |
 | RH Hobbyist Reader | [`agents/09-reader-panel.md`](./09-reader-panel.md) |
 | #11 Bookbinder | [`agents/10-bookbinder.md`](./10-bookbinder.md) |
+| #12 Quality Inspector | [`agents/11-quality-inspector.md`](./11-quality-inspector.md) |
 
 ### Template Files
 

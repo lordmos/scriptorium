@@ -85,6 +85,7 @@ File Pointers 的价值：
 | 编号 | 名称 | 角色隐喻 | Agent 类型 | 职责 | 详细文档 |
 |------|------|----------|-----------|------|---------|
 | #11 | 装帧工人 Bookbinder | 排版设计师 | `general-purpose` | Markdown→HTML 转换，Mermaid 图渲染，ASCII 图→SVG 渲染，零依赖构建脚本 | [→ 10-bookbinder.md](./10-bookbinder.md) |
+| #12 | 质检员 Quality Inspector | 出厂检验师 | `general-purpose` | EPUB 产出物 7 项程序化质检（ZIP 结构 / XML 有效性 / SVG 颜色 / CSS 合规 / 标题一致 / 封面 / 导航），路由修复工单 | [→ 11-quality-inspector.md](./11-quality-inspector.md) |
 
 ---
 
@@ -140,6 +141,12 @@ File Pointers 的价值：
   │  │ 📚 #11      │  Markdown→HTML · ASCII→SVG                │
   │  │ 装帧工人    │  零依赖构建脚本                            │
   │  │ Bookbinder  │                                            │
+  │  └──────┬──────┘                                            │
+  │         │ EPUB产出物                                        │
+  │  ┌──────▼──────┐                                            │
+  │  │ 🔍 #12      │  7项程序化质检                             │
+  │  │ 质检员      │  ZIP/XML/SVG颜色/CSS/标题/封面/导航        │
+  │  │ Inspector   │  路由修复工单 → #11 或 #4                  │
   │  └─────────────┘                                            │
   └─────────────────────────────────────────────────────────────┘
   图例: #N = Agent编号  R1/R2/R3 = 审查员  RS/RE/RH = 读者评审员
@@ -247,6 +254,7 @@ output/chapters/final/chXX-final.md 存在   → 该章定稿
 | RE 工程师读者 | [`agents/09-reader-panel.md`](./09-reader-panel.md) |
 | RH 爱好者读者 | [`agents/09-reader-panel.md`](./09-reader-panel.md) |
 | #11 装帧工人 Bookbinder | [`agents/10-bookbinder.md`](./10-bookbinder.md) |
+| #12 质检员 Quality Inspector | [`agents/11-quality-inspector.md`](./11-quality-inspector.md) |
 
 ### 模板文件
 

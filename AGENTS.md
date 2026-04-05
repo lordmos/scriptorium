@@ -74,6 +74,7 @@ whole pipeline by injecting the right files into each agent.
 | `agents/08-content-reviewer.md` | Content Reviewer R3 | Phase 4 |
 | `agents/09-reader-panel.md` | Reader Panel | Phase 4 |
 | `agents/10-bookbinder.md` | Bookbinder #11 | Phase 5 |
+| `agents/11-quality-inspector.md` | Quality Inspector #12 | Phase 5 |
 
 ### Framework Docs — reference
 

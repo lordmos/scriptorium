@@ -97,6 +97,7 @@ File Pointersの価値：
 | 番号 | 名称 | 役割の比喩 | Agentタイプ | 職責 | 詳細ドキュメント |
 |------|------|----------|-----------|------|---------|
 | #11 | ブックバインダーAgent Bookbinder | タイポグラフィデザイナー | `general-purpose` | Markdown→HTML変換、Mermaidダイアグラムのレンダリング、ASCIIダイアグラム→SVGレンダリング、ゼロ依存ビルドスクリプト | [→ 10-bookbinder.md](./10-bookbinder.md) |
+| #12 | 品質検査員 Quality Inspector | 出荷検査官 | `general-purpose` | EPUB産出物への7項目プログラム的品質検査（ZIP構造/XML有効性/SVG色/CSS準拠/タイトル整合/カバー/ナビゲーション）、修正チケットのルーティング | [→ 11-quality-inspector.md](./11-quality-inspector.md) |
 
 ---
 
@@ -147,14 +148,19 @@ File Pointersの価値：
   │       ↓                                                     │
   │  Phase 4  统稿与最终审计（Orchestrator + 审查组复审）        │
   │       ↓                                                     │
-  │  Phase 5  HTML装帧与发布                                    │
+  │  Phase 5  HTML装幀と発行                                    │
   │  ┌─────────────┐                                            │
   │  │ 📚 #11      │  Markdown→HTML · ASCII→SVG                │
-  │  │ 装帧工人    │  零依赖构建脚本                            │
-  │  │ Bookbinder  │                                            │
+  │  │ Bookbinder  │  ゼロ依存ビルドスクリプト                  │
+  │  └──────┬──────┘                                            │
+  │         │ EPUB産出物                                        │
+  │  ┌──────▼──────┐                                            │
+  │  │ 🔍 #12      │  7項目プログラム的品質検査                  │
+  │  │ 品質検査員  │  ZIP/XML/SVG色/CSS/タイトル/カバー/ナビ     │
+  │  │ Inspector   │  修正チケットを#11または#4へルーティング     │
   │  └─────────────┘                                            │
   └─────────────────────────────────────────────────────────────┘
-  图例: #N = Agent编号  R1/R2/R3 = 审查员  RS/RE/RH = 读者评审员
+  凡例: #N = Agent番号  R1/R2/R3 = レビュアー  RS/RE/RH = 読者パネル
 ```
 
 ### アーキテクチャの解読
@@ -259,6 +265,7 @@ chapters/chXX-final.md 存在      → 该章定稿
 | RE エンジニアリーダー | [`agents/09-reader-panel.md`](./09-reader-panel.md) |
 | RH ホビイストリーダー | [`agents/09-reader-panel.md`](./09-reader-panel.md) |
 | #11 ブックバインダー Bookbinder | [`agents/10-bookbinder.md`](./10-bookbinder.md) |
+| #12 品質検査員 Quality Inspector | [`agents/11-quality-inspector.md`](./11-quality-inspector.md) |
 
 ### テンプレートファイル
 
