@@ -20,7 +20,7 @@
 | Agent Type | general-purpose |
 | Participation Phase | Phase 5 (publishing and binding) |
 | Core Input | `chapters/*.md` (all finalized chapters) |
-| Core Output | `publish/*.html` (HTML e-book); `publish/book.epub` (EPUB e-book) |
+| Core Output | `publish/*.html` (HTML e-book); `publish/{{epub文件名}}.epub` (EPUB e-book) |
 
 ## Core Responsibilities
 
@@ -44,15 +44,15 @@
 
 ```
 publish/
-├── index.html          # Table of contents / home page
-├── ch01.html           # Chapter 1
-├── ch02.html           # Chapter 2
+├── index.html                  # Table of contents / home page
+├── ch01.html                   # Chapter 1
+├── ch02.html                   # Chapter 2
 ├── ...
-├── chNN.html           # Chapter N
-├── book.epub           # EPUB e-book (all chapters bundled)
-└── assets/             # Static assets (if needed)
-    ├── style.css        # Stylesheet (or inlined)
-    └── script.js        # Interactive script (or inlined)
+├── chNN.html                   # Chapter N
+├── {{epub文件名}}.epub          # EPUB e-book (cover + all chapters)
+└── assets/                     # Static assets (if needed)
+    ├── style.css                # Stylesheet (or inlined)
+    └── script.js                # Interactive script (or inlined)
 ```
 
 ## Core Capabilities
@@ -123,7 +123,7 @@ Outputs a `.epub` file compliant with the **EPUB 3.x** standard (with EPUB 2 NCX
 #### EPUB Internal Structure
 
 ```
-book.epub  (ZIP archive)
+{{epub文件名}}.epub  (ZIP archive)
 ├── mimetype                      # Must be written first, uncompressed
 ├── META-INF/
 │   └── container.xml             # Points to the OPF package document
@@ -131,11 +131,13 @@ book.epub  (ZIP archive)
     ├── content.opf               # Package document (metadata + manifest + spine)
     ├── nav.xhtml                 # EPUB 3 navigation document (TOC)
     ├── toc.ncx                   # EPUB 2 compatibility TOC
+    ├── cover.xhtml               # Cover page (first item in spine)
     ├── style.css                 # Unified stylesheet
     ├── ch01.xhtml                # Chapter 1 (XHTML format)
     ├── ch02.xhtml                # Chapter 2
     ├── ...
-    └── images/                   # Image/SVG assets (if any)
+    └── images/
+        └── cover.svg             # Auto-generated SVG cover image
 ```
 
 #### Mermaid Diagram Handling (EPUB-specific)
@@ -156,11 +158,52 @@ EPUB readers generally do not support JavaScript, so Mermaid diagrams **must be 
 
   ```bash
   # Write mimetype first (uncompressed), then add remaining files
-  zip -X book.epub mimetype
-  zip -rg book.epub META-INF/ OEBPS/
+  zip -X {{epub文件名}}.epub mimetype
+  zip -rg {{epub文件名}}.epub META-INF/ OEBPS/
   ```
 
-- Final output: `output/publish/book.epub`
+- Final output: `output/publish/{{epub文件名}}.epub`
+
+#### EPUB Chapter Title Specification
+
+| Location | Requirement |
+|----------|-------------|
+| Each chapter `<title>` | Extract the **first `#` heading** from the Markdown file and use it as the XHTML `<title>` tag content |
+| `nav.xhtml` TOC entries | Use the extracted chapter title, not the filename (`ch01`, `ch02`…) |
+| `toc.ncx` navPoints | Fill each `<navLabel><text>` with the real chapter title |
+| `content.opf` manifest | `<item>` `id` attributes may use filenames, but spine order must match the outline |
+
+> The build script should extract the title from each Markdown file using `/^#\s+(.+)/m`; if no `#` heading is found, fall back to the corresponding chapter title in `outline.md`.
+
+#### EPUB Cover Specification
+
+The cover is **auto-generated** by the build script — no external image asset required:
+
+| Element | Specification |
+|---------|--------------|
+| Format | SVG (1400×2100 px, standard 2:3 book ratio) |
+| File path | `OEBPS/images/cover.svg` |
+| Cover page | `OEBPS/cover.xhtml` (first item in spine) |
+| OPF declaration | `<meta name="cover" content="cover-image"/>` (EPUB 2) + `properties="cover-image"` (EPUB 3) |
+| Content elements | Book title (`{{项目名称}}`), author (`{{作者名称}}` if set), decorative background, current color theme |
+| Typography | Serif font for title, sans-serif for author name |
+
+**Cover SVG template structure (pseudocode):**
+
+```xml
+<svg width="1400" height="2100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1400" height="2100" fill="{{背景色}}"/>
+  <!-- Decorative band (theme accent color) -->
+  <rect y="0" width="1400" height="420" fill="{{强调色}}" opacity="0.85"/>
+  <!-- Book title -->
+  <text x="700" y="280" text-anchor="middle" font-size="80"
+        font-family="serif" fill="white">{{项目名称}}</text>
+  <!-- Author (optional) -->
+  <text x="700" y="1980" text-anchor="middle" font-size="48"
+        font-family="sans-serif" fill="{{正文色}}">{{作者名称}}</text>
+</svg>
+```
 
 #### EPUB Metadata (content.opf)
 
@@ -226,9 +269,11 @@ Used for card/node coloring when converting ASCII diagrams to SVG:
 - [ ] Navigation system is fully functional
 - [ ] Responsive layout (compatible with desktop and tablet)
 - [ ] Build script has no npm dependencies
-- [ ] (EPUB mode) `book.epub` generated and passes EPUB 3.x compliance check
+- [ ] (EPUB mode) `{{epub文件名}}.epub` generated and passes EPUB 3.x compliance check
 - [ ] (EPUB mode) All chapters converted to valid XHTML
 - [ ] (EPUB mode) `content.opf`, `nav.xhtml`, and `toc.ncx` correctly generated
+- [ ] (EPUB mode) Each chapter XHTML `<title>` and nav/ncx entries use the real chapter title (not the filename)
+- [ ] (EPUB mode) Cover SVG (`cover.svg`) generated; `cover.xhtml` is the first item in the spine
 - [ ] (EPUB mode) Mermaid diagrams pre-rendered to SVG or gracefully degraded to code blocks
 
 ## Completion Marker
@@ -251,7 +296,7 @@ Convert all Markdown chapters into a beautiful e-book (HTML and/or EPUB, dependi
 
 ## Output
 - HTML files (HTML mode): {{工作目录}}/publish/*.html
-- EPUB file (EPUB mode): {{工作目录}}/publish/book.epub
+- EPUB file (EPUB mode): {{工作目录}}/publish/{{epub文件名}}.epub
 - Build script: {{工作目录}}/build.js
 
 ## Requirements
@@ -290,3 +335,4 @@ Convert all Markdown chapters into a beautiful e-book (HTML and/or EPUB, dependi
 | `{{工作目录}}` | Output artifacts root directory | — |
 | `{{语言代码}}` | EPUB metadata language tag (`dc:language`) | `en` |
 | `{{作者名称}}` | EPUB metadata author (`dc:creator`, optional) | — |
+| `{{epub文件名}}` | EPUB output filename (without extension); auto-derived from book title by default | Book title with special characters removed |
