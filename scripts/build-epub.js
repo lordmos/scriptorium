@@ -70,20 +70,46 @@ const MMDC_PATH = (() => {
 function renderMermaidToSvg(src) {
   const sanitized = sanitizeSequenceDiagram(src);
   if (!MMDC_PATH) return null;
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mmd-'));
   try {
-    const tmpDir  = fs.mkdtempSync(path.join(os.tmpdir(), 'mmd-'));
     const inFile  = path.join(tmpDir, 'diagram.mmd');
     const outFile = path.join(tmpDir, 'diagram.svg');
+    const cfgFile = path.join(tmpDir, 'mmd-config.json');
     fs.writeFileSync(inFile, sanitized, 'utf8');
-    execSync(`"${MMDC_PATH}" -i "${inFile}" -o "${outFile}" --theme default --backgroundColor "#FFFFF0" --quiet`, {
-      stdio: 'pipe', timeout: 30000,
-    });
+
+    // Write an explicit Mermaid config so that system dark-mode CSS cannot
+    // override text/node colors inside the headless browser used by mmdc.
+    // --theme default alone is insufficient on dark-mode machines (mmdc ≥ 10).
+    fs.writeFileSync(cfgFile, JSON.stringify({
+      theme: 'default',
+      themeVariables: {
+        background:          THEME.pageBg,
+        primaryColor:        '#E8E4FF',      // node fill — slightly saturated lavender
+        primaryTextColor:    THEME.textColor, // text inside nodes — matches page text
+        primaryBorderColor:  '#7C5CBF',
+        lineColor:           '#555555',
+        edgeLabelBackground: THEME.pageBg,
+        secondaryColor:      '#F0F4FF',
+        tertiaryColor:       '#FFF5E6',
+        fontSize:            '16px',
+      },
+    }), 'utf8');
+
+    execSync(
+      `"${MMDC_PATH}" -i "${inFile}" -o "${outFile}" -c "${cfgFile}" --backgroundColor "${THEME.pageBg}" --quiet`,
+      { stdio: 'pipe', timeout: 30000 }
+    );
+
     const svgRaw = fs.readFileSync(outFile, 'utf8');
-    fs.rmSync(tmpDir, { recursive: true });
     const m = svgRaw.match(/<svg[\s\S]*<\/svg>/i);
     return m ? m[0] : null;
-  } catch {
+  } catch (e) {
+    // Print first stderr line so build output gives a useful hint
+    const hint = (e.stderr || '').toString().split('\n').find(l => l.trim()) || e.message || '';
+    if (hint) console.warn(`  ⚠  mmdc failed: ${hint.trim()}`);
     return null;
+  } finally {
+    try { fs.rmSync(tmpDir, { recursive: true }); } catch {}
   }
 }
 

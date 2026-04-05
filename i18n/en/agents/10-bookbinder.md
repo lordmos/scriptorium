@@ -146,12 +146,12 @@ EPUB readers generally do not support JavaScript, so Mermaid diagrams **must be 
 
 | Scenario | Handling |
 |----------|----------|
-| `mmdc` (Mermaid CLI) is installed | Call `mmdc -i input.mmd -o output.svg --theme default --backgroundColor "#FFFFF0"` to pre-render |
+| `mmdc` (Mermaid CLI) is installed | Use `-c config.json` with explicit `themeVariables` (see Pitfall 1) to pre-render |
 | `mmdc` is not installed | Preserve Mermaid code as `<pre class="mermaid-source">` with a fallback comment |
 
 > Recommendation: Install `npm install -g @mermaid-js/mermaid-cli` before generating EPUB.
 
-> ⚠️ **Always specify `--theme default`**: mmdc auto-detects system dark mode. If the system is in Dark Mode, mmdc silently uses the dark theme (white text), which is invisible on light EPUB backgrounds. Always pass `--theme default` (or `neutral`) and set `--backgroundColor` to the book's background color (e.g. `"#FFFFF0"`).
+> ⚠️ **`--theme default` alone is not enough on mmdc ≥ 10.x**: even with `--theme default`, puppeteer's headless Chrome may still apply dark-mode CSS variables, producing white text. Always use a JSON config file that explicitly sets `primaryTextColor`. See Pitfall 1.
 
 ## ⚠️ EPUB Build Pitfalls
 
@@ -159,16 +159,29 @@ These are real bugs caught in practice. **The build script must avoid them**:
 
 ### Pitfall 1: Mermaid Text Invisible (White on Light Background)
 
-- **Symptom**: Mermaid diagram text is white and invisible on light EPUB pages
-- **Root cause**: Without `--theme`, mmdc inherits the OS dark mode and uses dark theme (white text)
-- **Fix**: Always pass `--theme default --backgroundColor "#FFFFF0"` (or the book's BG color)
+- **Symptom**: Mermaid diagram text is white and invisible on light EPUB pages; node backgrounds are nearly white
+- **Root cause**: On mmdc ≥ 10.x, even `--theme default` may not override dark-mode CSS variables inside the headless browser. `primaryTextColor` defaults to white when dark mode is active.
+- **Fix**: Write an explicit Mermaid JSON config file with `themeVariables`, and pass it with `-c`. Do not rely on `--theme default` alone.
 
-```bash
-# ✗ Wrong: may produce white text
-mmdc -i diagram.mmd -o diagram.svg --backgroundColor transparent
+```js
+// ✓ Correct: explicit themeVariables in a config file
+const cfgFile = path.join(tmpDir, 'mmd-config.json');
+fs.writeFileSync(cfgFile, JSON.stringify({
+  theme: 'default',
+  themeVariables: {
+    background:          THEME.pageBg,    // SVG canvas background
+    primaryColor:        '#E8E4FF',        // node fill — visible lavender
+    primaryTextColor:    THEME.textColor,  // text inside nodes (critical!)
+    primaryBorderColor:  '#7C5CBF',
+    lineColor:           '#555555',
+    edgeLabelBackground: THEME.pageBg,
+    fontSize:            '16px',
+  },
+}), 'utf8');
+execSync(`mmdc -i "${inFile}" -o "${outFile}" -c "${cfgFile}" --backgroundColor "${THEME.pageBg}" --quiet`);
 
-# ✓ Correct: forces light theme, dark text
-mmdc -i diagram.mmd -o diagram.svg --theme default --backgroundColor "#FFFFF0"
+// ✗ Wrong: --theme default alone fails on dark-mode machines (mmdc ≥ 10)
+execSync(`mmdc -i diagram.mmd -o diagram.svg --theme default --backgroundColor "#FFFFF0"`);
 ```
 
 ### Pitfall 2: `<br />` in SVG Corrupted to `<br / />` (Invalid XML)
@@ -331,7 +344,7 @@ Used for card/node coloring when converting ASCII diagrams to SVG:
 - [ ] (EPUB mode) `content.opf`, `nav.xhtml`, and `toc.ncx` correctly generated
 - [ ] (EPUB mode) Each chapter XHTML `<title>` and nav/ncx entries use the real chapter title (not the filename)
 - [ ] (EPUB mode) Cover SVG (`cover.svg`) generated; `cover.xhtml` is the first item in the spine
-- [ ] (EPUB mode) Mermaid diagrams pre-rendered to SVG with `--theme default` (dark text, not white) or gracefully degraded to code blocks
+- [ ] (EPUB mode) Mermaid diagrams pre-rendered to SVG using `-c config.json` with explicit `themeVariables`, or gracefully degraded to code blocks
 
 ## Completion Marker
 
@@ -364,7 +377,7 @@ Convert all Markdown chapters into a beautiful e-book (HTML and/or EPUB, dependi
 1. Markdown → HTML/XHTML conversion
 2. **Mermaid diagram rendering**:
    - HTML mode: ` ```mermaid ` blocks rendered as interactive charts via Mermaid.js (CDN)
-   - EPUB mode: pre-render using `mmdc --theme default --backgroundColor "#FFFFF0"`; **never omit `--theme default`** — system dark mode will cause white (invisible) text; gracefully degrade to code blocks if mmdc is unavailable
+   - EPUB mode: **must use `-c config.json` with explicit `themeVariables`** (especially `primaryTextColor`) to pre-render Mermaid as SVG; `--theme default` alone is unreliable on mmdc ≥ 10.x in dark mode; gracefully degrade to code blocks if mmdc is unavailable
 3. ASCII diagrams → SVG auto-conversion (for legacy content; supports {{SVG检测类型数}} types)
 4. Code syntax highlighting
 5. Eye-friendly color scheme (warm white background, soft text)
