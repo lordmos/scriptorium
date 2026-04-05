@@ -146,10 +146,67 @@ EPUB readers generally do not support JavaScript, so Mermaid diagrams **must be 
 
 | Scenario | Handling |
 |----------|----------|
-| `mmdc` (Mermaid CLI) is installed | Call `mmdc -i input.mmd -o output.svg` to pre-render |
+| `mmdc` (Mermaid CLI) is installed | Call `mmdc -i input.mmd -o output.svg --theme default --backgroundColor "#FFFFF0"` to pre-render |
 | `mmdc` is not installed | Preserve Mermaid code as `<pre class="mermaid-source">` with a fallback comment |
 
 > Recommendation: Install `npm install -g @mermaid-js/mermaid-cli` before generating EPUB.
+
+> ⚠️ **Always specify `--theme default`**: mmdc auto-detects system dark mode. If the system is in Dark Mode, mmdc silently uses the dark theme (white text), which is invisible on light EPUB backgrounds. Always pass `--theme default` (or `neutral`) and set `--backgroundColor` to the book's background color (e.g. `"#FFFFF0"`).
+
+## ⚠️ EPUB Build Pitfalls
+
+These are real bugs caught in practice. **The build script must avoid them**:
+
+### Pitfall 1: Mermaid Text Invisible (White on Light Background)
+
+- **Symptom**: Mermaid diagram text is white and invisible on light EPUB pages
+- **Root cause**: Without `--theme`, mmdc inherits the OS dark mode and uses dark theme (white text)
+- **Fix**: Always pass `--theme default --backgroundColor "#FFFFF0"` (or the book's BG color)
+
+```bash
+# ✗ Wrong: may produce white text
+mmdc -i diagram.mmd -o diagram.svg --backgroundColor transparent
+
+# ✓ Correct: forces light theme, dark text
+mmdc -i diagram.mmd -o diagram.svg --theme default --backgroundColor "#FFFFF0"
+```
+
+### Pitfall 2: `<br />` in SVG Corrupted to `<br / />` (Invalid XML)
+
+- **Symptom**: EPUB readers report XML parse error "error parsing attribute name"
+- **Root cause**: The void-element self-closing regex `(\s[^>]*)` greedily captures the trailing ` /` in `<br />` as part of attrs, then appends ` />`, producing `<br / />` (invalid XML). Mermaid SVGs contain `<br />` inside `<foreignObject>`, so they are affected.
+- **Fix**: Change the pattern end to `\/?>` and strip trailing slash from attrs with `.replace(/\s*\/$/, '')`
+
+```js
+// ✗ Wrong: <br /> becomes <br / />
+.replace(/<(br|hr|img|...)(\s[^>]*)?\s*(?!\/)>/gi,
+  (_, tag, attrs) => `<${tag}${attrs || ''} />`)
+
+// ✓ Correct: strip trailing slash prevents double-slash
+.replace(/<(br|hr|img|...)(\s[^>]*)?\s*\/?>/gi,
+  (_, tag, attrs) => `<${tag}${(attrs || '').replace(/\s*\/$/, '')} />`)
+```
+
+### Pitfall 3: `overflow-x: auto` Not Supported in EPUB
+
+- **Symptom**: Table and diagram content overflows the page without a scrollbar
+- **Root cause**: EPUB readers (Apple Books, Kindle, etc.) do not support `overflow-x`
+- **Fix**: Use `word-break: break-word; overflow-wrap: break-word` on table cells; use `white-space: pre-wrap; word-break: break-all` on `pre`; remove all `overflow-x: auto`
+
+### Pitfall 4: Missing `vertical-align: top` on Table Cells
+
+- **Symptom**: Multi-line cell content is vertically centered, causing layout issues
+- **Fix**: Always set `vertical-align: top` on `th` and `td`
+
+```css
+/* ✓ Recommended EPUB table CSS */
+table { border-collapse: collapse; width: 100%; font-size: 0.88em; table-layout: auto; }
+th, td { border: 1px solid #D8D2C8; padding: 0.5em 0.8em;
+         word-break: break-word; overflow-wrap: break-word; vertical-align: top; }
+th { background-color: #F5F2ED; font-weight: bold; }
+td code { word-break: break-all; }
+pre { white-space: pre-wrap; word-break: break-all; }
+```
 
 #### EPUB Build Method (Zero npm Dependencies)
 
@@ -274,7 +331,7 @@ Used for card/node coloring when converting ASCII diagrams to SVG:
 - [ ] (EPUB mode) `content.opf`, `nav.xhtml`, and `toc.ncx` correctly generated
 - [ ] (EPUB mode) Each chapter XHTML `<title>` and nav/ncx entries use the real chapter title (not the filename)
 - [ ] (EPUB mode) Cover SVG (`cover.svg`) generated; `cover.xhtml` is the first item in the spine
-- [ ] (EPUB mode) Mermaid diagrams pre-rendered to SVG or gracefully degraded to code blocks
+- [ ] (EPUB mode) Mermaid diagrams pre-rendered to SVG with `--theme default` (dark text, not white) or gracefully degraded to code blocks
 
 ## Completion Marker
 
@@ -307,15 +364,17 @@ Convert all Markdown chapters into a beautiful e-book (HTML and/or EPUB, dependi
 1. Markdown → HTML/XHTML conversion
 2. **Mermaid diagram rendering**:
    - HTML mode: ` ```mermaid ` blocks rendered as interactive charts via Mermaid.js (CDN)
-   - EPUB mode: pre-render using mmdc; gracefully degrade to code blocks if mmdc is unavailable
+   - EPUB mode: pre-render using `mmdc --theme default --backgroundColor "#FFFFF0"`; **never omit `--theme default`** — system dark mode will cause white (invisible) text; gracefully degrade to code blocks if mmdc is unavailable
 3. ASCII diagrams → SVG auto-conversion (for legacy content; supports {{SVG检测类型数}} types)
 4. Code syntax highlighting
 5. Eye-friendly color scheme (warm white background, soft text)
 6. CJK typography (serif headings, sans-serif body)
 7. Navigation system (sidebar, chapter navigation, progress bar) — HTML mode
 8. EPUB 3.x structure (OPF + NAV + NCX + XHTML chapters) — EPUB mode, packaged with system zip
-9. Zero-npm-dependency Node.js build script
-10. Add <!-- BOOKBINDING_COMPLETE --> upon completion
+9. EPUB CSS: `th,td` must have `word-break:break-word; vertical-align:top`; no `overflow-x:auto`; `pre` uses `white-space:pre-wrap`
+10. HTML→XHTML void elements: regex must correctly handle `<br />`; use `.replace(/\s*\/$/, '')` on captured attrs to prevent `<br / />` (invalid XML)
+11. Zero-npm-dependency Node.js build script
+12. Add <!-- BOOKBINDING_COMPLETE --> upon completion
 ```
 
 ## Project Configuration Variables

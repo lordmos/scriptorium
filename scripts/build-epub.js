@@ -75,7 +75,7 @@ function renderMermaidToSvg(src) {
     const inFile  = path.join(tmpDir, 'diagram.mmd');
     const outFile = path.join(tmpDir, 'diagram.svg');
     fs.writeFileSync(inFile, sanitized, 'utf8');
-    execSync(`"${MMDC_PATH}" -i "${inFile}" -o "${outFile}" --backgroundColor transparent --quiet`, {
+    execSync(`"${MMDC_PATH}" -i "${inFile}" -o "${outFile}" --theme default --backgroundColor "#FFFFF0" --quiet`, {
       stdio: 'pipe', timeout: 30000,
     });
     const svgRaw = fs.readFileSync(outFile, 'utf8');
