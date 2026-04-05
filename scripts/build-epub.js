@@ -74,6 +74,23 @@ const MMDC_PATH = (() => {
 let mermaidCount    = 0;
 const mermaidPngFiles = [];   // relative hrefs: ['images/mermaid-01.png', …]
 
+// Detect Puppeteer (bundled with mmdc) for syntax-highlighted code rendering.
+const PUPPETEER_DIR = (() => {
+  if (!MMDC_PATH) return null;
+  try {
+    const real = fs.realpathSync(MMDC_PATH);
+    const p = path.join(path.dirname(path.dirname(real)), 'node_modules', 'puppeteer');
+    return fs.existsSync(path.join(p, 'package.json')) ? p : null;
+  } catch { return null; }
+})();
+
+// Module-level state for deferred code block rendering.
+// Populated during mdToXhtml(); resolved by batchRenderCodeBlocks() in build().
+const pendingCodeBlocks = [];   // { id, code, lang }
+let   codeRenderResults = {};   // id → { html } | { href }
+let   codeImgCount      = 0;
+const codePngFiles      = [];   // PNG hrefs (only when RENDER_CODE_AS_PNG = true)
+
 // Renders a Mermaid diagram to PNG and saves it into the EPUB images/ folder.
 // Returns the image href (e.g. 'images/mermaid-01.png'), or null on failure.
 //
@@ -145,6 +162,141 @@ function renderMermaidToPng(src) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Code block syntax highlighting helpers ──────────────────────────────────
+
+// Build the one-time HTML page that hosts highlight.js for reuse across all
+// code blocks in a single Puppeteer session.
+function buildCodeRendererHtml() {
+  return [
+    '<!DOCTYPE html><html><head><meta charset="UTF-8">',
+    '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">',
+    '<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>',
+    '<style>',
+    '* { margin:0; padding:0; box-sizing:border-box; }',
+    `body { background:${THEME.pageBg}; padding:16px; font-family:monospace; }`,
+    '.wrap { border-radius:8px; overflow:hidden; box-shadow:0 2px 16px rgba(0,0,0,.18);',
+    '        display:inline-block; min-width:400px; max-width:900px; }',
+    '.lang-label { background:#282c34; color:#888; font-size:11px; padding:8px 16px 4px; }',
+    'pre { overflow:visible; }',
+    "code { font-family:'SF Mono','Fira Code',Menlo,Consolas,monospace; font-size:13px; line-height:1.55; }",
+    '.hljs { padding:12px 16px 16px; border-radius:0; }',
+    '</style></head>',
+    '<body><div class="wrap" id="wrap"></div></body></html>',
+  ].join('\n');
+}
+
+// Build the Node.js batch-runner script (executed as a child process).
+// It launches ONE Puppeteer browser, renders all tasks, and writes results.json.
+function buildBatchRunnerScript(tasksFile, resultsFile, initHtmlFile, pngDir) {
+  const renderAsPng = RENDER_CODE_AS_PNG;
+  return [
+    `const puppeteer = require(${JSON.stringify(PUPPETEER_DIR)});`,
+    `const fs = require('fs'), path = require('path');`,
+    `const tasks = JSON.parse(fs.readFileSync(${JSON.stringify(tasksFile)}, 'utf8'));`,
+    `const results = {};`,
+    `(async () => {`,
+    `  const br = await puppeteer.launch({`,
+    `    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-web-security'],`,
+    `  });`,
+    `  const pg = await br.newPage();`,
+    `  await pg.setViewport({ width: 960, height: 600, deviceScaleFactor: 2 });`,
+    `  // Load via file:// so CDN resources resolve correctly`,
+    `  await pg.goto(${JSON.stringify('file://' + initHtmlFile)}, { waitUntil: 'networkidle2', timeout: 20000 });`,
+    `  for (const task of tasks) {`,
+    `    const escaped = task.code`,
+    `      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');`,
+    `    const lbl = task.lang`,
+    `      ? '<div class="lang-label">' + task.lang + '</div>' : '';`,
+    `    try {`,
+    `      if (${renderAsPng}) {`,
+    `        // PNG mode: screenshot the rendered code block`,
+    `        await pg.evaluate((esc, lang, lbl) => {`,
+    `          document.getElementById('wrap').innerHTML =`,
+    `            lbl + '<pre><code class="language-' + lang + '">' + esc + '</code></pre>';`,
+    `          hljs.highlightAll();`,
+    `        }, escaped, task.lang, lbl);`,
+    `        const pngFile = path.join(${JSON.stringify(pngDir)}, task.id + '.png');`,
+    `        const el = await pg.$('#wrap');`,
+    `        await el.screenshot({ path: pngFile });`,
+    `        results[task.id] = { success: true, pngFile };`,
+    `      } else {`,
+    `        // Inline-HTML mode: extract highlighted HTML with inline styles`,
+    `        // (keeps text selectable + searchable in EPUB readers)`,
+    `        const html = await pg.evaluate((code, lang) => {`,
+    `          const el = document.createElement('code');`,
+    `          el.textContent = code;`,
+    `          el.className = 'language-' + (lang || 'plaintext');`,
+    `          document.body.appendChild(el);`,
+    `          if (typeof hljs !== 'undefined') hljs.highlightElement(el);`,
+    `          el.querySelectorAll('[class]').forEach(span => {`,
+    `            const cs = window.getComputedStyle(span);`,
+    `            let s = '';`,
+    `            if (cs.color) s += 'color:' + cs.color + ';';`,
+    `            if (cs.fontStyle && cs.fontStyle !== 'normal')`,
+    `              s += 'font-style:' + cs.fontStyle + ';';`,
+    `            if (cs.fontWeight && cs.fontWeight !== '400')`,
+    `              s += 'font-weight:' + cs.fontWeight + ';';`,
+    `            if (s) span.setAttribute('style', s);`,
+    `            span.removeAttribute('class');`,
+    `          });`,
+    `          const h = el.innerHTML;`,
+    `          el.remove();`,
+    `          return h;`,
+    `        }, task.code, task.lang);`,
+    `        results[task.id] = { success: true, html };`,
+    `      }`,
+    `    } catch (e) {`,
+    `      results[task.id] = { success: false, error: e.message };`,
+    `    }`,
+    `  }`,
+    `  await br.close();`,
+    `  fs.writeFileSync(${JSON.stringify(resultsFile)}, JSON.stringify(results), 'utf8');`,
+    `})().catch(e => { process.stderr.write(e.message); process.exit(1); });`,
+  ].join('\n');
+}
+
+// Batch-render all pendingCodeBlocks using a single Puppeteer session.
+// Populates codeRenderResults with { html } (inline mode) or { href } (PNG mode).
+function batchRenderCodeBlocks() {
+  if (!PUPPETEER_DIR || pendingCodeBlocks.length === 0) return;
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'code-batch-'));
+  try {
+    const tasksFile    = path.join(tmpDir, 'tasks.json');
+    const resultsFile  = path.join(tmpDir, 'results.json');
+    const initHtmlFile = path.join(tmpDir, 'init.html');
+    const jsFile       = path.join(tmpDir, 'runner.js');
+    fs.writeFileSync(tasksFile,    JSON.stringify(pendingCodeBlocks), 'utf8');
+    fs.writeFileSync(initHtmlFile, buildCodeRendererHtml(),           'utf8');
+    fs.writeFileSync(jsFile, buildBatchRunnerScript(tasksFile, resultsFile, initHtmlFile, tmpDir), 'utf8');
+    execSync('node ' + JSON.stringify(jsFile), { stdio: 'pipe', timeout: 120000 });
+    if (!fs.existsSync(resultsFile)) return;
+    const raw = JSON.parse(fs.readFileSync(resultsFile, 'utf8'));
+    for (const [id, r] of Object.entries(raw)) {
+      if (!r.success) {
+        console.warn(`  ⚠  code render failed (${id}): ${r.error}`);
+        continue;
+      }
+      if (RENDER_CODE_AS_PNG && r.pngFile && fs.existsSync(r.pngFile)) {
+        codeImgCount++;
+        const imgName = `code-${String(codeImgCount).padStart(2, '0')}.png`;
+        const imgHref = `images/${imgName}`;
+        fs.copyFileSync(r.pngFile, path.join(IMAGES, imgName));
+        codePngFiles.push(imgHref);
+        codeRenderResults[id] = { href: imgHref };
+      } else if (r.html) {
+        codeRenderResults[id] = { html: r.html };
+      }
+    }
+  } catch (e) {
+    console.warn('  ⚠  Batch code rendering failed:', e.message,
+                 '\n     Falling back to plain <pre><code>');
+  } finally {
+    try { fs.rmSync(tmpDir, { recursive: true }); } catch {}
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ─────────────────────────────────────────────
 //  1. BOOK INFO  — fill in before running
 // ─────────────────────────────────────────────
@@ -209,7 +361,18 @@ const THEME = {
 // };
 
 // ─────────────────────────────────────────────
-//  4. PATHS  — usually no need to change
+//  4. CODE BLOCK RENDERING
+//  Requires mmdc (which bundles Puppeteer + Chrome).
+//
+//  false (default) — inline-styled HTML via highlight.js.
+//                    Text stays selectable & searchable. Recommended.
+//  true            — PNG image (carbon-style). Beautiful but code is
+//                    NOT copyable or searchable. Use sparingly.
+// ─────────────────────────────────────────────
+const RENDER_CODE_AS_PNG = false;
+
+// ─────────────────────────────────────────────
+//  5. PATHS  — usually no need to change
 // ─────────────────────────────────────────────
 const ROOT         = process.cwd();
 const CHAPTERS_DIR = path.join(ROOT, 'output', 'chapters', 'final');
@@ -294,6 +457,11 @@ function mdToXhtml(md) {
             `</div>`
           );
         }
+      } else if (PUPPETEER_DIR) {
+        // Defer rendering: Puppeteer batch-renders all blocks at once in build()
+        const cbId = `cb-${pendingCodeBlocks.length + 1}`;
+        pendingCodeBlocks.push({ id: cbId, code: code.trimEnd(), lang: lang || '' });
+        result.push(`\x00CBID:${cbId}\x00`);
       } else {
         const cls = lang ? ` class="language-${lang}"` : '';
         result.push(`<pre><code${cls}>${esc(code.trimEnd())}</code></pre>`);
@@ -433,6 +601,21 @@ hr { border: none; border-top: 1px solid #D8D2C8; margin: 1.5em 0; }
 .mermaid-source { border-left: 4px solid #D8D2C8; opacity: 0.7; }
 .diagram { margin: 1.2em 0; text-align: center; }
 .diagram svg { max-width: 100%; height: auto; }
+pre.highlighted {
+  background: #282c34;
+  padding: 1.2em 1.4em;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+pre.highlighted code {
+  font-family: "Source Code Pro","SF Mono","Fira Code","Courier New",monospace;
+  font-size: 0.87em;
+  line-height: 1.55;
+  color: #abb2bf;
+  background: none;
+}
+.code-img { margin: 1.2em 0; text-align: left; }
+.code-img img { max-width: 100%; border-radius: 6px; }
 `.trim();
 }
 
@@ -577,6 +760,10 @@ function buildContentOpf(chapters) {
     const id = `mermaid-img-${String(i + 1).padStart(2, '0')}`;
     return `    <item id="${id}" href="${href}" media-type="image/png"/>`;
   }).join('\n');
+  const codeItems = codePngFiles.map((href, i) => {
+    const id = `code-img-${String(i + 1).padStart(2, '0')}`;
+    return `    <item id="${id}" href="${href}" media-type="image/png"/>`;
+  }).join('\n');
   const spineItems = chapters.map(ch =>
     `    <itemref idref="${ch.id}"/>`
   ).join('\n');
@@ -598,7 +785,7 @@ function buildContentOpf(chapters) {
     <item id="cover-image" href="images/cover.svg" media-type="image/svg+xml" properties="cover-image"/>
     <item id="stylesheet"  href="../style.css"     media-type="text/css"/>
 ${manifestItems}
-${mermaidItems ? mermaidItems + '\n' : ''}  </manifest>
+${mermaidItems ? mermaidItems + '\n' : ''}${codeItems ? codeItems + '\n' : ''}  </manifest>
   <spine toc="ncx">
     <itemref idref="cover-page" linear="no"/>
 ${spineItems}
@@ -630,9 +817,13 @@ function build() {
   console.log(`   Author : ${BOOK_AUTHOR}`);
   console.log(`   Output : ${EPUB_OUT}\n`);
 
-  // Reset Mermaid PNG state for this build run
+  // Reset all per-build state
   mermaidCount = 0;
   mermaidPngFiles.length = 0;
+  pendingCodeBlocks.length = 0;
+  codeRenderResults = {};
+  codeImgCount = 0;
+  codePngFiles.length = 0;
 
   // Clean temp dir; ensure output dir exists
   if (fs.existsSync(BUILD_DIR)) fs.rmSync(BUILD_DIR, { recursive: true });
@@ -643,7 +834,12 @@ function build() {
     console.log('  ℹ  mmdc not found — Mermaid blocks will be preserved as <pre>');
     console.log('     Install: npm install -g @mermaid-js/mermaid-cli\n');
   } else {
-    console.log(`  ✓  mmdc found — Mermaid diagrams will be pre-rendered to PNG\n`);
+    console.log(`  ✓  mmdc found — Mermaid diagrams → PNG`);
+    if (PUPPETEER_DIR) {
+      const mode = RENDER_CODE_AS_PNG ? 'PNG (carbon-style)' : 'inline-styled HTML (copyable)';
+      console.log(`  ✓  Puppeteer found — code blocks → ${mode}`);
+    }
+    console.log('');
   }
 
   // Static files
@@ -653,8 +849,8 @@ function build() {
   fs.writeFileSync(path.join(IMAGES, 'cover.svg'), buildCoverSvg(), 'utf8');
   fs.writeFileSync(path.join(OEBPS, 'cover.xhtml'), buildCoverXhtml(), 'utf8');
 
-  // Process chapters
-  const builtChapters = [];
+  // Phase 1: parse all chapters to XHTML (code blocks become placeholders)
+  const pendingChapters = [];
   for (let i = 0; i < CHAPTERS.length; i++) {
     const { file, title: configTitle } = CHAPTERS[i];
     const srcPath = path.join(CHAPTERS_DIR, file);
@@ -665,21 +861,40 @@ function build() {
     }
 
     const md = fs.readFileSync(srcPath, 'utf8');
-    // Title: prefer first # heading in file; fall back to config title
     const title = extractMdTitle(md) || configTitle;
     const bodyXhtml = mdToXhtml(md);
     const num = String(i + 1).padStart(2, '0');
-    const xhtmlFile = `ch${num}.xhtml`;
-    const id = `ch${num}`;
-
-    fs.writeFileSync(path.join(OEBPS, xhtmlFile), buildChapterXhtml(title, bodyXhtml), 'utf8');
-    builtChapters.push({ id, title, xhtmlFile });
-    console.log(`  ✓ ${xhtmlFile}  ${title}`);
+    pendingChapters.push({ id: `ch${num}`, title, xhtmlFile: `ch${num}.xhtml`, bodyXhtml });
   }
 
-  if (builtChapters.length === 0) {
+  if (pendingChapters.length === 0) {
     console.error('\n✖ No chapters found. Check CHAPTERS_DIR:', CHAPTERS_DIR);
     process.exit(1);
+  }
+
+  // Phase 2: batch-render all code blocks in a single Puppeteer session
+  if (PUPPETEER_DIR && pendingCodeBlocks.length > 0) {
+    const mode = RENDER_CODE_AS_PNG ? 'PNG' : 'inline HTML';
+    console.log(`  🎨 Rendering ${pendingCodeBlocks.length} code block(s) → ${mode}...`);
+    batchRenderCodeBlocks();
+  }
+
+  // Phase 3: write chapter files (resolve code block placeholders)
+  const builtChapters = [];
+  for (const { id, title, xhtmlFile, bodyXhtml } of pendingChapters) {
+    const resolved = bodyXhtml.replace(/\x00CBID:([^\x00]+)\x00/g, (_, cbId) => {
+      const r = codeRenderResults[cbId];
+      if (r && r.href) {
+        return `<div class="code-img"><img src="${r.href}" alt="code" /></div>`;
+      }
+      if (r && r.html) {
+        return `<pre class="highlighted"><code>${r.html}</code></pre>`;
+      }
+      return `<pre><code>[code block render failed]</code></pre>`;
+    });
+    fs.writeFileSync(path.join(OEBPS, xhtmlFile), buildChapterXhtml(title, resolved), 'utf8');
+    builtChapters.push({ id, title, xhtmlFile });
+    console.log(`  ✓ ${xhtmlFile}  ${title}`);
   }
 
   // Navigation files
