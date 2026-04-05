@@ -77,12 +77,25 @@ publish/
 | flow | 水平流程图 | `→`或`──>`连接的横向流 | 横向SVG流程图 |
 | generic | 通用图表 | 其他ASCII图形 | 通用SVG转换 |
 
-### 2. 代码高亮
+### 2. 代碼高亮
 
-- 根据代码块标记的语言自动着色（如 \`\`\`typescript、\`\`\`python）
-- 支持行号显示
-- 支持代码块标题（文件路径）
-- 配色方案与整体护眼主题协调
+**EPUB 模式**（需 mmdc 附帶的 Puppeteer）：
+
+- 構建時啟動單一 Chromium 會話，使用 CDN 版 highlight.js（atom-one-dark 主題）對全書所有代碼塊批量渲染
+- 讀取每個 token 的 `getComputedStyle`，以**行內 `style="color:rgb(…)"` 屬性**寫出——不依賴外部樣式表
+- 全書代碼塊**共用一個** Chrome 進程（分攤啟動開銷）
+- 文字可選取、複製、搜尋——技術書讀者必須的能力
+- 未安裝 mmdc 或無網絡時，優雅降級為無色 `<pre><code>`
+
+**HTML 模式**：Mermaid.js CDN 動態高亮，不需要 Puppeteer。
+
+| 模式 | 工具 | 輸出格式 | 可選取文字 |
+|------|------|----------|-----------|
+| EPUB 預設 | Puppeteer + highlight.js | 行內樣式 HTML | ✅ |
+| EPUB（可選） | Puppeteer + Chrome 截圖 | PNG（Carbon 風格） | ❌ |
+| 無 Puppeteer | — | 無色 `<pre><code>` | ✅ |
+
+> 如要使用 PNG 模式，在 `build-epub.js` 中設定 `RENDER_CODE_AS_PNG = true`。
 
 ### 3. 护眼配色方案
 
@@ -212,6 +225,31 @@ fs.writeFileSync(cfgFile, JSON.stringify({
 
 - **修復**：`th` 和 `td` 必須設置 `vertical-align: top`
 
+### 坑 5：EPUB 代碼塊語法高亮色彩消失
+
+- **現象**：基於 class 的高亮（如 `.hljs-keyword { color: purple; }`）在部分 EPUB 閱讀器中失效，代碼顯示為無色純文字
+- **根因**：EPUB 閱讀器對外部樣式表的支援不一致。基於 class 的語法高亮依賴樣式表，部分閱讀器會完全忽略
+- **修復**：透過 Puppeteer 在 Chromium 內執行 highlight.js，用 `getComputedStyle` 取得色值，以每個 token `<span>` 的**行內 `style="color:rgb(…)"` 屬性**寫出——行內樣式無論外部 CSS 是否生效都必然套用
+
+```js
+// ✓ 正確：行內樣式——閱讀器無法忽略
+hljs.highlightElement(el);
+el.querySelectorAll('[class]').forEach(span => {
+  const cs = window.getComputedStyle(span);
+  let s = '';
+  if (cs.color)                         s += 'color:' + cs.color + ';';
+  if (cs.fontStyle !== 'normal')        s += 'font-style:' + cs.fontStyle + ';';
+  if (cs.fontWeight !== '400')          s += 'font-weight:' + cs.fontWeight + ';';
+  if (s) span.setAttribute('style', s);
+  span.removeAttribute('class');   // 移除 class——只依賴行內樣式
+});
+
+// ✗ 錯誤：基於 class——依賴外部 .hljs-keyword { } 樣式表
+// 在 Apple Books、Kindle 等上色彩可能完全消失
+```
+
+> 💡 PNG 模式（`RENDER_CODE_AS_PNG=true`）不建議用於技術書的原因：PNG 內的代碼**無法複製、無法搜尋**。
+
 #### EPUB 構建方式（零npm依賴）
 
 - 使用 Node.js 生成所有 XHTML 章節文件及 OPF/NCX/NAV 文檔
@@ -298,27 +336,34 @@ fs.writeFileSync(cfgFile, JSON.stringify({
 
 ### 構建工具要求
 
-- **零npm依賴**：使用純Node.js腳本構建，不依賴任何npm包
-- **單文件輸出**：每章一個自包含的HTML文件（CSS/JS內聯）
-- **構建命令**：`node build.js`（或類似的單命令構建）
+| 工具 | 必需 | 安裝方式 | 用途 |
+|------|------|----------|------|
+| Node.js ≥ 18 | ✅ 必需 | 系統安裝 | 核心構建引擎；不需要 npm 套件 |
+| `zip` | ✅ 必需 | macOS/Linux 內建；Windows 用 WSL | EPUB 打包 |
+| `mmdc`（Mermaid CLI） | ⚪ 可選 | `npm install -g @mermaid-js/mermaid-cli` | Mermaid 圖表 → PNG |
+| Puppeteer | ⚪ 可選 | mmdc 的 node_modules 已附帶（無需單獨安裝） | 代碼塊語法高亮 |
+| highlight.js | ⚪ 可選 | CDN 自動載入（需要網絡） | 高亮引擎；提取行內樣式 |
+
+> **漸進增強**：可選工具缺失時 EPUB 仍可正常生成。Mermaid 以代碼形式保留，代碼塊顯示無色。
 
 ## 質量標準
 
 - [ ] 所有 ` ```mermaid ` 塊已通過 Mermaid.js 正確渲染
 - [ ] 所有Markdown章節正確轉換爲HTML
 - [ ] ASCII圖表全部轉換爲SVG（無遺漏）
-- [ ] 代碼塊正確高亮
+- [ ] 代碼塊已正確高亮（EPUB 模式：行內樣式 HTML，不依賴外部 CSS）
 - [ ] 護眼配色方案正確應用
 - [ ] CJK排版規範（襯線標題 + 無襯線正文）
 - [ ] 導航系統功能完整
 - [ ] 響應式佈局（適配桌面和平板）
-- [ ] 構建腳本無npm依賴
+- [ ] 構建腳本核心無 npm 依賴（Node.js + 系統 zip 可運行）
 - [ ] （EPUB模式）`{{epub文件名}}.epub` 已生成並通過 EPUB 3.x 合規性檢查
 - [ ] （EPUB模式）所有章節已轉換爲有效 XHTML
 - [ ] （EPUB模式）`content.opf`、`nav.xhtml`、`toc.ncx` 均正確生成
 - [ ] （EPUB模式）每章 XHTML 的 `<title>` 與 nav/ncx 條目均使用真實章節標題（非文件名）
 - [ ] （EPUB模式）封面 SVG（`cover.svg`）已生成，`cover.xhtml` 爲書脊第一項
 - [ ] （EPUB模式）Mermaid 圖表已預渲染爲 **PNG**（`-o diagram.png`）並以 `<img>` 嵌入，或以代碼形式優雅降級
+- [ ] （EPUB模式）代碼塊已透過 Puppeteer + highlight.js 批量渲染為行內樣式 HTML，或優雅降級為無色 `<pre><code>`
 
 ## 完成标记
 
@@ -353,7 +398,11 @@ fs.writeFileSync(cfgFile, JSON.stringify({
    - HTML模式：` ```mermaid ` 塊通過引入 Mermaid.js（CDN）渲染爲交互式圖表
    - EPUB模式：輸出 **PNG**（`-o diagram.png`）——Chromium 光柵化時 CSS 完全正確，顏色與閱讀器無關（見坑 1）；未安裝 mmdc 時優雅降級爲代碼塊
 3. ASCII圖表 → SVG自動轉換（兼容存量內容，支持{{SVG檢測類型數}}種類型）
-4. 代碼高亮
+4. **代碼高亮**（EPUB 模式）：
+   - Puppeteer（mmdc 附帶）+ highlight.js（CDN）批量渲染，逐 token 提取行內 `style="color:rgb(…)"` 屬性
+   - **文字可選取、複製、搜尋**——技術書不可或缺（見坑 5）
+   - 全書代碼塊共用一個 Chrome 會話（分攤啟動開銷）
+   - 未安裝 mmdc 或無網絡時，優雅降級為無色 `<pre><code>`
 5. 護眼配色（暖白背景、柔和文字）
 6. CJK排版（襯線標題、無襯線正文）
 7. 導航系統（側邊欄、章節導航、進度條）—— HTML模式

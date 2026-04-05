@@ -79,10 +79,23 @@ The following {{SVG检测类型数}} **ASCII-compatible diagram** types are supp
 
 ### 2. Code Syntax Highlighting
 
-- Automatic colorization based on the language tag on the code block (e.g., \`\`\`typescript, \`\`\`python)
-- Line number display support
-- Code block title support (file paths)
-- Color scheme coordinated with the overall eye-friendly theme
+**EPUB mode** (requires Puppeteer, bundled with mmdc):
+
+- At build time, one Chromium session loads highlight.js (atom-one-dark theme via CDN) and batch-renders all code blocks
+- Extracts `getComputedStyle` result for each token and writes it as an **inline `style="color:rgb(…)"`** attribute — no external stylesheet dependency
+- All blocks in the book share **one** Chrome process (startup cost amortised)
+- Text remains selectable, copyable, and searchable — essential for technical book readers
+- Gracefully degrades to plain `<pre><code>` if mmdc is not installed or CDN is unreachable
+
+**HTML mode**: Dynamically highlighted by Mermaid.js CDN — no Puppeteer needed.
+
+| Mode | Tool | Output | Text selectable |
+|------|------|--------|----------------|
+| EPUB default | Puppeteer + highlight.js | Inline-styled HTML | ✅ |
+| EPUB optional | Puppeteer + Chrome screenshot | PNG (carbon-style) | ❌ |
+| No Puppeteer | — | Plain `<pre><code>` (no colour) | ✅ |
+
+> To enable PNG mode, set `RENDER_CODE_AS_PNG = true` in `build-epub.js`.
 
 ### 3. Eye-Friendly Color Scheme
 
@@ -235,7 +248,32 @@ td code { word-break: break-all; }
 pre { white-space: pre-wrap; word-break: break-all; }
 ```
 
-#### EPUB Build Method (Zero npm Dependencies)
+### Pitfall 5: Code Syntax Highlighting Colours Lost in EPUB
+
+- **Symptom**: Class-based highlighting (e.g., `.hljs-keyword { color: purple; }`) has no effect in some EPUB readers — all code appears as unstyled text
+- **Root cause**: EPUB readers have inconsistent support for external stylesheets; class-based syntax highlighting depends entirely on a stylesheet that may be ignored
+- **Fix**: Run highlight.js inside Chromium via Puppeteer, call `getComputedStyle` to extract resolved colours, and write them as **inline `style="color:rgb(…)"` attributes** on every token `<span>` — inline styles are always applied, regardless of the reader's stylesheet handling
+
+```js
+// ✓ Correct: inline styles — the reader cannot ignore them
+hljs.highlightElement(el);
+el.querySelectorAll('[class]').forEach(span => {
+  const cs = window.getComputedStyle(span);
+  let s = '';
+  if (cs.color)                         s += 'color:' + cs.color + ';';
+  if (cs.fontStyle !== 'normal')        s += 'font-style:' + cs.fontStyle + ';';
+  if (cs.fontWeight !== '400')          s += 'font-weight:' + cs.fontWeight + ';';
+  if (s) span.setAttribute('style', s);
+  span.removeAttribute('class');   // remove class — rely on inline style only
+});
+
+// ✗ Wrong: class-based, depends on external .hljs-keyword { } stylesheet
+// Colours may disappear entirely in Apple Books, Kindle, etc.
+```
+
+> 💡 Why PNG mode (`RENDER_CODE_AS_PNG=true`) is not recommended for technical books: code in a PNG is **not copyable and not searchable**.
+
+
 
 - Node.js generates all XHTML chapter files plus OPF/NCX/NAV documents
 - The system `zip` command packages the archive (built-in on macOS/Linux; use WSL or Git Bash on Windows):
@@ -338,27 +376,34 @@ Used for card/node coloring when converting ASCII diagrams to SVG:
 
 ### Build Tool Requirements
 
-- **Zero npm dependencies**: Built with a pure Node.js script — no npm packages required
-- **Single-file output**: Each chapter is a self-contained HTML file (CSS/JS inlined)
-- **Build command**: `node build.js` (or a similar single-command build)
+| Tool | Required | Install | Purpose |
+|------|----------|---------|---------|
+| Node.js ≥ 18 | ✅ Required | System install | Core build engine; no npm packages needed |
+| `zip` | ✅ Required | Built-in on macOS/Linux; WSL on Windows | EPUB packaging |
+| `mmdc` (Mermaid CLI) | ⚪ Optional | `npm install -g @mermaid-js/mermaid-cli` | Mermaid diagrams → PNG |
+| Puppeteer | ⚪ Optional | Auto-detected from mmdc's node_modules | Code block syntax highlighting |
+| highlight.js | ⚪ Optional | CDN auto-loaded (requires network) | Highlighting engine; extracts inline styles |
+
+> **Progressive enhancement**: Without any optional tools, the EPUB is generated correctly — Mermaid blocks are preserved as code and code blocks have no colour.
 
 ## Quality Standards
 
 - [ ] All ` ```mermaid ` blocks have been correctly rendered via Mermaid.js
 - [ ] All Markdown chapters have been correctly converted to HTML
 - [ ] All ASCII diagrams have been converted to SVG (none missed)
-- [ ] Code blocks are correctly highlighted
+- [ ] Code blocks are correctly highlighted (EPUB mode: inline-styled HTML — colours independent of external CSS)
 - [ ] Eye-friendly color scheme is correctly applied
 - [ ] CJK typography conventions followed (serif headings + sans-serif body)
 - [ ] Navigation system is fully functional
 - [ ] Responsive layout (compatible with desktop and tablet)
-- [ ] Build script has no npm dependencies
+- [ ] Build script core has no npm dependencies (Node.js + system zip is sufficient)
 - [ ] (EPUB mode) `{{epub文件名}}.epub` generated and passes EPUB 3.x compliance check
 - [ ] (EPUB mode) All chapters converted to valid XHTML
 - [ ] (EPUB mode) `content.opf`, `nav.xhtml`, and `toc.ncx` correctly generated
 - [ ] (EPUB mode) Each chapter XHTML `<title>` and nav/ncx entries use the real chapter title (not the filename)
 - [ ] (EPUB mode) Cover SVG (`cover.svg`) generated; `cover.xhtml` is the first item in the spine
 - [ ] (EPUB mode) Mermaid diagrams pre-rendered to **PNG** (`-o diagram.png`) and embedded as `<img>`, or gracefully degraded to code blocks
+- [ ] (EPUB mode) Code blocks batch-rendered via Puppeteer + highlight.js to inline-styled HTML, or gracefully degraded to plain `<pre><code>`
 
 ## Completion Marker
 
@@ -393,7 +438,11 @@ Convert all Markdown chapters into a beautiful e-book (HTML and/or EPUB, dependi
    - HTML mode: ` ```mermaid ` blocks rendered as interactive charts via Mermaid.js (CDN)
    - EPUB mode: output **PNG** (`-o diagram.png`) — Chromium rasterises with full CSS fidelity so colours are reader-independent (see Pitfall 1); gracefully degrade to code blocks if mmdc is unavailable
 3. ASCII diagrams → SVG auto-conversion (for legacy content; supports {{SVG检测类型数}} types)
-4. Code syntax highlighting
+4. **Code syntax highlighting** (EPUB mode):
+   - Batch-renders via Puppeteer (bundled with mmdc) + highlight.js (CDN), extracts inline `style="color:rgb(…)"` per token
+   - **Text remains selectable, copyable, and searchable** — essential for technical books (see Pitfall 5)
+   - All blocks share one Chrome session (startup cost amortised)
+   - Gracefully degrades to plain `<pre><code>` if mmdc is unavailable or CDN is unreachable
 5. Eye-friendly color scheme (warm white background, soft text)
 6. CJK typography (serif headings, sans-serif body)
 7. Navigation system (sidebar, chapter navigation, progress bar) — HTML mode

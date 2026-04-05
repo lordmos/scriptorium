@@ -67,10 +67,23 @@ output/publish/
 
 ### 2. 代码高亮
 
-- 根据代码块标记的语言自动着色（如 \`\`\`typescript、\`\`\`python）
-- 支持行号显示
-- 支持代码块标题（文件路径）
-- 配色方案与整体护眼主题协调
+**EPUB 模式**（需要 mmdc 附带的 Puppeteer）：
+
+- 构建时通过 Puppeteer 启动一个 Chromium 会话，调用 CDN 版 highlight.js（atom-one-dark 主题）批量渲染所有代码块
+- 提取每个 token 的 `getComputedStyle` 结果，写为**内联 `style="color:rgb(…)"` 属性**，不依赖外部 CSS
+- 全书所有代码块共用**一个** Chrome 进程（摊薄启动开销）
+- 文字可选中、可复制、可搜索——适合技术书读者
+- 未安装 mmdc / 无网络时优雅降级为纯色 `<pre><code>`
+
+**HTML 模式**：通过 Mermaid.js CDN 动态高亮，不需要 Puppeteer。
+
+| 模式 | 工具 | 输出形式 | 文字可选中 |
+|------|------|----------|----------|
+| EPUB 默认 | Puppeteer + highlight.js | 内联 inline-styled HTML | ✅ |
+| EPUB（可选） | Puppeteer + Chromium 截图 | PNG 图片（Carbon 风格） | ❌ |
+| 无 Puppeteer | 无 | 纯 `<pre><code>`（无颜色） | ✅ |
+
+> 若需启用 PNG 模式，在 `build-epub.js` 中设置 `RENDER_CODE_AS_PNG = true`。
 
 ### 3. 护眼配色方案
 
@@ -223,7 +236,32 @@ td code { word-break: break-all; }
 pre { white-space: pre-wrap; word-break: break-all; }
 ```
 
-#### EPUB 构建方式（零npm依赖）
+### 坑 5：代码块语法高亮颜色在 EPUB 中失效
+
+- **现象**：CSS 类名方式的高亮（如 `.hljs-keyword { color: purple; }`）在部分阅读器中不生效，代码块颜色全部丢失
+- **根因**：EPUB 阅读器对外部样式表的支持参差不齐，class-based 语法高亮依赖样式表，在某些阅读器中被完全忽略
+- **修复**：用 Puppeteer 在 Chromium 中运行 highlight.js，调用 `getComputedStyle` 将颜色提取为**内联 `style="color:rgb(…)"` 属性**，嵌入每个 token `<span>`——内联样式不依赖外部 CSS，在所有阅读器中均有效
+
+```js
+// ✓ 正确：内联样式，阅读器无法忽略
+hljs.highlightElement(el);
+el.querySelectorAll('[class]').forEach(span => {
+  const cs = window.getComputedStyle(span);
+  let s = '';
+  if (cs.color)                         s += 'color:' + cs.color + ';';
+  if (cs.fontStyle !== 'normal')        s += 'font-style:' + cs.fontStyle + ';';
+  if (cs.fontWeight !== '400')          s += 'font-weight:' + cs.fontWeight + ';';
+  if (s) span.setAttribute('style', s);
+  span.removeAttribute('class');   // 移除 class，只保留 inline style
+});
+
+// ✗ 错误：class-based，依赖外部 .hljs-keyword { } 样式表
+// 在 Apple Books、Kindle 等阅读器中颜色可能全部消失
+```
+
+> 💡 同理，为什么 PNG 模式（`RENDER_CODE_AS_PNG=true`）虽然视觉更漂亮，但技术书不推荐：PNG 中的代码**不可复制、不可搜索**，对读者不友好。
+
+
 
 - 使用 Node.js 生成所有 XHTML 章节文件及 OPF/NCX/NAV 文档
 - 调用系统 `zip` 命令打包（macOS/Linux 内置；Windows 需 WSL 或 Git Bash）：
@@ -326,31 +364,34 @@ pre { white-space: pre-wrap; word-break: break-all; }
 
 ### 构建工具要求
 
-- **零npm依赖**：使用纯Node.js脚本构建，不依赖任何npm包
-- **单文件输出**：每章一个自包含的HTML文件（CSS/JS内联）
-- **构建命令**：`node build.js`（或类似的单命令构建）
+| 工具 | 必需 | 安装方式 | 作用 |
+|------|------|----------|------|
+| Node.js ≥ 18 | ✅ 必需 | 系统安装 | 核心构建引擎；无需任何 npm 包 |
+| `zip` | ✅ 必需 | macOS/Linux 内置；Windows 用 WSL | EPUB 打包 |
+| `mmdc`（Mermaid CLI） | ⚪ 可选 | `npm install -g @mermaid-js/mermaid-cli` | Mermaid 图表 → PNG |
+| Puppeteer | ⚪ 可选 | mmdc 附带，无需单独安装 | 代码块语法高亮 |
+| highlight.js | ⚪ 可选 | CDN 自动加载（需联网） | 高亮引擎，提取 inline styles |
 
-> 💡 项目根目录提供了 `scripts/build.js` 构建脚本模板，
-> 复制到书籍项目根目录后修改 CONFIG 部分即可直接运行。
-> 运行命令：`node build.js`（Node.js ≥ 18）
+> **渐进增强**：无任何可选工具时，EPUB 正常生成，只是 Mermaid 以代码形式保留、代码块无颜色。
 
 ## 质量标准
 
 - [ ] 所有 ` ```mermaid ` 块已通过 Mermaid.js 正确渲染
 - [ ] 所有Markdown章节正确转换为HTML
 - [ ] ASCII图表全部转换为SVG（无遗漏）
-- [ ] 代码块正确高亮
+- [ ] 代码块正确高亮（EPUB模式：内联 inline-styled HTML，颜色不依赖外部 CSS）
 - [ ] 护眼配色方案正确应用
 - [ ] CJK排版规范（衬线标题 + 无衬线正文）
 - [ ] 导航系统功能完整
 - [ ] 响应式布局（适配桌面和平板）
-- [ ] 构建脚本无npm依赖
+- [ ] 构建脚本核心无npm依赖（Node.js + 系统zip即可运行）
 - [ ] （EPUB模式）`{{epub文件名}}.epub` 已生成并通过 EPUB 3.x 合规性检查
 - [ ] （EPUB模式）所有章节已转换为有效 XHTML
 - [ ] （EPUB模式）`content.opf`、`nav.xhtml`、`toc.ncx` 均正确生成
 - [ ] （EPUB模式）每章 XHTML 的 `<title>` 与 nav/ncx 条目均使用真实章节标题（非文件名）
 - [ ] （EPUB模式）封面 SVG（`cover.svg`）已生成，`cover.xhtml` 为书脊第一项
 - [ ] （EPUB模式）Mermaid 图表已预渲染为 **PNG**（`-o diagram.png`）并以 `<img>` 嵌入，或以代码形式优雅降级
+- [ ] （EPUB模式）代码块已通过 Puppeteer + highlight.js 批量渲染为内联样式 HTML，或优雅降级为纯 `<pre><code>`
 
 ## 配色主题选择（Phase 5 启动前必询问）
 
@@ -426,7 +467,11 @@ node scripts/build.js
    - HTML模式：` ```mermaid ` 块通过引入 Mermaid.js（CDN）渲染为交互式图表
    - EPUB模式：调用 `mmdc` 输出 **PNG**（`-o diagram.png`）并以 `<img>` 嵌入；PNG 由 Chromium 光栅化，颜色完全可控，不受阅读器 CSS 干预（见坑 1）；未安装 mmdc 时优雅降级为代码块
 3. ASCII图表 → SVG自动转换（兼容存量内容，支持{{SVG检测类型数}}种类型）
-4. 代码高亮
+4. **代码高亮**（EPUB模式）：
+   - 通过 Puppeteer（mmdc 附带）+ highlight.js（CDN）批量渲染，提取 inline `style="color:rgb(…)"` 属性
+   - **文字可选中、可复制、可搜索**——技术书必须保留这一特性（见坑 5）
+   - 全书共用一个 Chrome 会话（摊薄启动开销）
+   - 未安装 mmdc / 无网络时优雅降级为纯 `<pre><code>`
 5. 护眼配色（暖白背景、柔和文字）
 6. CJK排版（衬线标题、无衬线正文）
 7. 导航系统（侧边栏、章节导航、进度条）—— HTML模式
