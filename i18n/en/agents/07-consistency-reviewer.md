@@ -19,7 +19,7 @@
 | Role Metaphor | Book Memory Manager / Continuity Supervisor |
 | Agent Type | explore |
 | Participation Phase | Phase 3 Step 3 (parallel review with R1 and R3) |
-| Core Input | Chapter draft, long-memory files (chapter-summaries / glossary / metaphor-registry) |
+| Core Input | Chapter draft, style-guide.md, long-memory files (chapter-summaries / glossary / metaphor-registry) |
 | Core Output | `reviews/chXX-r2-consistency.md` (consistency report) |
 
 ## Core Responsibilities
@@ -28,15 +28,17 @@
 2. **Metaphor Conflict Detection** — Check whether metaphors in the new chapter conflict with or contradict existing metaphors in `metaphor-registry.md`
 3. **Cross-Chapter Consistency** — Compare against `chapter-summaries.md` to ensure technical claims do not contradict earlier chapters
 4. **Transition Naturalness Assessment** — Evaluate whether the new chapter flows naturally to and from adjacent chapters
+5. **Format Compliance Check** — Against `style-guide.md`, verify that heading levels, numbering formats, chapter structure, and special markers are consistent throughout the chapter
 
 ## Input Files
 
 | File | Description |
 |------|-------------|
-| `{{工作目录}}/drafts/chXX-draft.md` | Chapter draft to be reviewed |
-| `{{工作目录}}/chapter-summaries.md` | Content summaries of completed chapters |
-| `{{工作目录}}/glossary.md` | Full-book glossary |
-| `{{工作目录}}/metaphor-registry.md` | Metaphor registry |
+| `{{工作目录}}/output/chapters/draft/chXX-draft.md` | Chapter draft to be reviewed |
+| `{{工作目录}}/output/memory/style-guide.md` | Full-book writing style guide (basis for format compliance checks) |
+| `{{工作目录}}/output/memory/chapter-summaries.md` | Content summaries of completed chapters |
+| `{{工作目录}}/output/memory/glossary.md` | Full-book glossary |
+| `{{工作目录}}/output/memory/metaphor-registry.md` | Metaphor registry |
 
 > 💡 **Key Design**: R2 does not need access to source code — only the long-memory files. This is what enables R2 to work fully in parallel with R1 (which needs source code) without interference.
 
@@ -87,6 +89,17 @@
 - **Setup for next chapter**: ✅ Sufficient / ⚠️ Insufficient
   - Comment: {{具体评价}}
 
+## Format Compliance
+
+| # | Location | Issue Description | style-guide Rule | Severity |
+|---|----------|-------------------|-----------------|----------|
+| 1 | {{e.g. "Section 3 heading"}} | {{e.g. "Uses H4 (####)"}} | {{e.g. "H4 should be avoided; restructure if too deep"}} | 🟡 Medium |
+
+- **Heading levels compliant**: ✅ / ❌ (H1 exactly once, H2 between 3–6, no H4)
+- **Chapter structure complete**: ✅ / ❌ (includes opening hook, summary, etc.)
+- **Numbering format consistent**: ✅ / ❌ (ordered lists all use `1.` format, no mixing)
+- **Special markers used correctly**: ✅ / ❌ (💡⚠️🔍📝 only in their defined contexts)
+
 ## Issue Summary
 
 | # | Type | Severity | Description | Suggested Fix |
@@ -111,6 +124,10 @@ The following should be updated in the long-memory files after this chapter is f
 | Natural transitions between chapters | The opening of the new chapter echoes the close of the previous one |
 | New terms explained on first use | Newly introduced terms are defined when they first appear |
 | Cross-references are accurate | References like "as described in Chapter X" point to the correct location |
+| Heading levels comply with style-guide | H1 exactly once, H2 between 3–6, H4 not used |
+| Chapter structure matches template | Includes required sections: opening hook, summary, etc. |
+| Numbering format is consistent | Ordered lists all use `1.` format without mixing |
+| Special markers used correctly | 💡⚠️🔍📝 only used in their style-guide-defined contexts |
 
 ## Quality Standards
 
@@ -120,6 +137,7 @@ The following should be updated in the long-memory files after this chapter is f
 - [ ] Transition naturalness has been specifically assessed
 - [ ] Each issue has a suggested fix
 - [ ] Long-memory update suggestions have been provided
+- [ ] All format deviations have been flagged (headings / numbering / structure / markers)
 
 ## Completion Marker
 
@@ -136,18 +154,20 @@ You are a Book Memory Manager specializing in ensuring consistency across multi-
 Check the consistency of the Chapter {{章节号}} draft against existing book content.
 
 ## Input (only the following files are needed — no source code required)
-- Chapter draft: {{工作目录}}/drafts/ch{{章节号}}-draft.md
-- Existing chapter summaries: {{工作目录}}/chapter-summaries.md
-- Glossary: {{工作目录}}/glossary.md
-- Metaphor registry: {{工作目录}}/metaphor-registry.md
+- Chapter draft: {{工作目录}}/output/chapters/draft/ch{{章节号}}-draft.md
+- Writing style guide: {{工作目录}}/output/memory/style-guide.md
+- Existing chapter summaries: {{工作目录}}/output/memory/chapter-summaries.md
+- Glossary: {{工作目录}}/output/memory/glossary.md
+- Metaphor registry: {{工作目录}}/output/memory/metaphor-registry.md
 
 ## Review Requirements
 - Check terminology consistency one by one
 - Check whether metaphors conflict with existing ones
 - Compare technical claims for contradictions with prior content
 - Assess naturalness of transitions between chapters
+- **Check format compliance against style-guide.md**: heading levels (H1 exactly once / H2: 3–6 / no H4), chapter structure completeness, numbering format consistency, special marker usage
 - No need to check code accuracy (that is R1's responsibility)
-- Output to: {{工作目录}}/reviews/ch{{章节号}}-r2-consistency.md
+- Output to: {{工作目录}}/output/reviews/ch{{章节号}}-r2.md
 - Add <!-- R2_CONSISTENCY_REVIEW_COMPLETE --> upon completion
 ```
 
