@@ -124,7 +124,36 @@ function renderMermaidToSvg(src) {
 
     const svgRaw = fs.readFileSync(outFile, 'utf8');
     const m = svgRaw.match(/<svg[\s\S]*<\/svg>/i);
-    return m ? m[0] : null;
+    if (!m) return null;
+
+    // EPUB readers do NOT apply SVG <style> rules to HTML inside <foreignObject>.
+    // Node/edge labels are rendered as <div>/<span>/<p> inside foreignObject,
+    // so their text color is inherited from the EPUB reader's own CSS (which
+    // may be white in dark-mode readers). Fix: inject explicit color inline.
+    const textColor = THEME.textColor;
+    const nodeBg    = '#C8E6FA';
+    const svg = m[0]
+      // Inject color into every <div inside foreignObject
+      .replace(/(<div\b[^>]*\bstyle=")([^"]*")/g,
+        (_, before, rest) => `${before}color:${textColor};${rest}`)
+      // Inject color into every <span inside foreignObject
+      .replace(/(<span\b[^>]*\bstyle=")([^"]*")/g,
+        (_, before, rest) => `${before}color:${textColor};${rest}`)
+      // Also cover <div> / <span> with no style attr at all
+      .replace(/<div\b([^>]*?)(?=\s*>)/g, (match, attrs) =>
+        attrs.includes('style=') ? match : `<div${attrs} style="color:${textColor};"`)
+      .replace(/<span\b([^>]*?)(?=\s*>)/g, (match, attrs) =>
+        attrs.includes('style=') ? match : `<span${attrs} style="color:${textColor};"`)
+      // Also inject color on <p> elements (edge labels use <p> tags)
+      .replace(/<p\b([^>]*?)(?=\s*>)/g, (match, attrs) =>
+        attrs.includes('style=') ? match
+          : `<p${attrs} style="color:${textColor};"`)
+      // Ensure node rects have the explicit fill (in case scoped CSS is stripped)
+      .replace(/(<(?:rect|polygon|ellipse|circle)\b[^>]*\bclass="[^"]*label-container[^"]*"[^>]*\bstyle=")([^"]*")/g,
+        (_, before, rest) => `${before}fill:${nodeBg};${rest}`)
+      .replace(/(<(?:rect|polygon|ellipse|circle)\b[^>]*\bclass="[^"]*label-container[^"]*"(?!\s+style=)[^>]*?)(\s*\/>|>)/g,
+        (_, before, end) => `${before} style="fill:${nodeBg};"${end}`);
+    return svg;
   } catch (e) {
     // Print first stderr line so build output gives a useful hint
     const hint = (e.stderr || '').toString().split('\n').find(l => l.trim()) || e.message || '';
