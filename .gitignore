@@ -11,4 +11,5 @@ angular-main/
 
 # Book project output (generated content, project-specific)
 output/.DS_Store
-.DS_Storeexamples/*.epub
+.DS_Store
+examples/*.epub
