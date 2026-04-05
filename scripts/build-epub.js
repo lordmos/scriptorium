@@ -212,9 +212,9 @@ function mdToXhtml(md) {
     const body = rows.slice(2).map(r => {
       const cells = r.split('|').filter((_, i, a) => i > 0 && i < a.length - 1)
         .map(c => `<td>${inline(c.trim())}</td>`).join('');
-      return `<tr>${cells}</tr>`;
-    }).join('\n');
-    return `<table>\n<thead><tr>${header}</tr></thead>\n<tbody>\n${body}\n</tbody>\n</table>`;
+      return `\n<tr>${cells}</tr>`;
+    }).join('');
+    return `<table>\n<thead>\n<tr>${header}</tr>\n</thead>\n<tbody>${body}\n</tbody>\n</table>`;
   }
 
   while (pi < pLines.length) {
@@ -363,9 +363,11 @@ pre,code {
 pre  { padding: 1em; margin: 1em 0; white-space: pre-wrap; word-break: break-all; }
 code { padding: 0.1em 0.3em; }
 pre code { padding: 0; background: none; }
-table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 0.92em; }
-th,td { border: 1px solid #D8D2C8; padding: 0.5em 0.8em; text-align: left; }
-th    { background: ${t.codeBg}; font-weight: bold; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 0.88em; table-layout: auto; }
+th,td { border: 1px solid #D8D2C8; padding: 0.5em 0.8em; text-align: left;
+        word-break: break-word; overflow-wrap: break-word; vertical-align: top; }
+th    { background-color: ${t.codeBg}; font-weight: bold; }
+td code { word-break: break-all; }
 blockquote {
   border-left: 4px solid ${t.accentColor};
   margin: 1em 0; padding: 0.5em 1em;
@@ -373,7 +375,7 @@ blockquote {
 }
 hr { border: none; border-top: 1px solid #D8D2C8; margin: 1.5em 0; }
 .mermaid-source { border-left: 4px solid #D8D2C8; opacity: 0.7; }
-.diagram { margin: 1.2em 0; text-align: center; overflow-x: auto; }
+.diagram { margin: 1.2em 0; text-align: center; }
 .diagram svg { max-width: 100%; height: auto; }
 `.trim();
 }
