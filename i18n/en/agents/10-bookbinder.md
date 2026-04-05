@@ -146,42 +146,48 @@ EPUB readers generally do not support JavaScript, so Mermaid diagrams **must be 
 
 | Scenario | Handling |
 |----------|----------|
-| `mmdc` (Mermaid CLI) is installed | Use `-c config.json` with explicit `themeVariables` (see Pitfall 1) to pre-render |
+| `mmdc` (Mermaid CLI) is installed | Use `-c config.json` with `theme: 'base'` + explicit `themeVariables` (see Pitfall 1) to pre-render |
 | `mmdc` is not installed | Preserve Mermaid code as `<pre class="mermaid-source">` with a fallback comment |
 
 > Recommendation: Install `npm install -g @mermaid-js/mermaid-cli` before generating EPUB.
 
-> ⚠️ **`--theme default` alone is not enough on mmdc ≥ 10.x**: even with `--theme default`, puppeteer's headless Chrome may still apply dark-mode CSS variables, producing white text. Always use a JSON config file that explicitly sets `primaryTextColor`. See Pitfall 1.
+> ⚠️ **Always use `theme: 'base'` in the Mermaid config file**: `--theme default` has its own CSS cascade that dark-mode headless Chrome can partially override, causing low-contrast or white text. The `base` theme is 100% controlled by your `themeVariables`. See Pitfall 1.
 
 ## ⚠️ EPUB Build Pitfalls
 
 These are real bugs caught in practice. **The build script must avoid them**:
 
-### Pitfall 1: Mermaid Text Invisible (White on Light Background)
+### Pitfall 1: Mermaid Text Invisible or Low-Contrast
 
-- **Symptom**: Mermaid diagram text is white and invisible on light EPUB pages; node backgrounds are nearly white
-- **Root cause**: On mmdc ≥ 10.x, even `--theme default` may not override dark-mode CSS variables inside the headless browser. `primaryTextColor` defaults to white when dark mode is active.
-- **Fix**: Write an explicit Mermaid JSON config file with `themeVariables`, and pass it with `-c`. Do not rely on `--theme default` alone.
+- **Symptom**: Mermaid diagram text is white/invisible, or text and node background colors are so similar they're unreadable
+- **Root cause 1**: `theme: 'default'` has its own CSS variable cascade; headless Chrome's dark mode can still partially override `themeVariables`
+- **Root cause 2**: Unset variables (e.g. `secondaryColor`) fall back to `default` theme values that may have very low contrast with your `primaryTextColor`
+- **Fix**: Use `theme: 'base'` instead of `'default'`. The `base` theme is 100% controlled by `themeVariables` — it inherits no CSS cascade and is designed for programmatic rendering.
 
 ```js
-// ✓ Correct: explicit themeVariables in a config file
+// ✓ Correct: theme:'base' + explicit high-contrast themeVariables
 const cfgFile = path.join(tmpDir, 'mmd-config.json');
 fs.writeFileSync(cfgFile, JSON.stringify({
-  theme: 'default',
+  theme: 'base',          // key: no CSS inheritance — everything from themeVariables
   themeVariables: {
-    background:          THEME.pageBg,    // SVG canvas background
-    primaryColor:        '#E8E4FF',        // node fill — visible lavender
-    primaryTextColor:    THEME.textColor,  // text inside nodes (critical!)
-    primaryBorderColor:  '#7C5CBF',
-    lineColor:           '#555555',
-    edgeLabelBackground: THEME.pageBg,
-    fontSize:            '16px',
+    background:           THEME.pageBg,
+    primaryColor:         '#C8E6FA',   // light-blue fill — clearly visible
+    primaryTextColor:     '#111111',   // near-black — maximum contrast
+    primaryBorderColor:   '#2B7BC2',
+    secondaryColor:       '#D4EDDA',   secondaryTextColor: '#111111',
+    tertiaryColor:        '#FFF3CD',   tertiaryTextColor:  '#111111',
+    lineColor:            '#444444',
+    edgeLabelBackground:  THEME.pageBg,
+    clusterBkg:           THEME.pageBg,
+    actorBkg:             '#C8E6FA',   actorTextColor: '#111111',
+    titleColor:           THEME.textColor,
+    fontSize:             '16px',
   },
 }), 'utf8');
 execSync(`mmdc -i "${inFile}" -o "${outFile}" -c "${cfgFile}" --backgroundColor "${THEME.pageBg}" --quiet`);
 
-// ✗ Wrong: --theme default alone fails on dark-mode machines (mmdc ≥ 10)
-execSync(`mmdc -i diagram.mmd -o diagram.svg --theme default --backgroundColor "#FFFFF0"`);
+// ✗ Wrong: theme:'default' has CSS cascade — contrast cannot be guaranteed
+fs.writeFileSync(cfgFile, JSON.stringify({ theme: 'default', themeVariables: { ... } }));
 ```
 
 ### Pitfall 2: `<br />` in SVG Corrupted to `<br / />` (Invalid XML)
@@ -377,7 +383,7 @@ Convert all Markdown chapters into a beautiful e-book (HTML and/or EPUB, dependi
 1. Markdown → HTML/XHTML conversion
 2. **Mermaid diagram rendering**:
    - HTML mode: ` ```mermaid ` blocks rendered as interactive charts via Mermaid.js (CDN)
-   - EPUB mode: **must use `-c config.json` with explicit `themeVariables`** (especially `primaryTextColor`) to pre-render Mermaid as SVG; `--theme default` alone is unreliable on mmdc ≥ 10.x in dark mode; gracefully degrade to code blocks if mmdc is unavailable
+   - EPUB mode: **must use `-c config.json` with `theme: 'base'` and explicit `themeVariables`** to pre-render Mermaid as SVG; `base` theme has no CSS cascade so contrast is guaranteed; gracefully degrade to code blocks if mmdc is unavailable
 3. ASCII diagrams → SVG auto-conversion (for legacy content; supports {{SVG检测类型数}} types)
 4. Code syntax highlighting
 5. Eye-friendly color scheme (warm white background, soft text)

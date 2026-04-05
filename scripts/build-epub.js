@@ -80,18 +80,40 @@ function renderMermaidToSvg(src) {
     // Write an explicit Mermaid config so that system dark-mode CSS cannot
     // override text/node colors inside the headless browser used by mmdc.
     // --theme default alone is insufficient on dark-mode machines (mmdc ≥ 10).
+    // Use theme:'base' — unlike 'default', 'base' is 100% controlled by
+    // themeVariables and does NOT inherit any CSS cascade from the headless
+    // browser, so dark-mode OS settings can never override our colors.
     fs.writeFileSync(cfgFile, JSON.stringify({
-      theme: 'default',
+      theme: 'base',
       themeVariables: {
-        background:          THEME.pageBg,
-        primaryColor:        '#E8E4FF',      // node fill — slightly saturated lavender
-        primaryTextColor:    THEME.textColor, // text inside nodes — matches page text
-        primaryBorderColor:  '#7C5CBF',
-        lineColor:           '#555555',
-        edgeLabelBackground: THEME.pageBg,
-        secondaryColor:      '#F0F4FF',
-        tertiaryColor:       '#FFF5E6',
-        fontSize:            '16px',
+        // Canvas / overall background
+        background:            THEME.pageBg,
+        // Primary nodes (flowchart, sequence, class …)
+        primaryColor:          '#C8E6FA',   // light steel-blue fill — clearly visible
+        primaryTextColor:      '#111111',   // near-black text — maximum contrast
+        primaryBorderColor:    '#2B7BC2',
+        // Secondary / tertiary nodes
+        secondaryColor:        '#D4EDDA',   // light green
+        secondaryTextColor:    '#111111',
+        secondaryBorderColor:  '#388E3C',
+        tertiaryColor:         '#FFF3CD',   // light amber
+        tertiaryTextColor:     '#111111',
+        tertiaryBorderColor:   '#856404',
+        // Edges / connectors
+        lineColor:             '#444444',
+        edgeLabelBackground:   THEME.pageBg,
+        // Subgraph / cluster
+        clusterBkg:            THEME.pageBg,
+        clusterBorder:         '#AAAAAA',
+        // Sequence-diagram participants
+        actorBkg:              '#C8E6FA',
+        actorTextColor:        '#111111',
+        actorBorder:           '#2B7BC2',
+        actorLineColor:        '#444444',
+        // Title / labels
+        titleColor:            THEME.textColor,
+        fontFamily:            'Georgia, "Times New Roman", serif',
+        fontSize:              '16px',
       },
     }), 'utf8');
 
